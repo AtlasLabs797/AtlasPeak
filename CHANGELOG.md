@@ -10,6 +10,30 @@
 
 ## [No publicado]
 
+### Fase 1 - Fundacion + i18n
+
+#### 2026-05-23 - Base Room, tema y navegacion
+
+**Anadido**
+- Implementada `AppDatabase` Room v1 con SQLCipher, 20 tablas y schema exportado.
+- Anadidas entities/DAOs base, cache Health Connect, `DatabaseSeeder` idempotente y seed data.
+- Anadido `DatabasePassphraseProvider` con clave aleatoria protegida por Android Keystore /
+  `EncryptedSharedPreferences`.
+- Implementado `AtlasPeakTheme`, tokens de color/spacing/shape, tipografia base, NavHost raiz,
+  bottom navigation de 5 tabs y `FLAG_SECURE` por ruta sensible.
+- Anadidos tests unitarios de seed data y tests instrumentados de Room compilables.
+
+**Cambiado**
+- `users.email` pasa a nullable porque Google/Drive es opcional.
+- `SPEC.md` y `DOCS_TECNICA.md` nombran las 20 tablas reales de DB v1.
+- `app/build.gradle.kts` anade dependencias instrumentadas para Room/testing.
+
+**Verificado**
+- `./gradlew assembleDebug assembleRelease test lint` pasa.
+- `compileDebugAndroidTestKotlin` pasa.
+- QA visual/instrumented runtime bloqueada: el AVD x86_64 requiere aceleracion Hyper-V/WHPX,
+  no disponible actualmente en esta maquina.
+
 ### Fase 0 - Preflight local para ejecucion v1
 
 #### 2026-05-23 - Entorno de ejecucion y gates base
@@ -25,7 +49,7 @@
 - `./gradlew assembleDebug assembleRelease test lint` pasa en el estado base.
 - `test` sigue sin ejecutar tests reales (`NO-SOURCE`); Fase 1 debe anadir cobertura real.
 
-### Fase 0 — Bootstrap (en curso)
+### Fase 0 — Bootstrap (cerrada)
 
 #### 2026-05-23 — Preparación de entorno local y build Android
 

@@ -31,6 +31,15 @@ salvo lo que el propio Google maneja en su OAuth.
 Estos se detectaron al auditar el spec **antes** de escribir código. Los fixes están
 reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de versiones.
 
+### SEC-010 — DB SQLCipher y clave local protegida
+- **Estado:** 🟢 Resuelto
+- **Fecha:** 2026-05-23
+- **Severidad:** Alta
+- **Síntoma:** Fase 1 necesitaba abrir Room con SQLCipher sin persistir una clave de DB en texto plano.
+- **Causa raíz:** el bootstrap solo declaraba SQLCipher como dependencia; no existía ciclo de vida de clave.
+- **Solución:** `DatabasePassphraseProvider` genera 32 bytes aleatorios con `SecureRandom`, los guarda codificados en `EncryptedSharedPreferences` protegido por Android Keystore, y entrega la passphrase a `SupportOpenHelperFactory`.
+- **Prevención:** no usar `fallbackToDestructiveMigration()` fuera de tests; revisar este flujo en Fase 13 junto con backup/restore.
+
 ### SEC-001 — Backup no restaurable: falta el salt en el archivo cifrado
 - **Estado:** 🟢 Resuelto (en diseño)
 - **Fecha:** 2026-05-23

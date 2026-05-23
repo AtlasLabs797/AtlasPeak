@@ -35,4 +35,21 @@
     <!-- Errores genéricos -->
     <string name="error_generic">Algo salió mal. Inténtalo de nuevo.</string>
     <string name="error_no_connection">Sin conexión a internet.</string>
+    <!-- Pantallas base -->
+    <string name="screen_home_title">Inicio</string>
+    <string name="screen_train_title">Entrenar</string>
+    <string name="screen_progress_title">Progreso</string>
+    <string name="screen_body_title">Cuerpo</string>
+    <string name="screen_profile_title">Perfil</string>
+    <string name="theme_system">Sistema</string>
+    <string name="theme_light">Claro</string>
+    <string name="theme_dark">Oscuro</string>
+    <string name="state_loading">Cargando</string>
+    <string name="state_empty_title">Sin datos todavia</string>
+    <string name="state_empty_body">Esta seccion se activara al completar su fase.</string>
+    <string name="nav_cd_home">Ir a Inicio</string>
+    <string name="nav_cd_train">Ir a Entrenar</string>
+    <string name="nav_cd_progress">Ir a Progreso</string>
+    <string name="nav_cd_body">Ir a Cuerpo</string>
+    <string name="nav_cd_profile">Ir a Perfil</string>
 </resources>

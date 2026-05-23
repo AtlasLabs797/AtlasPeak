@@ -28,4 +28,20 @@
 
     <string name="error_generic">Something went wrong. Please try again.</string>
     <string name="error_no_connection">No internet connection.</string>
+    <string name="screen_home_title">Home</string>
+    <string name="screen_train_title">Train</string>
+    <string name="screen_progress_title">Progress</string>
+    <string name="screen_body_title">Body</string>
+    <string name="screen_profile_title">Profile</string>
+    <string name="theme_system">System</string>
+    <string name="theme_light">Light</string>
+    <string name="theme_dark">Dark</string>
+    <string name="state_loading">Loading</string>
+    <string name="state_empty_title">No data yet</string>
+    <string name="state_empty_body">This section will become active when its phase is complete.</string>
+    <string name="nav_cd_home">Go to Home</string>
+    <string name="nav_cd_train">Go to Train</string>
+    <string name="nav_cd_progress">Go to Progress</string>
+    <string name="nav_cd_body">Go to Body</string>
+    <string name="nav_cd_profile">Go to Profile</string>
 </resources>

@@ -5,6 +5,8 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
+import com.atlaspeak.presentation.navigation.AtlasPeakApp
+import com.atlaspeak.presentation.theme.AtlasPeakTheme
 import dagger.hilt.android.AndroidEntryPoint
 
 /**
@@ -21,7 +23,9 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContent {
-            // TODO(Fase 1): AtlasPeakTheme { AtlasPeakNavHost() }
+            AtlasPeakTheme {
+                AtlasPeakApp()
+            }
         }
     }
 }

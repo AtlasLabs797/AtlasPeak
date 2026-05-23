@@ -76,7 +76,9 @@ MainActivity.kt
 20 tablas. Núcleo: `users`, `user_profile`, `muscle_groups` (seed), `exercises`,
 `routines`, `routine_exercises`, `workout_sessions`, `workout_sets`, `cardio_types` (seed),
 `cardio_sessions`, `body_composition`, `weekly_plan`, `hc_sync_log`, `app_settings`
-(singleton), `auth_security` (singleton).
+(singleton), `auth_security` (singleton), `hc_steps_records`,
+`hc_active_calories_records`, `hc_sleep_sessions`, `hc_sleep_stages` y
+`hc_heart_rate_samples`.
 
 Notas de integridad:
 - Timestamps `Long` epoch ms UTC.
@@ -92,7 +94,7 @@ Notas de integridad:
 ## 5. Seguridad (detalle en `SECURITY.md`)
 
 - **Login:** contraseña local con PBKDF2-HMAC-SHA256, **600.000 iter**, salt de 32 bytes.
-  Hash y salt en `EncryptedSharedPreferences`. Ejecución en `Dispatchers.IO`.
+  Hash y salt en la DB SQLCipher. Ejecución en `Dispatchers.IO`.
 - **Biometría:** `BiometricPrompt` clase `BIOMETRIC_STRONG`. Solo desbloqueo, no auth nueva.
   Timeout configurable (1/5/15/nunca). Re-pide al volver a foreground tras el timeout.
 - **Rate limiting:** 5 intentos → bloqueo 15 min. Contador en tabla `auth_security` (DB cifrada).

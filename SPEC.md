@@ -597,7 +597,7 @@ AUTENTICACIÓN Y PERFIL
 users
   id                TEXT    PK          -- UUID generado localmente
   google_id         TEXT                -- nullable, id de cuenta Google
-  email             TEXT    NOT NULL    -- almacenado cifrado
+  email             TEXT                -- nullable; Google/Drive es opcional
   password_hash     TEXT    NOT NULL    -- PBKDF2-HMAC-SHA256, 600k iter
   password_salt     TEXT    NOT NULL    -- 32 bytes aleatorios, base64
   created_at        INTEGER NOT NULL
@@ -776,6 +776,69 @@ auth_security       (tabla singleton — siempre id = 1)
   id                INTEGER PK DEFAULT 1
   failed_attempts   INTEGER DEFAULT 0
   locked_until      INTEGER             -- nullable, timestamp de fin de bloqueo
+
+hc_steps_records
+  id                TEXT    PK
+  hc_record_id      TEXT    NOT NULL UNIQUE
+  source_package    TEXT    NOT NULL
+  last_modified_at  INTEGER NOT NULL
+  recording_method  INTEGER
+  imported_at       INTEGER NOT NULL
+  start_time        INTEGER NOT NULL
+  end_time          INTEGER NOT NULL
+  start_zone_offset TEXT
+  end_zone_offset   TEXT
+  count             INTEGER NOT NULL
+
+hc_active_calories_records
+  id                TEXT    PK
+  hc_record_id      TEXT    NOT NULL UNIQUE
+  source_package    TEXT    NOT NULL
+  last_modified_at  INTEGER NOT NULL
+  recording_method  INTEGER
+  imported_at       INTEGER NOT NULL
+  start_time        INTEGER NOT NULL
+  end_time          INTEGER NOT NULL
+  start_zone_offset TEXT
+  end_zone_offset   TEXT
+  kilocalories      REAL    NOT NULL
+
+hc_sleep_sessions
+  id                TEXT    PK
+  hc_record_id      TEXT    NOT NULL UNIQUE
+  source_package    TEXT    NOT NULL
+  last_modified_at  INTEGER NOT NULL
+  recording_method  INTEGER
+  imported_at       INTEGER NOT NULL
+  start_time        INTEGER NOT NULL
+  end_time          INTEGER NOT NULL
+  start_zone_offset TEXT
+  end_zone_offset   TEXT
+  title             TEXT
+  notes             TEXT
+
+hc_sleep_stages
+  id                TEXT    PK
+  sleep_session_id  TEXT    NOT NULL FK -> hc_sleep_sessions.id
+  hc_record_id      TEXT    NOT NULL UNIQUE
+  source_package    TEXT    NOT NULL
+  last_modified_at  INTEGER NOT NULL
+  recording_method  INTEGER
+  imported_at       INTEGER NOT NULL
+  start_time        INTEGER NOT NULL
+  end_time          INTEGER NOT NULL
+  stage_type        INTEGER NOT NULL
+
+hc_heart_rate_samples
+  id                TEXT    PK
+  hc_record_id      TEXT    NOT NULL
+  source_package    TEXT    NOT NULL
+  last_modified_at  INTEGER NOT NULL
+  recording_method  INTEGER
+  imported_at       INTEGER NOT NULL
+  sampled_at        INTEGER NOT NULL
+  bpm               INTEGER NOT NULL
+  UNIQUE(hc_record_id, sampled_at)
 ```
 
 ### Estrategia de Migraciones Room

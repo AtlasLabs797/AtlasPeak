@@ -1,20 +1,27 @@
 package com.atlaspeak
 
 import android.app.Application
+import com.atlaspeak.data.db.seed.DatabaseSeeder
 import dagger.hilt.android.HiltAndroidApp
+import javax.inject.Inject
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 /**
- * Punto de entrada de la app. Hilt genera el contenedor a partir de aquí.
+ * Punto de entrada de la app. Hilt genera el contenedor a partir de aqui.
  *
- * Fase 0/1: aquí se inicializará WorkManager con la factory de Hilt, se crearán los
- * canales de notificación y se disparará la apertura de la DB cifrada (SQLCipher).
- * Ver SPEC.md §2.8 (canales) y DOCS_TECNICA.md §4 (DB/clave).
+ * WorkManager, canales de notificacion y jobs en segundo plano se activan en sus fases.
  */
 @HiltAndroidApp
 class AtlasPeakApplication : Application() {
+    @Inject lateinit var databaseSeeder: DatabaseSeeder
+
     override fun onCreate() {
         super.onCreate()
-        // TODO(Fase 1): inicializar canales de notificación.
-        // TODO(Fase 1): inicializar EncryptionManager / apertura de DB.
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            databaseSeeder.seed()
+        }
     }
 }
