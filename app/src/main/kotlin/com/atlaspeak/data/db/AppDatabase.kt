@@ -8,6 +8,7 @@ import com.atlaspeak.data.db.dao.ExerciseDao
 import com.atlaspeak.data.db.dao.HealthConnectDao
 import com.atlaspeak.data.db.dao.ReferenceDao
 import com.atlaspeak.data.db.dao.SettingsDao
+import com.atlaspeak.data.db.dao.UserDao
 import com.atlaspeak.data.db.entity.AppSettingsEntity
 import com.atlaspeak.data.db.entity.AuthSecurityEntity
 import com.atlaspeak.data.db.entity.BodyCompositionEntity
@@ -56,6 +57,7 @@ import com.atlaspeak.data.db.entity.WorkoutSetEntity
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
+    abstract fun userDao(): UserDao
     abstract fun referenceDao(): ReferenceDao
     abstract fun exerciseDao(): ExerciseDao
     abstract fun cardioDao(): CardioDao

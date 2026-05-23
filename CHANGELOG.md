@@ -10,6 +10,48 @@
 
 ## [No publicado]
 
+### Fase 2 - Autenticacion completa
+
+#### 2026-05-23 - Auth local, Google opcional y biometria fuerte
+
+**Anadido**
+- Implementado `EncryptionManager` con PBKDF2-HMAC-SHA256 a 600.000 iteraciones, salt de
+  32 bytes, comparacion constante y wrappers AES-256-GCM.
+- Anadidos modelos/domain/use cases de auth: `LocalAuthUseCase`, `GoogleSignInUseCase`,
+  `BiometricAuthPolicy` y contratos `AuthRepository`/`PasswordHasher`.
+- Implementado `RoomAuthRepository` usando tabla `users` para hash/salt y `auth_security`
+  para bloqueo persistente de 5 intentos / 15 minutos.
+- Anadido cliente Google Identity Services con Credential Manager; con placeholders locales
+  devuelve estado `NotConfigured` sin intentar OAuth real.
+- Anadido `LoginScreen` + `AuthViewModel`; el `NavHost` arranca en Login y navega a Home
+  solo tras autenticacion o creacion de contrasena local.
+- Anadido `BiometricPromptAuthenticator` con `BIOMETRIC_STRONG` y `MainActivity` basada en
+  `FragmentActivity` para soportar `BiometricPrompt`.
+- Anadido opt-in de biometria durante setup de contrasena y boton de desbloqueo biometrico
+  solo cuando existe contrasena local y el usuario lo habilito.
+- Anadida ruta placeholder `BackupRestore` para que `FLAG_SECURE` cubra tambien backup.
+- Anadidos tests unitarios de crypto, rate limiting, biometria, Google config y prevencion
+  de bypass con Google.
+
+**Cambiado**
+- `SPEC.md` queda alineado con la decision real: Google es opcional y hash/salt viven en
+  DB SQLCipher, no en `EncryptedSharedPreferences`.
+- `DOCS_TECNICA.md` documenta el gate de Login como destino inicial.
+- Anadida dependencia `lifecycle-viewmodel-ktx` via catalogo de versiones.
+- Credential Manager se lanza desde la `FragmentActivity`; ya no hay cliente singleton con
+  application context.
+- Las constantes de lockout viven en `LocalAuthPolicy`, no en el use case.
+
+**Seguridad**
+- Registrado `SEC-011`: auth local con PBKDF2 600k, lockout persistente y gate real.
+
+**Verificado**
+- `./gradlew assembleDebug assembleRelease test lint compileDebugAndroidTestKotlin` pasa.
+- `git diff --check` pasa.
+- QA visual/instrumented runtime sigue bloqueada por falta de aceleracion Hyper-V/WHPX en
+  el AVD local (`emulator -accel-check` devuelve codigo 6); se mantiene pendiente hasta
+  tener emulador operativo o dispositivo fisico.
+
 ### Fase 1 - Fundacion + i18n
 
 #### 2026-05-23 - Base Room, tema y navegacion

@@ -5,6 +5,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.atlaspeak.R
+import com.atlaspeak.presentation.auth.LoginRoute
 import com.atlaspeak.presentation.screen.PlaceholderScreen
 
 @Composable
@@ -13,10 +14,19 @@ fun AtlasPeakNavHost(
 ) {
     NavHost(
         navController = navController,
-        startDestination = AppRoute.Home.route,
+        startDestination = AppRoute.Login.route,
     ) {
         composable(AppRoute.Login.route) {
-            PlaceholderScreen(titleRes = R.string.auth_unlock)
+            LoginRoute(
+                onAuthenticated = {
+                    navController.navigate(AppRoute.Home.route) {
+                        popUpTo(AppRoute.Login.route) {
+                            inclusive = true
+                        }
+                        launchSingleTop = true
+                    }
+                },
+            )
         }
         composable(AppRoute.Biometric.route) {
             PlaceholderScreen(titleRes = R.string.auth_unlock)
@@ -38,6 +48,9 @@ fun AtlasPeakNavHost(
         }
         composable(AppRoute.Profile.route) {
             PlaceholderScreen(titleRes = R.string.screen_profile_title)
+        }
+        composable(AppRoute.BackupRestore.route) {
+            PlaceholderScreen(titleRes = R.string.screen_backup_restore_title)
         }
     }
 }

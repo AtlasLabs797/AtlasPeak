@@ -15,6 +15,19 @@ import com.atlaspeak.data.db.entity.HcSleepStageEntity
 import com.atlaspeak.data.db.entity.HcStepsRecordEntity
 import com.atlaspeak.data.db.entity.HcSyncLogEntity
 import com.atlaspeak.data.db.entity.MuscleGroupEntity
+import com.atlaspeak.data.db.entity.UserEntity
+
+@Dao
+interface UserDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertUser(user: UserEntity)
+
+    @Query("SELECT * FROM users LIMIT 1")
+    suspend fun getLocalUser(): UserEntity?
+
+    @Query("UPDATE users SET last_login_at = :lastLoginAt WHERE id = :id")
+    suspend fun updateLastLoginAt(id: String, lastLoginAt: Long)
+}
 
 @Dao
 interface ReferenceDao {
@@ -50,12 +63,18 @@ interface SettingsDao {
 
     @Query("SELECT * FROM app_settings WHERE id = 1")
     suspend fun getSettings(): AppSettingsEntity?
+
+    @Query("UPDATE app_settings SET biometrics_enabled = :enabled WHERE id = 1")
+    suspend fun updateBiometricsEnabled(enabled: Boolean)
 }
 
 @Dao
 interface AuthSecurityDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAuthSecurity(authSecurity: AuthSecurityEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAuthSecurity(authSecurity: AuthSecurityEntity)
 
     @Query("SELECT * FROM auth_security WHERE id = 1")
     suspend fun getAuthSecurity(): AuthSecurityEntity?

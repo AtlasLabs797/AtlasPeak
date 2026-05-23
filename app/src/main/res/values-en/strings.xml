@@ -24,7 +24,27 @@
     <string name="onboarding_password_warning">Write it down: if you forget it and lose your Google account, your data can\'t be recovered.</string>
 
     <string name="auth_unlock">Unlock</string>
+    <string name="auth_unlock_body">Enter your local password to open Atlas Peak.</string>
+    <string name="auth_setup_title">Protect your local data</string>
+    <string name="auth_setup_body">Create a local password. Google is optional; this password protects your data and encrypted backups.</string>
+    <string name="auth_setup_action">Create password</string>
+    <string name="auth_password_label">Password</string>
+    <string name="auth_confirm_password_label">Confirm password</string>
+    <string name="auth_google_action">Connect optional Google</string>
+    <string name="auth_biometric_action">Unlock with biometrics</string>
+    <string name="auth_biometric_prompt_title">Unlock Atlas Peak</string>
+    <string name="auth_biometric_prompt_subtitle">Use strong device biometrics.</string>
+    <string name="auth_enable_biometrics">Allow biometric unlock on this device</string>
     <string name="auth_locked_message">Too many attempts. Try again later.</string>
+    <string name="auth_error_invalid_credentials">Incorrect password.</string>
+    <string name="auth_error_passwords_mismatch">Passwords do not match.</string>
+    <string name="auth_error_weak_password">Use at least 8 characters.</string>
+    <string name="auth_error_local_password_required">Create a local password first.</string>
+    <string name="auth_google_requires_local_password">Google does not unlock your local data. Use your password.</string>
+    <string name="auth_error_google_not_configured">Google is not configured in this environment.</string>
+    <string name="auth_google_cancelled">Google sign-in cancelled.</string>
+    <string name="auth_error_google_failed">Could not sign in with Google.</string>
+    <string name="auth_error_biometric_failed">Could not unlock with biometrics.</string>
 
     <string name="error_generic">Something went wrong. Please try again.</string>
     <string name="error_no_connection">No internet connection.</string>
@@ -33,6 +53,7 @@
     <string name="screen_progress_title">Progress</string>
     <string name="screen_body_title">Body</string>
     <string name="screen_profile_title">Profile</string>
+    <string name="screen_backup_restore_title">Backup and restore</string>
     <string name="theme_system">System</string>
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>

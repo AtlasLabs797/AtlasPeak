@@ -283,10 +283,10 @@ Reloj → Teléfono (MessageClient — eventos puntuales):
 
 ### 2.12 AUTENTICACIÓN Y SEGURIDAD
 
-- **Google Identity Services (Credential Manager API)** como método principal de sign-in
+- **Google Identity Services (Credential Manager API)** como conexión opcional para Drive/Google; la app no depende de backend ni de cuenta Google
 - **Contraseña local obligatoria** — configurada durante onboarding, sirve como acceso de respaldo si se pierde la cuenta Google
 - **Hashing de contraseña:** PBKDF2-HMAC-SHA256 con **600.000 iteraciones** (OWASP) + salt aleatorio de 32 bytes, ejecutado en coroutine (no en main thread)
-- Contraseña y salt almacenados en `EncryptedSharedPreferences`
+- Hash de contraseña y salt almacenados en la tabla `users` de la DB SQLCipher
 - **Biometría:** `BiometricPrompt` con `BIOMETRIC_STRONG` (Clase 3 — huella dactilar segura, reconocimiento facial 3D). Nivel `BIOMETRIC_WEAK` explícitamente rechazado
 - Biometría es opcional y configurable; solo sirve para desbloquear la app, no como autenticación nueva
 - Biometría se solicita al volver al foreground después del timeout configurado (1 / 5 / 15 minutos / nunca)
@@ -1098,9 +1098,9 @@ Flujo Auth (fuera del NavHost principal):
 
 | Capa | Tecnología | Notas |
 |------|------------|-------|
-| Sign-In principal | Google Identity Services (Credential Manager) | Reemplaza GMS Auth (deprecated) |
+| Sign-In Google opcional | Google Identity Services (Credential Manager) | Reemplaza GMS Auth (deprecated); usado para Drive/Google |
 | Contraseña respaldo | PBKDF2-HMAC-SHA256, 600.000 iter, salt 32B | Ejecución en `Dispatchers.IO` |
-| Almacenamiento | `EncryptedSharedPreferences` | Backed by Android Keystore |
+| Almacenamiento hash/salt | Tabla `users` en DB SQLCipher | La clave de DB vive protegida por Android Keystore |
 | Biometría | `BiometricPrompt` clase `BIOMETRIC_STRONG` | Solo desbloqueo, no auth nueva |
 | Rate limiting | 5 intentos → lock 15 min | Solo contraseña local |
 | Pantallas sensibles | `FLAG_SECURE` | Login, Perfil, Backup, Biometría |
@@ -1373,10 +1373,10 @@ jobs:
 - Módulo Wear OS: estructura básica del proyecto
 
 **FASE 2 — Autenticación completa (2 semanas)**
-- Google Identity Services Sign-In (Credential Manager API)
-- Contraseña local: PBKDF2-HMAC-SHA256 (600k iter), salt, hash en `EncryptedSharedPreferences`, contador de intentos en tabla auth_security
+- Google Identity Services Sign-In opcional (Credential Manager API)
+- Contraseña local: PBKDF2-HMAC-SHA256 (600k iter), salt, hash en tabla `users`, contador de intentos en tabla `auth_security`
 - `BiometricPrompt` con `BIOMETRIC_STRONG` + lógica de timeout configurable
-- Rate limiting en contraseña local (5 intentos, 15 min lock, `EncryptedSharedPreferences`)
+- Rate limiting en contraseña local (5 intentos, 15 min lock, tabla `auth_security`)
 - `LoginScreen` con `FLAG_SECURE`
 - `AuthViewModel` + `LocalAuthUseCase` + `GoogleSignInUseCase`
 - `EncryptionManager.kt`: wrappers de Keystore, AES-256-GCM, PBKDF2

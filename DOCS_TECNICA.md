@@ -46,6 +46,7 @@ domain/
   repository/    interfaces (contratos)
   usecase/       auth/ workout/ cardio/ progress/ body/ healthconnect/ backup/ plan/
 presentation/
+  auth/          LoginScreen, AuthViewModel, BiometricPromptAuthenticator
   screen/        auth/ onboarding/ home/ workout/ cardio/ progress/ body/ plan/ profile/
   component/     composables reutilizables (MetricCard, PeriodSelector, Chart, RestTimer…)
   viewmodel/     1 ViewModel por feature; expone StateFlow<UiState>
@@ -95,6 +96,10 @@ Notas de integridad:
 
 - **Login:** contraseña local con PBKDF2-HMAC-SHA256, **600.000 iter**, salt de 32 bytes.
   Hash y salt en la DB SQLCipher. Ejecución en `Dispatchers.IO`.
+- **Gate de app:** `AtlasPeakNavHost` arranca en `Login`. Tras autenticación local correcta
+  navega a `Home` limpiando la pantalla de login del back stack.
+- **Google:** Credential Manager se lanza desde la `FragmentActivity` de UI. Un resultado
+  Google correcto **no desbloquea** la DB local; la contraseña local sigue siendo el gate.
 - **Biometría:** `BiometricPrompt` clase `BIOMETRIC_STRONG`. Solo desbloqueo, no auth nueva.
   Timeout configurable (1/5/15/nunca). Re-pide al volver a foreground tras el timeout.
 - **Rate limiting:** 5 intentos → bloqueo 15 min. Contador en tabla `auth_security` (DB cifrada).

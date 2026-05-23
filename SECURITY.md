@@ -40,6 +40,15 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
 - **Solución:** `DatabasePassphraseProvider` genera 32 bytes aleatorios con `SecureRandom`, los guarda codificados en `EncryptedSharedPreferences` protegido por Android Keystore, y entrega la passphrase a `SupportOpenHelperFactory`.
 - **Prevención:** no usar `fallbackToDestructiveMigration()` fuera de tests; revisar este flujo en Fase 13 junto con backup/restore.
 
+### SEC-011 — Auth local con PBKDF2 y rate-limit persistente
+- **Estado:** 🟢 Resuelto
+- **Fecha:** 2026-05-23
+- **Severidad:** Alta
+- **Síntoma:** Fase 2 necesitaba un gate local real; dejar el `NavHost` arrancando en `Home` convertía auth en teatro.
+- **Causa raíz:** Fase 1 solo tenía rutas placeholder y la tabla `auth_security`, sin DAO/repositorio/use case de autenticación.
+- **Solución:** `LoginScreen` es el destino inicial, `LocalAuthUseCase` usa PBKDF2-HMAC-SHA256 con 600.000 iteraciones y salt de 32 bytes, comparación constante, y bloqueo persistente de 5 intentos/15 min en `auth_security`. Google Identity no desbloquea datos locales; solo informa de conexión opcional. Biometría requiere contraseña local previa y opt-in guardado.
+- **Prevención:** constantes únicas en `EncryptionManager`/`LocalAuthPolicy`, tests unitarios de crypto/rate-limit/bypass de Google y `FLAG_SECURE` por ruta sensible.
+
 ### SEC-001 — Backup no restaurable: falta el salt en el archivo cifrado
 - **Estado:** 🟢 Resuelto (en diseño)
 - **Fecha:** 2026-05-23
