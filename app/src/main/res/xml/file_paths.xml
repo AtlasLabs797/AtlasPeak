@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <!-- Exports temporales en almacenamiento privado, compartidos via ShareSheet -->
+    <files-path name="exports" path="exports/" />
+    <cache-path name="shared_cache" path="shared/" />
+</paths>

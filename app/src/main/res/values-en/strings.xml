@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Atlas Peak</string>
+
+    <string name="nav_home">Home</string>
+    <string name="nav_train">Train</string>
+    <string name="nav_progress">Progress</string>
+    <string name="nav_body">Body</string>
+    <string name="nav_profile">Profile</string>
+
+    <string name="action_save">Save</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_edit">Edit</string>
+    <string name="action_start">Start</string>
+    <string name="action_skip">Skip</string>
+    <string name="action_continue">Continue</string>
+    <string name="action_retry">Retry</string>
+
+    <string name="onboarding_welcome_title">Your training, on your device</string>
+    <string name="onboarding_get_started">Get started</string>
+    <string name="onboarding_google_optional">Connect with Google (optional)</string>
+    <string name="onboarding_password_title">Create your backup password</string>
+    <string name="onboarding_password_warning">Write it down: if you forget it and lose your Google account, your data can\'t be recovered.</string>
+
+    <string name="auth_unlock">Unlock</string>
+    <string name="auth_locked_message">Too many attempts. Try again later.</string>
+
+    <string name="error_generic">Something went wrong. Please try again.</string>
+    <string name="error_no_connection">No internet connection.</string>
+</resources>

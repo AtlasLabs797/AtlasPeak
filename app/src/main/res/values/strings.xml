@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- i18n desde el día 1 (CLAUDE.md regla 4). Idioma por defecto: español.
+     NUNCA hardcodear texto en Compose. Toda string nueva va aquí y en values-en/. -->
+<resources>
+    <string name="app_name">Atlas Peak</string>
+
+    <!-- Navegación -->
+    <string name="nav_home">Inicio</string>
+    <string name="nav_train">Entrenar</string>
+    <string name="nav_progress">Progreso</string>
+    <string name="nav_body">Cuerpo</string>
+    <string name="nav_profile">Perfil</string>
+
+    <!-- Acciones comunes -->
+    <string name="action_save">Guardar</string>
+    <string name="action_cancel">Cancelar</string>
+    <string name="action_delete">Eliminar</string>
+    <string name="action_edit">Editar</string>
+    <string name="action_start">Iniciar</string>
+    <string name="action_skip">Saltar</string>
+    <string name="action_continue">Continuar</string>
+    <string name="action_retry">Reintentar</string>
+
+    <!-- Onboarding -->
+    <string name="onboarding_welcome_title">Tu entrenamiento, en tu dispositivo</string>
+    <string name="onboarding_get_started">Empezar</string>
+    <string name="onboarding_google_optional">Conectar con Google (opcional)</string>
+    <string name="onboarding_password_title">Crea tu contraseña de respaldo</string>
+    <string name="onboarding_password_warning">Apúntala bien: si la olvidas y pierdes tu cuenta de Google, no podrás recuperar tus datos.</string>
+
+    <!-- Auth -->
+    <string name="auth_unlock">Desbloquear</string>
+    <string name="auth_locked_message">Demasiados intentos. Inténtalo de nuevo más tarde.</string>
+
+    <!-- Errores genéricos -->
+    <string name="error_generic">Algo salió mal. Inténtalo de nuevo.</string>
+    <string name="error_no_connection">Sin conexión a internet.</string>
+</resources>

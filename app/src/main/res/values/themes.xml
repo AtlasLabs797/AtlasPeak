@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Tema base. El esquema de color Material 3 real se aplica desde Compose (Theme.kt).
+         Estos estilos XML solo cubren el arranque (splash + ventana). Ver DESIGN.md. -->
+    <style name="Theme.AtlasPeak" parent="android:Theme.Material.Light.NoActionBar" />
+
+    <style name="Theme.AtlasPeak.Splash" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/splash_background</item>
+        <item name="postSplashScreenTheme">@style/Theme.AtlasPeak</item>
+    </style>
+</resources>

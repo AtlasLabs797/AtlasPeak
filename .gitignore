@@ -1,0 +1,26 @@
+# ─── Secretos: NUNCA al repo (SECURITY.md SEC-004/005) ───────────────────
+secrets.properties
+keystore.properties
+*.jks
+*.keystore
+google-services.json
+local.properties
+
+# ─── Gradle / build ──────────────────────────────────────────────────────
+.gradle/
+.kotlin/
+build/
+captures/
+.cxx/
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# ─── Android Studio / IDE ────────────────────────────────────────────────
+.idea/
+*.iml
+.DS_Store
+
+# ─── Logs ────────────────────────────────────────────────────────────────
+*.log
