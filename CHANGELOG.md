@@ -10,6 +10,51 @@
 
 ## [No publicado]
 
+### Fase 4 - Ejercicios y rutinas
+
+#### 2026-05-23 - Biblioteca, CRUD custom y constructor de rutinas
+
+**Anadido**
+- Anadidos modelos de dominio `MuscleGroup`, `Exercise`, `Routine`, `RoutineExercise` y
+  `RoutineExerciseInput`.
+- Anadidos contratos `ExerciseRepository`/`RoutineRepository` y use cases de busqueda,
+  creacion, edicion, archivado y calculo de duracion estimada.
+- Implementados `RoomExerciseRepository` y `RoomRoutineRepository` sobre DAOs existentes;
+  no cambia el schema Room v1.
+- Ampliados `ReferenceDao`, `ExerciseDao` y nuevo `RoutineDao` para lectura, upsert y soft
+  delete de ejercicios/rutinas.
+- Reemplazado el placeholder de `Train` por `TrainScreen` con tabs de ejercicios y rutinas.
+- La biblioteca de ejercicios incluye busqueda, filtro por grupo muscular, creacion/edicion
+  de ejercicios custom y archivado por soft delete.
+- El constructor de rutinas permite nombre, color tag, ejercicios, series, reps, peso,
+  descanso, orden editable con drag vertical y botones accesibles, y detalle de rutina.
+- Anadidos strings ES/EN para toda la UI de Fase 4.
+- Anadidos tests unitarios de `ExerciseUseCase` y `RoutineUseCase`, incluyendo actualizacion
+  por id para no duplicar entidades al editar.
+
+**Cambiado**
+- `AppDatabase` expone `routineDao()` y Hilt enlaza los repositorios de ejercicios/rutinas.
+- El guardado de ejercicios/rutinas existentes preserva `created_at` y solo actualiza el
+  contenido editable.
+
+**Corregido**
+- El calculo de duracion estimada queda alineado con el contrato probado de Fase 4.
+- La implementacion inicial de edicion no se dejo como UI falsa: editar usa el mismo id y
+  actualiza la entidad existente.
+- Los nombres seed de ejercicios/grupos respetan locale ES/EN al mapear desde Room.
+- El filtro por grupo muscular incluye tambien el grupo secundario.
+- El dominio y el repositorio evitan convertir un ejercicio preset en custom al editar por id.
+
+**Seguridad**
+- Sin nuevas superficies de auth/red/permisos/backup. Se mantiene soft delete y no se
+  introducen logs ni secretos.
+
+**Verificado**
+- `./gradlew assembleDebug assembleRelease test lint compileDebugAndroidTestKotlin` pasa.
+- `emulator -accel-check` sigue fallando con codigo 6 por Hyper-V/WHPX y `adb devices`
+  no lista dispositivos; no se pudieron capturar screenshots runtime.
+- QA visual runtime sigue bloqueada por falta de aceleracion Hyper-V/WHPX en el AVD local.
+
 ### Fase 3 - Onboarding
 
 #### 2026-05-23 - Flujo inicial, permisos y perfil

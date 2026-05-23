@@ -49,6 +49,7 @@ presentation/
   auth/          LoginScreen, AuthViewModel, BiometricPromptAuthenticator
   onboarding/    OnboardingScreen, OnboardingViewModel
   navigation/    Launch gate, NavHost, bottom navigation, secure route effect
+  workout/       TrainScreen, TrainViewModel (biblioteca de ejercicios y rutinas)
   screen/        home/ workout/ cardio/ progress/ body/ plan/ profile/
   component/     composables reutilizables (MetricCard, PeriodSelector, Chart, RestTimer…)
   viewmodel/     1 ViewModel por feature; expone StateFlow<UiState>
@@ -139,6 +140,29 @@ Google es **opcional** y el onboarding lo permite saltar; la app funciona 100% o
 - Permisos solicitados solo desde su paso: `POST_NOTIFICATIONS` en Android 13+, Health Connect
   con `PermissionController.createRequestPermissionResultContract()`, y ubicación fina para
   cardio GPS. Sin `ACCESS_BACKGROUND_LOCATION`.
+
+## 6.2 Ejercicios y rutinas
+
+Fase 4 activa el tab `Train` con `TrainScreen`/`TrainViewModel`, sin saltarse capas:
+
+- `presentation.workout` solo habla con `ExerciseUseCase` y `RoutineUseCase`.
+- `domain.model.workout` contiene `MuscleGroup`, `Exercise`, `Routine` y entradas de rutina.
+- `domain.repository` define `ExerciseRepository` y `RoutineRepository`.
+- `RoomExerciseRepository` y `RoomRoutineRepository` mapean entidades Room a modelos de dominio.
+- `ReferenceDao`, `ExerciseDao` y `RoutineDao` exponen lectura, upsert y soft delete.
+
+La biblioteca permite buscar por nombre, filtrar por grupo muscular, crear/editar ejercicios
+custom y archivarlos. Los presets nunca se eliminan desde UI; los custom usan
+`is_archived = true`.
+
+Las rutinas permiten crear/editar nombre, color tag, ejercicios, series, reps, peso objetivo,
+descanso y orden. El orden se puede cambiar con drag vertical sobre cada ejercicio y tambien
+con controles subir/bajar accesibles. El guardado preserva `created_at` cuando se actualiza
+una rutina o ejercicio existente.
+
+La duracion estimada se calcula en dominio con un minuto base por serie mas el descanso
+configurado por serie, acumulado y truncado a minutos enteros. No cambia schema Room en esta
+fase porque las tablas `exercises`, `routines` y `routine_exercises` ya estaban en v1.
 
 ---
 

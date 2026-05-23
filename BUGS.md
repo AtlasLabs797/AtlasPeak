@@ -24,6 +24,41 @@
 
 ## Entradas
 
+### BUG-004 - Seed data de ejercicios ignoraba locale EN
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-23
+- **Fase:** 4
+- **Severidad:** Media
+- **Sintoma:** en locale ingles la biblioteca mostraba nombres seed en espanol aunque la DB tenia columnas `name_en`.
+- **Causa raiz:** los repositorios de ejercicios/rutinas mapeaban siempre `nameEs`/`descriptionEs`.
+- **Solucion:** `RoomExerciseRepository` y `RoomRoutineRepository` seleccionan `nameEn`/`descriptionEn` cuando el locale actual es `en`.
+- **Prevencion:** revision de i18n en cada pantalla con seed data o contenido predefinido.
+- **Fecha resolucion:** 2026-05-23
+
+### BUG-003 - Reordenamiento de rutinas no tenia drag-and-drop real
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-23
+- **Fase:** 4
+- **Severidad:** Media
+- **Sintoma:** el constructor de rutinas permitia reordenar solo con botones subir/bajar, pero el spec exige drag-and-drop.
+- **Causa raiz:** se intento cerrar la fase con una alternativa funcional pero incompleta respecto al spec.
+- **Solucion:** `DraftExerciseCard` acepta gesto vertical de drag para mover ejercicios y conserva botones accesibles como fallback.
+- **Prevencion:** revision de spec bloqueante antes de cerrar cada fase; no rebajar requisitos funcionales en docs.
+- **Fecha resolucion:** 2026-05-23
+
+### BUG-002 - Edicion de rutinas podia convertirse en duplicado
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-23
+- **Fase:** 4
+- **Severidad:** Media
+- **Sintoma:** la primera implementacion de Fase 4 creaba rutinas nuevas sin contrato claro de actualizacion por id; eso habria duplicado una rutina al editarla.
+- **Causa raiz:** el use case generaba id por defecto antes de los argumentos de negocio y la UI todavia no tenia modo de edicion real.
+- **Solucion:** `createOrUpdateRoutine` y `createOrUpdateCustomExercise` aceptan `id` explicito al final, la UI rellena formularios de edicion y los repositorios preservan `created_at`.
+- **Prevencion:** tests unitarios de actualizacion por id en `RoutineUseCaseTest` y `ExerciseUseCaseTest`.
+- **Fecha resolucion:** 2026-05-23
+
+---
+
 ### BUG-001 - Opt-in de biometria del onboarding no persistia
 - **Estado:** Resuelto
 - **Fecha deteccion:** 2026-05-23

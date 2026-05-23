@@ -15,8 +15,10 @@ import com.atlaspeak.data.db.entity.HcSleepStageEntity
 import com.atlaspeak.data.db.entity.HcStepsRecordEntity
 import com.atlaspeak.data.db.entity.HcSyncLogEntity
 import com.atlaspeak.data.db.entity.MuscleGroupEntity
-import com.atlaspeak.data.db.entity.UserProfileEntity
+import com.atlaspeak.data.db.entity.RoutineEntity
+import com.atlaspeak.data.db.entity.RoutineExerciseEntity
 import com.atlaspeak.data.db.entity.UserEntity
+import com.atlaspeak.data.db.entity.UserProfileEntity
 
 @Dao
 interface UserDao {
@@ -46,6 +48,9 @@ interface ReferenceDao {
 
     @Query("SELECT COUNT(*) FROM muscle_groups")
     suspend fun countMuscleGroups(): Int
+
+    @Query("SELECT * FROM muscle_groups ORDER BY id")
+    suspend fun getMuscleGroups(): List<MuscleGroupEntity>
 }
 
 @Dao
@@ -55,6 +60,42 @@ interface ExerciseDao {
 
     @Query("SELECT COUNT(*) FROM exercises WHERE is_preset = 1")
     suspend fun countPresetExercises(): Int
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertExercise(exercise: ExerciseEntity)
+
+    @Query("SELECT * FROM exercises WHERE (:includeArchived = 1 OR is_archived = 0)")
+    suspend fun getExercises(includeArchived: Boolean = false): List<ExerciseEntity>
+
+    @Query("SELECT * FROM exercises WHERE id = :id")
+    suspend fun getExercise(id: String): ExerciseEntity?
+
+    @Query("UPDATE exercises SET is_archived = 1 WHERE id = :id AND is_preset = 0")
+    suspend fun archiveCustomExercise(id: String)
+}
+
+@Dao
+interface RoutineDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertRoutine(routine: RoutineEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertRoutineExercises(exercises: List<RoutineExerciseEntity>)
+
+    @Query("DELETE FROM routine_exercises WHERE routine_id = :routineId")
+    suspend fun deleteRoutineExercises(routineId: String)
+
+    @Query("SELECT * FROM routines WHERE (:includeArchived = 1 OR is_archived = 0)")
+    suspend fun getRoutines(includeArchived: Boolean = false): List<RoutineEntity>
+
+    @Query("SELECT * FROM routines WHERE id = :id")
+    suspend fun getRoutine(id: String): RoutineEntity?
+
+    @Query("SELECT * FROM routine_exercises WHERE routine_id = :routineId ORDER BY order_index")
+    suspend fun getRoutineExercises(routineId: String): List<RoutineExerciseEntity>
+
+    @Query("UPDATE routines SET is_archived = 1, updated_at = :updatedAt WHERE id = :id")
+    suspend fun archiveRoutine(id: String, updatedAt: Long)
 }
 
 @Dao

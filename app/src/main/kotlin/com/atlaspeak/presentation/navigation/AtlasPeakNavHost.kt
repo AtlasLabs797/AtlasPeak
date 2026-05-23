@@ -11,6 +11,7 @@ import com.atlaspeak.R
 import com.atlaspeak.presentation.auth.LoginRoute
 import com.atlaspeak.presentation.onboarding.OnboardingRoute
 import com.atlaspeak.presentation.screen.PlaceholderScreen
+import com.atlaspeak.presentation.workout.TrainRoute
 
 @Composable
 fun AtlasPeakNavHost(
@@ -65,7 +66,7 @@ fun AtlasPeakNavHost(
             PlaceholderScreen(titleRes = R.string.screen_home_title)
         }
         composable(AppRoute.Train.route) {
-            PlaceholderScreen(titleRes = R.string.screen_train_title)
+            TrainRoute()
         }
         composable(AppRoute.Progress.route) {
             PlaceholderScreen(titleRes = R.string.screen_progress_title)
