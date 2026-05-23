@@ -47,7 +47,9 @@ domain/
   usecase/       auth/ workout/ cardio/ progress/ body/ healthconnect/ backup/ plan/
 presentation/
   auth/          LoginScreen, AuthViewModel, BiometricPromptAuthenticator
-  screen/        auth/ onboarding/ home/ workout/ cardio/ progress/ body/ plan/ profile/
+  onboarding/    OnboardingScreen, OnboardingViewModel
+  navigation/    Launch gate, NavHost, bottom navigation, secure route effect
+  screen/        home/ workout/ cardio/ progress/ body/ plan/ profile/
   component/     composables reutilizables (MetricCard, PeriodSelector, Chart, RestTimer…)
   viewmodel/     1 ViewModel por feature; expone StateFlow<UiState>
   theme/         Theme, Color, Typography, Shape, Spacing
@@ -96,8 +98,9 @@ Notas de integridad:
 
 - **Login:** contraseña local con PBKDF2-HMAC-SHA256, **600.000 iter**, salt de 32 bytes.
   Hash y salt en la DB SQLCipher. Ejecución en `Dispatchers.IO`.
-- **Gate de app:** `AtlasPeakNavHost` arranca en `Login`. Tras autenticación local correcta
-  navega a `Home` limpiando la pantalla de login del back stack.
+- **Gate de app:** `AtlasPeakNavHost` arranca en `Launch`. Si `onboarding_completed=false`
+  navega a `Onboarding`; si ya está completado navega a `Login`. Tras autenticación local
+  correcta navega a `Home` limpiando login del back stack.
 - **Google:** Credential Manager se lanza desde la `FragmentActivity` de UI. Un resultado
   Google correcto **no desbloquea** la DB local; la contraseña local sigue siendo el gate.
 - **Biometría:** `BiometricPrompt` clase `BIOMETRIC_STRONG`. Solo desbloqueo, no auth nueva.
@@ -124,6 +127,18 @@ No hay backend, así que "iniciar sesión" no autentica contra ningún servidor 
 El gate real es la **contraseña local**. Google Identity Services (Credential Manager) sirve
 **solo** para obtener el token OAuth con scope `drive.appdata` y poder hacer backup. Por eso
 Google es **opcional** y el onboarding lo permite saltar; la app funciona 100% offline sin él.
+
+## 6.1 Onboarding
+
+- Flujo fullscreen de 9 pasos: bienvenida, Google opcional, contraseña obligatoria, perfil,
+  notificaciones, Health Connect, ubicación, biometría y listo.
+- `onboarding_completed` vive en DataStore (`PreferencesOnboardingRepository`), no en Room.
+- La contraseña usa `LocalAuthUseCase`; onboarding no implementa PBKDF2 ni crea usuarios a mano.
+- `ProfileRepository` mapea `UserProfile` domain a `user_profile`; si el perfil se salta no
+  se crea una fila falsa.
+- Permisos solicitados solo desde su paso: `POST_NOTIFICATIONS` en Android 13+, Health Connect
+  con `PermissionController.createRequestPermissionResultContract()`, y ubicación fina para
+  cardio GPS. Sin `ACCESS_BACKGROUND_LOCATION`.
 
 ---
 

@@ -15,6 +15,7 @@ import com.atlaspeak.data.db.entity.HcSleepStageEntity
 import com.atlaspeak.data.db.entity.HcStepsRecordEntity
 import com.atlaspeak.data.db.entity.HcSyncLogEntity
 import com.atlaspeak.data.db.entity.MuscleGroupEntity
+import com.atlaspeak.data.db.entity.UserProfileEntity
 import com.atlaspeak.data.db.entity.UserEntity
 
 @Dao
@@ -27,6 +28,15 @@ interface UserDao {
 
     @Query("UPDATE users SET last_login_at = :lastLoginAt WHERE id = :id")
     suspend fun updateLastLoginAt(id: String, lastLoginAt: Long)
+}
+
+@Dao
+interface UserProfileDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertProfile(profile: UserProfileEntity)
+
+    @Query("SELECT * FROM user_profile LIMIT 1")
+    suspend fun getProfile(): UserProfileEntity?
 }
 
 @Dao

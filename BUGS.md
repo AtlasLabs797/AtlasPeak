@@ -1,58 +1,40 @@
-# BUGS.md — Registro de bugs
+# BUGS.md - Registro de bugs
 
-> Log de bugs detectados y su resolución. Trazabilidad: cada bug arreglado deja rastro
-> aquí. **Formato obligatorio** abajo. Orden: más reciente arriba.
->
-> Estados: `🔴 Abierto` · `🟡 En progreso` · `🟢 Resuelto` · `⚪ No reproducible / Descartado`
+> Log de bugs detectados y su resolucion. Trazabilidad: cada bug arreglado deja rastro aqui.
+> Orden: mas reciente arriba.
 
 ---
 
 ## Formato de entrada
 
 ```
-### BUG-NNN — Título corto
-- **Estado:** 🔴 / 🟡 / 🟢 / ⚪
-- **Fecha detección:** AAAA-MM-DD
+### BUG-NNN - Titulo corto
+- **Estado:** Abierto / En progreso / Resuelto / No reproducible
+- **Fecha deteccion:** AAAA-MM-DD
 - **Fase:** N
-- **Severidad:** Crítica / Alta / Media / Baja
-- **Síntoma:** qué se observó (pasos para reproducir si aplica).
-- **Causa raíz:** por qué pasaba realmente.
-- **Solución:** qué se cambió (archivos / commits).
-- **Prevención:** test añadido / regla para que no vuelva.
-- **Fecha resolución:** AAAA-MM-DD
+- **Severidad:** Critica / Alta / Media / Baja
+- **Sintoma:** que se observo (pasos para reproducir si aplica).
+- **Causa raiz:** por que pasaba realmente.
+- **Solucion:** que se cambio (archivos / commits).
+- **Prevencion:** test anadido / regla para que no vuelva.
+- **Fecha resolucion:** AAAA-MM-DD
 ```
-
-**Regla:** un bug no se cierra (🟢) sin "Causa raíz" y "Prevención" rellenadas. Apagar el
-síntoma sin entender la causa no cuenta como resuelto.
-
----
-
-## Convención de severidad
-
-| Severidad | Criterio |
-|-----------|----------|
-| Crítica | Pérdida de datos, crash en flujo principal, fallo de cifrado/seguridad |
-| Alta | Funcionalidad core rota, datos incorrectos mostrados |
-| Media | Funcionalidad secundaria rota, workaround existe |
-| Baja | Cosmético, edge case raro |
 
 ---
 
 ## Entradas
 
-<!-- Añade nuevas entradas aquí arriba. Ejemplo de plantilla rellenada: -->
-
-### BUG-000 — (plantilla de ejemplo, borrar al primer bug real)
-- **Estado:** 🟢 Resuelto
-- **Fecha detección:** 2026-05-23
-- **Fase:** 0
-- **Severidad:** Baja
-- **Síntoma:** Entrada de ejemplo para mostrar el formato.
-- **Causa raíz:** N/A — es la plantilla.
-- **Solución:** N/A.
-- **Prevención:** N/A.
-- **Fecha resolución:** 2026-05-23
+### BUG-001 - Opt-in de biometria del onboarding no persistia
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-23
+- **Fase:** 3
+- **Severidad:** Media
+- **Sintoma:** activar biometria en el paso 8 del onboarding cambiaba solo el estado de UI; el valor no llegaba a `app_settings.biometrics_enabled`.
+- **Causa raiz:** `OnboardingViewModel` persistia biometria durante el paso de contrasena, antes de que el usuario pudiera activar la opcion en el paso dedicado.
+- **Solucion:** `finish()` llama a `LocalAuthUseCase.setBiometricUnlockEnabled()` con el valor final antes de marcar `onboarding_completed=true`.
+- **Prevencion:** test unitario `finish persists biometric opt in after password step`.
+- **Fecha resolucion:** 2026-05-23
 
 ---
 
-*Atlas Peak — BUGS.md*
+*Atlas Peak - BUGS.md*

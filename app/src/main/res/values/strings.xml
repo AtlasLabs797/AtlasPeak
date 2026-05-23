@@ -23,10 +23,36 @@
 
     <!-- Onboarding -->
     <string name="onboarding_welcome_title">Tu entrenamiento, en tu dispositivo</string>
+    <string name="onboarding_welcome_body">Atlas Peak guarda tus entrenamientos en local, sin tracking y con backup cifrado opcional.</string>
     <string name="onboarding_get_started">Empezar</string>
     <string name="onboarding_google_optional">Conectar con Google (opcional)</string>
+    <string name="onboarding_google_title">Google es opcional</string>
+    <string name="onboarding_google_body">La conexion real se activara en Copias de seguridad. Ahora puedes seguir offline.</string>
+    <string name="onboarding_google_status">No desbloquea datos locales ni crea cuenta en Atlas Peak.</string>
     <string name="onboarding_password_title">Crea tu contraseña de respaldo</string>
     <string name="onboarding_password_warning">Apúntala bien: si la olvidas y pierdes tu cuenta de Google, no podrás recuperar tus datos.</string>
+    <string name="onboarding_password_strength_weak">Fortaleza: baja</string>
+    <string name="onboarding_password_strength_medium">Fortaleza: media</string>
+    <string name="onboarding_password_strength_strong">Fortaleza: alta</string>
+    <string name="onboarding_profile_title">Perfil basico</string>
+    <string name="onboarding_profile_body">Estos datos ayudan a estimar calorias. Puedes saltarlo.</string>
+    <string name="onboarding_profile_name">Nombre</string>
+    <string name="onboarding_profile_age">Edad</string>
+    <string name="onboarding_profile_height">Altura cm</string>
+    <string name="onboarding_profile_gender">Genero</string>
+    <string name="onboarding_profile_goal">Objetivo</string>
+    <string name="onboarding_notifications_title">Recordatorios</string>
+    <string name="onboarding_notifications_body">Permite notificaciones para avisos de entrenamiento y resumenes.</string>
+    <string name="onboarding_health_title">Health Connect</string>
+    <string name="onboarding_health_body">Atlas Peak podra leer pasos, sueno y frecuencia cardiaca, y escribir entrenamientos cuando esta fase este activa.</string>
+    <string name="onboarding_health_unavailable">Health Connect no esta disponible en este dispositivo. Puedes seguir y activarlo mas tarde.</string>
+    <string name="onboarding_location_title">GPS para cardio</string>
+    <string name="onboarding_location_body">La ubicacion solo se usa para registrar rutas de cardio al aire libre.</string>
+    <string name="onboarding_biometrics_title">Desbloqueo biometrico</string>
+    <string name="onboarding_biometrics_body">Activalo si quieres desbloquear con biometria fuerte del dispositivo.</string>
+    <string name="onboarding_done_title">Listo</string>
+    <string name="onboarding_done_body">Ya puedes empezar a usar Atlas Peak.</string>
+    <string name="onboarding_permission_action">Solicitar permiso</string>
 
     <!-- Auth -->
     <string name="auth_unlock">Desbloquear</string>

@@ -1,6 +1,7 @@
 package com.atlaspeak.presentation.navigation
 
 sealed class AppRoute(val route: String) {
+    data object Launch : AppRoute("launch")
     data object Login : AppRoute("login")
     data object Biometric : AppRoute("biometric")
     data object Onboarding : AppRoute("onboarding")

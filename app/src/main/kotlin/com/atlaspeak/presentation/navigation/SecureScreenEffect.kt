@@ -29,6 +29,7 @@ fun SecureScreenEffect(route: String?) {
 private val secureRoutes = setOf(
     AppRoute.Login.route,
     AppRoute.Biometric.route,
+    AppRoute.Onboarding.route,
     AppRoute.Profile.route,
     AppRoute.BackupRestore.route,
 )

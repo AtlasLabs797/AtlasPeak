@@ -10,6 +10,39 @@
 
 ## [No publicado]
 
+### Fase 3 - Onboarding
+
+#### 2026-05-23 - Flujo inicial, permisos y perfil
+
+**Anadido**
+- Implementado `LaunchViewModel` y gate de arranque basado en DataStore `onboarding_completed`.
+- Implementado flujo de onboarding fullscreen de 9 pasos: bienvenida, Google opcional,
+  contrasena obligatoria, perfil, notificaciones, Health Connect, ubicacion, biometria y listo.
+- Anadidos modelos/domain de onboarding y perfil, `PasswordStrengthEvaluator`,
+  `OnboardingRepository` y `ProfileRepository`.
+- Anadidos `PreferencesOnboardingRepository` (DataStore) y `RoomProfileRepository` con
+  `UserProfileDao`; no cambia el schema Room.
+- El paso de contrasena reutiliza `LocalAuthUseCase`; no duplica PBKDF2 ni user creation.
+- Anadida solicitud runtime de `POST_NOTIFICATIONS`, `ACCESS_FINE_LOCATION` y permisos
+  Health Connect via `PermissionController`, con guard de disponibilidad del SDK.
+- Anadidos permisos Health Connect en manifest para lectura/escritura segun spec.
+- Anadidos tests unitarios de fuerza de contrasena, onboarding ViewModel y launch gate.
+
+**Corregido**
+- El opt-in de biometria del onboarding se persiste al finalizar; antes el estado podia
+  quedarse solo en UI.
+- `FLAG_SECURE` cubre onboarding porque captura contrasena y perfil.
+- El paso de Google queda como informacion saltable de backup futuro; no se presenta como
+  conexion activa ni desbloquea datos locales.
+
+**Seguridad**
+- Registrado `SEC-012`: onboarding sensible y permisos Health Connect.
+
+**Verificado**
+- `./gradlew assembleDebug assembleRelease test lint compileDebugAndroidTestKotlin` pasa.
+- QA visual/instrumented runtime sigue bloqueada por falta de aceleracion Hyper-V/WHPX en
+  el AVD local; se mantiene pendiente hasta tener emulador operativo o dispositivo fisico.
+
 ### Fase 2 - Autenticacion completa
 
 #### 2026-05-23 - Auth local, Google opcional y biometria fuerte
