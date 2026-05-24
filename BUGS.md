@@ -24,6 +24,19 @@
 
 ## Entradas
 
+### BUG-016 - Health Connect no soporta porcentaje de agua corporal
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-24
+- **Fase:** 10
+- **Severidad:** Alta
+- **Sintoma:** el spec marcaba `% agua corporal` como sincronizable con Health Connect, pero el API disponible es `BodyWaterMassRecord`, expresado como masa, no porcentaje.
+- **Causa raiz:** se mezclo la metrica comun de basculas inteligentes (`water_percent`) con el contrato real de Health Connect.
+- **Solucion:** se anade `body_water_mass_kg` con migracion Room v1->v2; `% agua corporal` queda manual y la exportacion Health Connect usa masa de agua corporal.
+- **Prevencion:** tests de mapper para `BodyWaterMassRecord` y actualizacion de `SPEC.md`/`DOCS_TECNICA.md` para separar porcentaje vs masa.
+- **Fecha resolucion:** 2026-05-24
+
+---
+
 ### BUG-015 - Dashboard etiquetaba minimo cardiaco como frecuencia en reposo
 - **Estado:** Resuelto
 - **Fecha deteccion:** 2026-05-24

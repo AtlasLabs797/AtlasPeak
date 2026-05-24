@@ -234,8 +234,30 @@ interface BodyCompositionDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entry: BodyCompositionEntity)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(entries: List<BodyCompositionEntity>)
+
     @Query("SELECT * FROM body_composition ORDER BY measured_at DESC")
     suspend fun getEntries(): List<BodyCompositionEntity>
+
+    @Query(
+        """
+        SELECT * FROM body_composition
+        WHERE source = 'MANUAL'
+          AND synced_to_hc = 0
+          AND (
+            weight_kg IS NOT NULL
+            OR body_fat_percent IS NOT NULL
+            OR muscle_mass_kg IS NOT NULL
+            OR body_water_mass_kg IS NOT NULL
+          )
+        ORDER BY measured_at
+        """,
+    )
+    suspend fun getUnsyncedHealthConnectEntries(): List<BodyCompositionEntity>
+
+    @Query("UPDATE body_composition SET synced_to_hc = 1 WHERE id IN (:ids)")
+    suspend fun markSyncedToHealthConnect(ids: List<String>)
 }
 
 @Dao
@@ -243,23 +265,50 @@ interface HealthConnectDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertSyncLogs(syncLogs: List<HcSyncLogEntity>)
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertSyncLog(syncLog: HcSyncLogEntity)
+
     @Query("SELECT COUNT(*) FROM hc_sync_log")
     suspend fun countSyncLogs(): Int
+
+    @Query("SELECT * FROM hc_sync_log WHERE data_type = :dataType LIMIT 1")
+    suspend fun getSyncLog(dataType: String): HcSyncLogEntity?
+
+    @Query("UPDATE hc_sync_log SET last_read_at = :lastReadAt WHERE data_type = :dataType")
+    suspend fun updateLastReadAt(dataType: String, lastReadAt: Long): Int
+
+    @Query("UPDATE hc_sync_log SET last_write_at = :lastWriteAt WHERE data_type = :dataType")
+    suspend fun updateLastWriteAt(dataType: String, lastWriteAt: Long): Int
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertSteps(record: HcStepsRecordEntity)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertSteps(records: List<HcStepsRecordEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertActiveCalories(record: HcActiveCaloriesRecordEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertActiveCalories(records: List<HcActiveCaloriesRecordEntity>)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertSleepSession(session: HcSleepSessionEntity)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertSleepSessions(sessions: List<HcSleepSessionEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertSleepStage(stage: HcSleepStageEntity)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertSleepStages(stages: List<HcSleepStageEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertHeartRateSample(sample: HcHeartRateSampleEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertHeartRateSamples(samples: List<HcHeartRateSampleEntity>)
 
     @Query("SELECT COUNT(*) FROM hc_steps_records")
     suspend fun countStepRecords(): Int
@@ -267,9 +316,78 @@ interface HealthConnectDao {
     @Query("DELETE FROM hc_sleep_sessions WHERE id = :id")
     suspend fun deleteSleepSession(id: String)
 
+    @Query(
+        """
+        DELETE FROM hc_steps_records
+        WHERE source_package = 'health_connect_aggregate'
+          AND start_time < :endExclusive
+          AND end_time > :startInclusive
+        """,
+    )
+    suspend fun deleteAggregateStepsInWindow(startInclusive: Long, endExclusive: Long)
+
+    @Query(
+        """
+        DELETE FROM hc_active_calories_records
+        WHERE source_package = 'health_connect_aggregate'
+          AND start_time < :endExclusive
+          AND end_time > :startInclusive
+        """,
+    )
+    suspend fun deleteAggregateActiveCaloriesInWindow(startInclusive: Long, endExclusive: Long)
+
+    @Query(
+        """
+        DELETE FROM hc_sleep_sessions
+        WHERE start_time < :endExclusive
+          AND end_time > :startInclusive
+        """,
+    )
+    suspend fun deleteSleepSessionsInWindow(startInclusive: Long, endExclusive: Long)
+
+    @Query("DELETE FROM hc_sleep_stages WHERE sleep_session_id = :sleepSessionId")
+    suspend fun deleteSleepStagesForSession(sleepSessionId: String)
+
+    @Query(
+        """
+        DELETE FROM hc_heart_rate_samples
+        WHERE sampled_at >= :startInclusive
+          AND sampled_at < :endExclusive
+        """,
+    )
+    suspend fun deleteHeartRateSamplesInWindow(startInclusive: Long, endExclusive: Long)
+
     @Query("SELECT COUNT(*) FROM hc_sleep_stages")
     suspend fun countSleepStages(): Int
+
+    @Query(
+        """
+        SELECT
+            workout_sessions.id AS id,
+            workout_sessions.type AS type,
+            workout_sessions.start_time AS startTime,
+            workout_sessions.end_time AS endTime,
+            workout_sessions.notes AS notes,
+            cardio_sessions.cardio_type_id AS cardioTypeId
+        FROM workout_sessions
+        LEFT JOIN cardio_sessions ON cardio_sessions.session_id = workout_sessions.id
+        WHERE workout_sessions.completed = 1
+          AND workout_sessions.end_time IS NOT NULL
+          AND (:afterMillis IS NULL OR workout_sessions.end_time > :afterMillis)
+        ORDER BY workout_sessions.end_time
+        """,
+    )
+    suspend fun getCompletedWorkoutExportRows(afterMillis: Long?): List<HealthConnectWorkoutExportRow>
 }
+
+data class HealthConnectWorkoutExportRow(
+    val id: String,
+    val type: String,
+    val startTime: Long,
+    val endTime: Long?,
+    val notes: String?,
+    val cardioTypeId: String?,
+)
 
 data class DashboardPointRow(
     val timestamp: Long,

@@ -33,7 +33,7 @@ class AppDatabaseInstrumentedTest {
     }
 
     @Test
-    fun databaseCreatesAllV1Tables() {
+    fun databaseCreatesAllTables() {
         val tableNames = database.openHelper.readableDatabase.query(
             "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'android_%' AND name NOT LIKE 'sqlite_%'",
         ).use { cursor ->
@@ -42,8 +42,8 @@ class AppDatabaseInstrumentedTest {
             }
         }
 
-        assertTrue(tableNames.containsAll(AppDatabase.V1_TABLES))
-        assertEquals(AppDatabase.V1_TABLES.size, tableNames.intersect(AppDatabase.V1_TABLES).size)
+        assertTrue(tableNames.containsAll(AppDatabase.TABLES))
+        assertEquals(AppDatabase.TABLES.size, tableNames.intersect(AppDatabase.TABLES).size)
     }
 
     @Test
@@ -75,5 +75,17 @@ class AppDatabaseInstrumentedTest {
         database.healthConnectDao().upsertSteps(Fixtures.stepsRecord(id = "local-2", count = 200))
 
         assertEquals(1, database.healthConnectDao().countStepRecords())
+    }
+
+    @Test
+    fun healthConnectRollingWindowClearsCachedAggregates() = runTest {
+        database.healthConnectDao().upsertSteps(Fixtures.stepsRecord(id = "local-1", count = 100))
+
+        database.healthConnectDao().deleteAggregateStepsInWindow(
+            startInclusive = 1_699_999_000_000,
+            endExclusive = 1_700_004_000_000,
+        )
+
+        assertEquals(0, database.healthConnectDao().countStepRecords())
     }
 }

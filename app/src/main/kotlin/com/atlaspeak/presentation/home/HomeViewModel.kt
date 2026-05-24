@@ -9,6 +9,7 @@ import com.atlaspeak.domain.model.dashboard.DashboardPeriod
 import com.atlaspeak.domain.model.dashboard.DashboardSnapshot
 import com.atlaspeak.domain.model.dashboard.DashboardWidget
 import com.atlaspeak.domain.usecase.dashboard.DashboardUseCase
+import com.atlaspeak.domain.usecase.healthconnect.SyncHealthConnectUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -22,12 +23,14 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val dashboardUseCase: DashboardUseCase,
+    private val syncHealthConnectUseCase: SyncHealthConnectUseCase,
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(HomeUiState())
     private var refreshJob: Job? = null
     val state: StateFlow<HomeUiState> = mutableState.asStateFlow()
 
     init {
+        syncHealthConnect()
         refresh()
     }
 
@@ -64,6 +67,15 @@ class HomeViewModel @Inject constructor(
                         it
                     }
                 }
+            }
+        }
+    }
+
+    private fun syncHealthConnect() {
+        viewModelScope.launch {
+            val result = syncHealthConnectUseCase()
+            if (result.successful && (result.importedRecords > 0 || result.exportedRecords > 0)) {
+                refresh()
             }
         }
     }

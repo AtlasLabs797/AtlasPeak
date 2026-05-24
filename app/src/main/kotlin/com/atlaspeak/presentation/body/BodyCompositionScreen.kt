@@ -1,5 +1,6 @@
 package com.atlaspeak.presentation.body
 
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,8 +17,11 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Scale
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -35,11 +39,14 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.PermissionController
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.atlaspeak.R
 import com.atlaspeak.domain.model.body.BodyCompositionPeriod
@@ -74,6 +81,12 @@ fun BodyCompositionRoute(
     viewModel: BodyCompositionViewModel = hiltViewModel(),
 ) {
     val state = viewModel.state.collectAsStateWithLifecycle().value
+    val context = LocalContext.current
+    val healthConnectLauncher = rememberLauncherForActivityResult(
+        PermissionController.createRequestPermissionResultContract(),
+    ) {
+        viewModel.syncHealthConnect()
+    }
     BodyCompositionScreen(
         state = state,
         onPeriodSelected = viewModel::selectPeriod,
@@ -81,6 +94,14 @@ fun BodyCompositionRoute(
         onToggleEntryForm = viewModel::toggleEntryForm,
         onDraftChanged = viewModel::updateDraft,
         onSaveDraft = viewModel::saveDraft,
+        onHealthConnectSync = viewModel::syncHealthConnect,
+        onRequestHealthConnectPermissions = {
+            if (HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE) {
+                healthConnectLauncher.launch(state.healthConnectPermissions)
+            } else {
+                viewModel.markHealthConnectUnavailable()
+            }
+        },
     )
 }
 
@@ -92,6 +113,8 @@ fun BodyCompositionScreen(
     onToggleEntryForm: () -> Unit,
     onDraftChanged: (BodyMetric, String) -> Unit,
     onSaveDraft: () -> Unit,
+    onHealthConnectSync: () -> Unit,
+    onRequestHealthConnectPermissions: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
@@ -112,6 +135,8 @@ fun BodyCompositionScreen(
                 onToggleEntryForm = onToggleEntryForm,
                 onDraftChanged = onDraftChanged,
                 onSaveDraft = onSaveDraft,
+                onHealthConnectSync = onHealthConnectSync,
+                onRequestHealthConnectPermissions = onRequestHealthConnectPermissions,
                 modifier = Modifier.padding(top = spacing.screen),
             )
         }
@@ -127,6 +152,8 @@ private fun BodyCompositionContent(
     onToggleEntryForm: () -> Unit,
     onDraftChanged: (BodyMetric, String) -> Unit,
     onSaveDraft: () -> Unit,
+    onHealthConnectSync: () -> Unit,
+    onRequestHealthConnectPermissions: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
@@ -137,6 +164,13 @@ private fun BodyCompositionContent(
     ) {
         item {
             HeaderRow(onToggleEntryForm)
+        }
+        item {
+            HealthConnectCard(
+                isSyncing = state.isHealthConnectSyncing,
+                onSync = onHealthConnectSync,
+                onRequestPermissions = onRequestHealthConnectPermissions,
+            )
         }
         state.messageRes?.let { message ->
             item {
@@ -182,6 +216,67 @@ private fun BodyCompositionContent(
                     metric = state.selectedMetric,
                     points = snapshot.seriesFor(state.selectedMetric),
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun HealthConnectCard(
+    isSyncing: Boolean,
+    onSync: () -> Unit,
+    onRequestPermissions: () -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    Card {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(spacing.card),
+            verticalArrangement = Arrangement.spacedBy(spacing.sm),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.Favorite,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.body_health_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    Text(
+                        text = stringResource(R.string.body_health_status_ready),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+            ) {
+                Button(
+                    onClick = onSync,
+                    enabled = !isSyncing,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Icon(Icons.Filled.Sync, contentDescription = null)
+                    Text(stringResource(R.string.body_health_sync))
+                }
+                OutlinedButton(
+                    onClick = onRequestPermissions,
+                    enabled = !isSyncing,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Icon(Icons.Filled.Settings, contentDescription = null)
+                    Text(stringResource(R.string.body_health_permissions))
+                }
             }
         }
     }
@@ -483,6 +578,7 @@ private fun BodyMetric.labelRes(): Int = when (this) {
     BodyMetric.BodyFat -> R.string.body_metric_body_fat
     BodyMetric.MuscleMass -> R.string.body_metric_muscle_mass
     BodyMetric.Water -> R.string.body_metric_water
+    BodyMetric.BodyWaterMass -> R.string.body_metric_body_water_mass
     BodyMetric.VisceralFat -> R.string.body_metric_visceral_fat
     BodyMetric.Protein -> R.string.body_metric_protein
     BodyMetric.BoneMass -> R.string.body_metric_bone_mass
@@ -493,7 +589,8 @@ private fun BodyMetric.isHealthConnectSyncable(): Boolean = when (this) {
     BodyMetric.Weight,
     BodyMetric.BodyFat,
     BodyMetric.MuscleMass,
-    BodyMetric.Water -> true
+    BodyMetric.BodyWaterMass -> true
+    BodyMetric.Water -> false
     BodyMetric.VisceralFat,
     BodyMetric.Protein,
     BodyMetric.BoneMass,
@@ -505,6 +602,7 @@ private fun Double.formattedValue(metric: BodyMetric): String {
     return when (metric) {
         BodyMetric.Weight,
         BodyMetric.MuscleMass,
+        BodyMetric.BodyWaterMass,
         BodyMetric.BoneMass -> stringResource(R.string.body_value_kg, this)
         BodyMetric.BodyFat,
         BodyMetric.Water,

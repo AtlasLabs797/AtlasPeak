@@ -170,17 +170,19 @@ Panel con scroll vertical. Todos los widgets tienen selector de período individ
 | Peso corporal | ✅ | ✅ |
 | % Grasa corporal | ✅ | ✅ |
 | Masa muscular (kg) | ✅ | ✅ |
-| % Agua corporal | ✅ | ✅ |
+| % Agua corporal | ❌ | ✅ |
+| Masa de agua corporal (kg) | ✅ | ✅ |
 | Grasa visceral | ❌ | ✅ |
 | % Proteína | ❌ | ✅ |
 | Masa ósea (kg) | ❌ | ✅ |
 | Edad corporal | ❌ | ✅ |
 
-> **Importante sobre báscula inteligente (Xiaomi / Renpho):** La integración es **indirecta**. La báscula sincroniza datos con su app propietaria (Zepp Life, Renpho App). Esa app escribe en Health Connect. Atlas Peak lee desde Health Connect. Atlas Peak no controla si la app de la báscula tiene soporte de Health Connect — esto debe verificarse con el dispositivo específico del usuario.
+> **Importante sobre báscula inteligente (Xiaomi / Renpho):** La integración es **indirecta**. La báscula sincroniza datos con su app propietaria (Zepp Life, Renpho App). En v1 Atlas Peak no pide permisos de lectura corporal de Health Connect: exporta a Health Connect las métricas corporales introducidas en Atlas Peak y puede leer pasos, calorías, sueño y frecuencia cardíaca. La lectura corporal desde básculas queda pendiente de una decisión explícita de producto/Play porque aumenta el alcance de permisos de salud.
 
 - Pantalla principal: tabla de valores actuales + gráficos de evolución por métrica (scroll vertical)
 - Entrada manual disponible para todos los campos en cualquier momento
-- Los datos introducidos en Atlas Peak se exportan a Health Connect (solo los 4 tipos soportados)
+- Los datos introducidos en Atlas Peak se exportan a Health Connect (solo los 4 tipos soportados:
+  peso, grasa corporal, masa muscular y masa de agua corporal)
 - **Política de conflicto:** el dato con timestamp más reciente tiene prioridad, independientemente de la fuente
 
 ### 2.7 PLANIFICACIÓN SEMANAL
@@ -230,7 +232,8 @@ WRITE_BODY_WATER_MASS
 ```
 
 - **Import desde Health Connect:** pasos diarios, calorías activas, sueño, frecuencia cardíaca
-- **Export a Health Connect:** sesiones de entrenamiento completadas, peso, grasa, masa muscular, agua
+- **Export a Health Connect:** sesiones de entrenamiento completadas, peso, grasa, masa muscular,
+  masa de agua corporal
 - `HcSyncLog`: tabla que registra el último timestamp de lectura y escritura por tipo de dato
 - **Política de conflicto:** dato con timestamp más reciente gana — Atlas Peak no sobreescribe si el dato local es más reciente
 
@@ -725,6 +728,7 @@ body_composition
   body_fat_percent  REAL
   muscle_mass_kg    REAL
   water_percent     REAL
+  body_water_mass_kg REAL
   -- Solo entrada manual, no disponibles en Health Connect:
   visceral_fat_level INTEGER
   protein_percent   REAL

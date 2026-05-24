@@ -6,7 +6,6 @@ import com.atlaspeak.domain.model.body.BodyCompositionPeriod
 import com.atlaspeak.domain.model.body.BodyCompositionSource
 import com.atlaspeak.domain.model.body.BodyMetric
 import com.atlaspeak.domain.repository.BodyCompositionRepository
-import com.atlaspeak.presentation.body.BodyCompositionDraft
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -36,6 +35,7 @@ class BodyCompositionUseCaseTest {
                 measuredAt = now,
                 weightKg = 82.4,
                 bodyFatPercent = 18.2,
+                bodyWaterMassKg = 45.5,
                 visceralFatLevel = 7,
             ),
         )
@@ -45,23 +45,20 @@ class BodyCompositionUseCaseTest {
         assertEquals("entry-1", repository.saved.single().id)
         assertEquals(BodyCompositionSource.Manual, repository.saved.single().source)
         assertEquals(false, repository.saved.single().syncedToHealthConnect)
+        assertEquals(45.5, repository.saved.single().bodyWaterMassKg)
     }
 
     @Test
-    fun `draft raw validation rejects unparseable fields before partial save`() {
-        val draft = BodyCompositionDraft(
-            weightKg = "80",
-            bodyFatPercent = "abc",
+    fun `record accepts body water mass as standalone health connect metric`() = runTest {
+        val saved = useCase.record(
+            BodyCompositionInput(
+                measuredAt = now,
+                bodyWaterMassKg = 45.5,
+            ),
         )
 
-        assertFalse(draft.isValidRaw())
-    }
-
-    @Test
-    fun `draft raw validation accepts comma decimals`() {
-        val draft = BodyCompositionDraft(weightKg = "80,5")
-
-        assertTrue(draft.isValidRaw())
+        assertTrue(saved)
+        assertEquals(45.5, repository.saved.single().bodyWaterMassKg)
     }
 
     @Test
@@ -83,13 +80,14 @@ class BodyCompositionUseCaseTest {
         repository.entries = listOf(
             entry(id = "outside", measuredAt = now - DAYS_40, weightKg = 90.0),
             entry(id = "inside-1", measuredAt = now - DAYS_2, weightKg = 84.0, muscleMassKg = 64.0),
-            entry(id = "inside-2", measuredAt = now - DAYS_1, weightKg = 83.0),
+            entry(id = "inside-2", measuredAt = now - DAYS_1, weightKg = 83.0, bodyWaterMassKg = 44.0),
         )
 
         val snapshot = useCase.snapshot(BodyCompositionPeriod.Month)
 
         assertEquals(listOf(84.0, 83.0), snapshot.seriesFor(BodyMetric.Weight).map { it.value })
         assertEquals(listOf(64.0), snapshot.seriesFor(BodyMetric.MuscleMass).map { it.value })
+        assertEquals(listOf(44.0), snapshot.seriesFor(BodyMetric.BodyWaterMass).map { it.value })
     }
 
     private fun entry(
@@ -98,6 +96,7 @@ class BodyCompositionUseCaseTest {
         weightKg: Double? = null,
         bodyFatPercent: Double? = null,
         muscleMassKg: Double? = null,
+        bodyWaterMassKg: Double? = null,
     ) = BodyCompositionEntry(
         id = id,
         measuredAt = measuredAt,
@@ -105,6 +104,7 @@ class BodyCompositionUseCaseTest {
         bodyFatPercent = bodyFatPercent,
         muscleMassKg = muscleMassKg,
         waterPercent = null,
+        bodyWaterMassKg = bodyWaterMassKg,
         visceralFatLevel = null,
         proteinPercent = null,
         boneMassKg = null,

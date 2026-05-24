@@ -15,6 +15,7 @@
     <string name="action_save">Guardar</string>
     <string name="action_cancel">Cancelar</string>
     <string name="action_delete">Eliminar</string>
+    <string name="action_close">Cerrar</string>
     <string name="action_edit">Editar</string>
     <string name="action_start">Iniciar</string>
     <string name="action_skip">Saltar</string>
@@ -267,12 +268,23 @@
     <string name="body_entry_saved">Medición guardada.</string>
     <string name="body_entry_invalid">Introduce al menos una métrica válida.</string>
     <string name="body_chart_empty">Sin datos para esta métrica en el periodo.</string>
+    <string name="body_health_title">Health Connect</string>
+    <string name="body_health_status_ready">Sincronización local disponible</string>
+    <string name="body_health_sync">Sincronizar</string>
+    <string name="body_health_permissions">Permisos</string>
+    <string name="body_health_syncing">Sincronizando Health Connect...</string>
+    <string name="body_health_sync_success">Health Connect sincronizado.</string>
+    <string name="body_health_permissions_needed">Faltan permisos de Health Connect.</string>
+    <string name="body_health_unavailable">Health Connect no está disponible en este dispositivo.</string>
+    <string name="body_health_update_required">Actualiza Health Connect para sincronizar.</string>
+    <string name="body_health_sync_failed">No se pudo sincronizar Health Connect.</string>
     <string name="body_badge_hc_ready">Health Connect</string>
     <string name="body_badge_manual_only">Solo manual</string>
     <string name="body_metric_weight">Peso corporal</string>
     <string name="body_metric_body_fat" formatted="false">% grasa corporal</string>
     <string name="body_metric_muscle_mass">Masa muscular</string>
     <string name="body_metric_water" formatted="false">% agua corporal</string>
+    <string name="body_metric_body_water_mass">Masa de agua</string>
     <string name="body_metric_visceral_fat">Grasa visceral</string>
     <string name="body_metric_protein" formatted="false">% proteína</string>
     <string name="body_metric_bone_mass">Masa ósea</string>
@@ -280,6 +292,8 @@
     <string name="body_value_kg">%1$.1f kg</string>
     <string name="body_value_percent">%1$.1f%%</string>
     <string name="body_value_integer">%1$d</string>
+    <string name="health_rationale_title">Permisos de Health Connect</string>
+    <string name="health_rationale_body">Atlas Peak lee pasos, calorías activas, sueño y frecuencia cardíaca para mostrar progreso y dashboard. Escribe entrenamientos completados y las métricas corporales que introduces manualmente. Los datos se guardan en este dispositivo, sin tracking ni backend propio, y puedes revocar el acceso desde Health Connect cuando quieras.</string>
 
     <string name="error_generic">Algo salió mal. Inténtalo de nuevo.</string>
     <string name="error_no_connection">Sin conexión a internet.</string>

@@ -8,7 +8,9 @@ import com.atlaspeak.domain.model.body.BodyCompositionInput
 import com.atlaspeak.domain.model.body.BodyCompositionPeriod
 import com.atlaspeak.domain.model.body.BodyCompositionSnapshot
 import com.atlaspeak.domain.model.body.BodyMetric
+import com.atlaspeak.domain.model.healthconnect.HealthConnectAvailability
 import com.atlaspeak.domain.usecase.body.BodyCompositionUseCase
+import com.atlaspeak.domain.usecase.healthconnect.SyncHealthConnectUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,8 +22,13 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class BodyCompositionViewModel @Inject constructor(
     private val bodyCompositionUseCase: BodyCompositionUseCase,
+    private val syncHealthConnectUseCase: SyncHealthConnectUseCase,
 ) : ViewModel() {
-    private val mutableState = MutableStateFlow(BodyCompositionUiState())
+    private val mutableState = MutableStateFlow(
+        BodyCompositionUiState(
+            healthConnectPermissions = syncHealthConnectUseCase.requiredPermissions(),
+        ),
+    )
     val state: StateFlow<BodyCompositionUiState> = mutableState.asStateFlow()
 
     init {
@@ -78,6 +85,37 @@ class BodyCompositionViewModel @Inject constructor(
         }
     }
 
+    fun syncHealthConnect() {
+        if (mutableState.value.isHealthConnectSyncing) return
+        viewModelScope.launch {
+            mutableState.update {
+                it.copy(
+                    isHealthConnectSyncing = true,
+                    messageRes = R.string.body_health_syncing,
+                )
+            }
+            val result = syncHealthConnectUseCase()
+            val messageRes = when {
+                result.availability == HealthConnectAvailability.Unavailable -> R.string.body_health_unavailable
+                result.availability == HealthConnectAvailability.UpdateRequired -> R.string.body_health_update_required
+                result.missingPermissions -> R.string.body_health_permissions_needed
+                result.failed -> R.string.body_health_sync_failed
+                else -> R.string.body_health_sync_success
+            }
+            mutableState.update {
+                it.copy(
+                    isHealthConnectSyncing = false,
+                    messageRes = messageRes,
+                )
+            }
+            if (result.successful) refresh()
+        }
+    }
+
+    fun markHealthConnectUnavailable() {
+        mutableState.update { it.copy(messageRes = R.string.body_health_unavailable) }
+    }
+
     private fun refresh() {
         viewModelScope.launch {
             val period = mutableState.value.selectedPeriod
@@ -99,6 +137,8 @@ data class BodyCompositionUiState(
     val snapshot: BodyCompositionSnapshot? = null,
     val isEntryFormVisible: Boolean = false,
     val draft: BodyCompositionDraft = BodyCompositionDraft(),
+    val isHealthConnectSyncing: Boolean = false,
+    val healthConnectPermissions: Set<String> = emptySet(),
     @StringRes val messageRes: Int? = null,
 )
 
@@ -107,6 +147,7 @@ data class BodyCompositionDraft(
     val bodyFatPercent: String = "",
     val muscleMassKg: String = "",
     val waterPercent: String = "",
+    val bodyWaterMassKg: String = "",
     val visceralFatLevel: String = "",
     val proteinPercent: String = "",
     val boneMassKg: String = "",
@@ -118,6 +159,7 @@ data class BodyCompositionDraft(
             BodyMetric.BodyFat -> copy(bodyFatPercent = value)
             BodyMetric.MuscleMass -> copy(muscleMassKg = value)
             BodyMetric.Water -> copy(waterPercent = value)
+            BodyMetric.BodyWaterMass -> copy(bodyWaterMassKg = value)
             BodyMetric.VisceralFat -> copy(visceralFatLevel = value)
             BodyMetric.Protein -> copy(proteinPercent = value)
             BodyMetric.BoneMass -> copy(boneMassKg = value)
@@ -132,6 +174,7 @@ data class BodyCompositionDraft(
             bodyFatPercent = bodyFatPercent.toDoubleOrNullFlexible(),
             muscleMassKg = muscleMassKg.toDoubleOrNullFlexible(),
             waterPercent = waterPercent.toDoubleOrNullFlexible(),
+            bodyWaterMassKg = bodyWaterMassKg.toDoubleOrNullFlexible(),
             visceralFatLevel = visceralFatLevel.toIntOrNullFlexible(),
             proteinPercent = proteinPercent.toDoubleOrNullFlexible(),
             boneMassKg = boneMassKg.toDoubleOrNullFlexible(),
@@ -145,6 +188,7 @@ data class BodyCompositionDraft(
             BodyMetric.BodyFat -> bodyFatPercent
             BodyMetric.MuscleMass -> muscleMassKg
             BodyMetric.Water -> waterPercent
+            BodyMetric.BodyWaterMass -> bodyWaterMassKg
             BodyMetric.VisceralFat -> visceralFatLevel
             BodyMetric.Protein -> proteinPercent
             BodyMetric.BoneMass -> boneMassKg
@@ -164,6 +208,7 @@ data class BodyCompositionDraft(
                 BodyMetric.BodyFat,
                 BodyMetric.MuscleMass,
                 BodyMetric.Water,
+                BodyMetric.BodyWaterMass,
                 BodyMetric.Protein,
                 BodyMetric.BoneMass -> value.toDoubleOrNullFlexible() != null
             }

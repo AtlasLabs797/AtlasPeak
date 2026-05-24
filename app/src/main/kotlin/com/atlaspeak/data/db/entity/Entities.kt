@@ -244,6 +244,7 @@ data class BodyCompositionEntity(
     @ColumnInfo(name = "body_fat_percent") val bodyFatPercent: Double? = null,
     @ColumnInfo(name = "muscle_mass_kg") val muscleMassKg: Double? = null,
     @ColumnInfo(name = "water_percent") val waterPercent: Double? = null,
+    @ColumnInfo(name = "body_water_mass_kg") val bodyWaterMassKg: Double? = null,
     @ColumnInfo(name = "visceral_fat_level") val visceralFatLevel: Int? = null,
     @ColumnInfo(name = "protein_percent") val proteinPercent: Double? = null,
     @ColumnInfo(name = "bone_mass_kg") val boneMassKg: Double? = null,

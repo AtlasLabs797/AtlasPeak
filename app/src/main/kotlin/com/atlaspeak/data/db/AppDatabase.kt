@@ -2,6 +2,8 @@ package com.atlaspeak.data.db
 
 import androidx.room.Database
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.atlaspeak.data.db.dao.AuthSecurityDao
 import com.atlaspeak.data.db.dao.BodyCompositionDao
 import com.atlaspeak.data.db.dao.CardioDao
@@ -58,7 +60,7 @@ import com.atlaspeak.data.db.entity.WorkoutSetEntity
         HcSleepStageEntity::class,
         HcHeartRateSampleEntity::class,
     ],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -78,7 +80,13 @@ abstract class AppDatabase : RoomDatabase() {
     companion object {
         const val DATABASE_NAME = "atlas_peak.db"
 
-        val V1_TABLES = setOf(
+        val MIGRATION_1_2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE body_composition ADD COLUMN body_water_mass_kg REAL")
+            }
+        }
+
+        val TABLES = setOf(
             "users",
             "user_profile",
             "muscle_groups",
@@ -100,5 +108,7 @@ abstract class AppDatabase : RoomDatabase() {
             "hc_sleep_stages",
             "hc_heart_rate_samples",
         )
+
+        val V1_TABLES = TABLES
     }
 }

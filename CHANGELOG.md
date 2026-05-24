@@ -10,6 +10,52 @@
 
 ## [No publicado]
 
+### Fase 10 - Health Connect
+
+#### 2026-05-24 - Import/export Health Connect y migracion DB v2
+
+**Añadido**
+- Añadido `HealthConnectRepository`, `SyncHealthConnectUseCase` y `HealthConnectManager` para
+  revalidar disponibilidad/permisos, importar pasos, calorias activas, sueño y frecuencia cardiaca,
+  y exportar entrenamientos completados y composicion corporal soportada.
+- Añadido import por agregados diarios para pasos/calorias y cache Room para sueño/FC. La lectura
+  rehace una ventana movil de 30 dias borrando cache local del rango para reflejar cambios y
+  borrados recientes sin pedir historial extendido.
+- Añadida exportacion a Health Connect con `clientRecordId` estable para workouts, peso, grasa,
+  masa magra y masa de agua corporal.
+- Añadida tarjeta de gestion Health Connect en `Body` con sincronizacion manual y solicitud de
+  permisos si fueron revocados; `Home` intenta sincronizar al abrir si los permisos siguen activos.
+- Añadida pantalla de rationale/privacidad para Health Connect con intent
+  `ACTION_SHOW_PERMISSIONS_RATIONALE` y alias `VIEW_PERMISSION_USAGE`.
+- Añadida columna nullable `body_water_mass_kg`, schema Room v2 y test instrumentado de migracion
+  `MIGRATION_1_2`.
+- Añadidos tests unitarios para use case de sync, mapper de records Health Connect, validacion de
+  masa de agua corporal y validacion raw de entrada manual.
+
+**Corregido**
+- Registrado y resuelto `BUG-016`: Health Connect no sincroniza `% agua corporal`; el tipo real
+  soportado es masa de agua corporal (`BodyWaterMassRecord`).
+- La promesa de báscula inteligente queda ajustada al alcance real de v1: no se leen datos
+  corporales desde Health Connect porque no se piden permisos de lectura corporal.
+
+**Seguridad**
+- Registrado `SEC-016`: la integracion revalida permisos concedidos en cada sync, no pide lectura
+  corporal ni historial extendido, no usa red propia y mantiene `Body` bajo `FLAG_SECURE`.
+- Revalidado: sin secretos nuevos, sin `ACCESS_BACKGROUND_LOCATION`, sin cleartext/fallback
+  destructivo y sin `google-services.json`.
+
+**Verificado**
+- `./gradlew compileDebugKotlin testDebugUnitTest --tests com.atlaspeak.domain.usecase.healthconnect.SyncHealthConnectUseCaseTest --tests com.atlaspeak.data.healthconnect.HealthConnectRecordMapperTest --tests com.atlaspeak.domain.usecase.body.BodyCompositionUseCaseTest --tests com.atlaspeak.presentation.body.BodyCompositionDraftTest --no-daemon`
+  pasa.
+- `./gradlew compileDebugAndroidTestKotlin --no-daemon` pasa.
+- `./gradlew assembleDebug assembleRelease test lint compileDebugAndroidTestKotlin --no-daemon`
+  pasa.
+- Scanner `cyber-neo` sobre `app/` no encuentra secretos reales; el unico aviso es ausencia de
+  `.gitignore` dentro de `app/`, mitigado por `.gitignore` raiz que ignora `secrets.properties`,
+  `keystore.properties`, `local.properties` y `google-services.json`.
+- QA visual runtime bloqueada: `adb devices` no lista dispositivos, `emulator -list-avds` no
+  devuelve AVDs y `emulator -accel-check` falla con codigo 6 por Hyper-V/WHPX.
+
 ### Fase 9 - Composición corporal
 
 #### 2026-05-24 - Cuerpo, entrada manual y evolución por métrica

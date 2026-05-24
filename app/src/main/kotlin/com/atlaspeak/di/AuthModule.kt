@@ -1,6 +1,7 @@
 package com.atlaspeak.di
 
 import com.atlaspeak.data.repository.PreferencesOnboardingRepository
+import com.atlaspeak.data.healthconnect.HealthConnectManager
 import com.atlaspeak.data.repository.RoomAuthRepository
 import com.atlaspeak.data.repository.RoomBodyCompositionRepository
 import com.atlaspeak.data.repository.RoomCardioRepository
@@ -16,6 +17,7 @@ import com.atlaspeak.domain.repository.BodyCompositionRepository
 import com.atlaspeak.domain.repository.CardioRepository
 import com.atlaspeak.domain.repository.DashboardRepository
 import com.atlaspeak.domain.repository.ExerciseRepository
+import com.atlaspeak.domain.repository.HealthConnectRepository
 import com.atlaspeak.domain.repository.OnboardingRepository
 import com.atlaspeak.domain.repository.ProfileRepository
 import com.atlaspeak.domain.repository.RoutineRepository
@@ -41,6 +43,9 @@ abstract class AuthModule {
 
     @Binds
     abstract fun bindDashboardRepository(repository: RoomDashboardRepository): DashboardRepository
+
+    @Binds
+    abstract fun bindHealthConnectRepository(repository: HealthConnectManager): HealthConnectRepository
 
     @Binds
     abstract fun bindPasswordHasher(encryptionManager: EncryptionManager): PasswordHasher

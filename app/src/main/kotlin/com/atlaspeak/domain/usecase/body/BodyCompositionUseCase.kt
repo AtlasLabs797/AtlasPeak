@@ -50,6 +50,7 @@ class BodyCompositionUseCase(
                 bodyFatPercent = input.bodyFatPercent,
                 muscleMassKg = input.muscleMassKg,
                 waterPercent = input.waterPercent,
+                bodyWaterMassKg = input.bodyWaterMassKg,
                 visceralFatLevel = input.visceralFatLevel,
                 proteinPercent = input.proteinPercent,
                 boneMassKg = input.boneMassKg,
@@ -69,6 +70,7 @@ class BodyCompositionUseCase(
             bodyFatPercent,
             muscleMassKg,
             waterPercent,
+            bodyWaterMassKg,
             visceralFatLevel,
             proteinPercent,
             boneMassKg,
@@ -79,6 +81,7 @@ class BodyCompositionUseCase(
             bodyFatPercent.validPercent() &&
             muscleMassKg.validPositive(max = 250.0) &&
             waterPercent.validPercent() &&
+            bodyWaterMassKg.validPositive(max = 250.0) &&
             visceralFatLevel.validIntRange(min = 1, max = 100) &&
             proteinPercent.validPercent() &&
             boneMassKg.validPositive(max = 20.0) &&
@@ -124,6 +127,7 @@ class BodyCompositionUseCase(
             BodyMetric.BodyFat -> bodyFatPercent
             BodyMetric.MuscleMass -> muscleMassKg
             BodyMetric.Water -> waterPercent
+            BodyMetric.BodyWaterMass -> bodyWaterMassKg
             BodyMetric.VisceralFat -> visceralFatLevel?.toDouble()
             BodyMetric.Protein -> proteinPercent
             BodyMetric.BoneMass -> boneMassKg

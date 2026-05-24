@@ -85,6 +85,15 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
 - **Solucion:** `AppRoute.Body.route` se anade a `secureRoutes`; no se introducen nuevos permisos, red ni logs de valores corporales.
 - **Prevencion:** toda pantalla que muestre salud, backup, perfil, auth o permisos sensibles debe revisarse contra `SecureScreenEffect`.
 
+### SEC-016 - Sincronizacion Health Connect con permisos revocables
+- **Estado:** Resuelto
+- **Fecha:** 2026-05-24
+- **Severidad:** Media
+- **Sintoma:** Fase 10 activa lectura/escritura de datos de salud del dispositivo; los permisos pueden revocarse fuera de la app y no deben asumirse persistentes.
+- **Causa raiz:** Health Connect es una superficie de datos sensible controlada por permisos runtime externos a Atlas Peak.
+- **Solucion:** `HealthConnectManager` comprueba disponibilidad y `getGrantedPermissions()` antes de cada sync, rehace una ventana movil de 30 dias sin pedir `READ_HEALTH_DATA_HISTORY`, no solicita lectura corporal, usa solo los permisos declarados en manifest, expone una accion de permisos en `Body` y declara pantalla de rationale/privacidad para Health Connect.
+- **Prevencion:** cualquier nuevo tipo de dato Health Connect debe anadir permiso manifest + UI + revision de minimo privilegio antes de leer o escribir.
+
 ### SEC-001 — Backup no restaurable: falta el salt en el archivo cifrado
 - **Estado:** 🟢 Resuelto (en diseño)
 - **Fecha:** 2026-05-23

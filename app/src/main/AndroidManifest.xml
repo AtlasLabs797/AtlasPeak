@@ -68,6 +68,26 @@
             </intent-filter>
         </activity>
 
+        <!-- Health Connect privacy/rationale screen required from the permissions UI. -->
+        <activity
+            android:name=".HealthPermissionsRationaleActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />
+            </intent-filter>
+        </activity>
+
+        <activity-alias
+            android:name=".ViewPermissionUsageActivity"
+            android:exported="true"
+            android:permission="android.permission.START_VIEW_PERMISSION_USAGE"
+            android:targetActivity=".HealthPermissionsRationaleActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW_PERMISSION_USAGE" />
+                <category android:name="android.intent.category.HEALTH_PERMISSIONS" />
+            </intent-filter>
+        </activity-alias>
+
         <!-- Foreground Services con tipo declarado (Android 14/15) -->
         <service
             android:name=".service.WorkoutForegroundService"

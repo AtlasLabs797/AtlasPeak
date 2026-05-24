@@ -247,7 +247,9 @@ Fase 9 reemplaza el placeholder de `Body` por una pantalla real sobre la tabla v
   `BodyCompositionEntity` sin exponer entities a presentation.
 - `BodyCompositionScreen` muestra tabla de valores actuales, selector de periodo, selector de
   metrica, grafica Vico y formulario manual con todos los campos del spec.
-- Las metricas preparadas para Health Connect son peso, grasa corporal, masa muscular y agua.
+- Las metricas preparadas para Health Connect son peso, grasa corporal, masa muscular y masa de
+  agua corporal. `% agua corporal` queda manual: Health Connect expone `BodyWaterMassRecord`
+  como masa, no como porcentaje.
   Grasa visceral, proteina, masa osea y edad corporal son solo manuales hasta nueva decision
   de producto.
 
@@ -284,9 +286,18 @@ La integracion real con Health Connect no se implementa en esta fase. La pantall
 - **Escritura:** `WRITE_EXERCISE`, `WRITE_WEIGHT`, `WRITE_BODY_FAT`, `WRITE_LEAN_BODY_MASS`,
   `WRITE_BODY_WATER_MASS`.
 - `HealthConnectManager` centraliza permisos, import (→ Room) y export (→ HC records).
+- Importa pasos diarios y calorias activas mediante agregados diarios para evitar doble conteo
+  por origen; importa sueño y frecuencia cardiaca como records crudos paginados.
+- Exporta sesiones completadas como `ExerciseSessionRecord`; exporta peso, grasa corporal,
+  masa magra y masa de agua corporal con `clientRecordId` estable `atlaspeak:<tipo>:<id>`.
+- Las lecturas rehacen una ventana movil de 30 dias: se borra la cache local del rango y se lee
+  de nuevo para reflejar cambios o borrados recientes sin pedir `READ_HEALTH_DATA_HISTORY`.
+  No se piden permisos de lectura corporal.
 - `hc_sync_log` registra último read/write por tipo. **Conflicto:** gana el timestamp más
   reciente; no se sobreescribe lo local si es más nuevo.
-- Báscula inteligente: integración **indirecta** (app de la báscula → HC → Atlas Peak).
+- Báscula inteligente: integración **indirecta**. En v1 Atlas Peak no pide permisos de lectura
+  corporal de Health Connect; solo exporta métricas corporales introducidas en la app. Leer peso
+  o composición desde apps de báscula requiere ampliar permisos y Play Console.
 
 ---
 

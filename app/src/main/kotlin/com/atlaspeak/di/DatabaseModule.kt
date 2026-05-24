@@ -24,6 +24,7 @@ object DatabaseModule {
         val supportFactory = SupportOpenHelperFactory(passphraseProvider.getPassphrase())
         return Room.databaseBuilder(context, AppDatabase::class.java, AppDatabase.DATABASE_NAME)
             .openHelperFactory(supportFactory)
+            .addMigrations(AppDatabase.MIGRATION_1_2)
             .build()
     }
 }
