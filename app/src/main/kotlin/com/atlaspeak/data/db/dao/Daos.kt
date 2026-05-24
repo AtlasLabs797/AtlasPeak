@@ -260,3 +260,122 @@ interface HealthConnectDao {
     @Query("SELECT COUNT(*) FROM hc_sleep_stages")
     suspend fun countSleepStages(): Int
 }
+
+data class DashboardPointRow(
+    val timestamp: Long,
+    val value: Double,
+)
+
+data class DashboardIntervalRow(
+    val startTime: Long,
+    val endTime: Long,
+    val value: Double,
+)
+
+data class DashboardSessionRow(
+    val startTime: Long,
+    val durationSeconds: Int?,
+    val totalVolumeKg: Double?,
+)
+
+@Dao
+interface DashboardDao {
+    @Query(
+        """
+        SELECT start_time AS startTime, duration_seconds AS durationSeconds, total_volume_kg AS totalVolumeKg
+        FROM workout_sessions
+        WHERE type = 'STRENGTH'
+          AND completed = 1
+          AND start_time >= :startInclusive
+          AND start_time < :endExclusive
+        ORDER BY start_time
+        """,
+    )
+    suspend fun getCompletedStrengthSessions(
+        startInclusive: Long,
+        endExclusive: Long,
+    ): List<DashboardSessionRow>
+
+    @Query(
+        """
+        SELECT start_time AS startTime, duration_seconds AS durationSeconds, total_volume_kg AS totalVolumeKg
+        FROM workout_sessions
+        WHERE type = 'CARDIO'
+          AND completed = 1
+          AND start_time >= :startInclusive
+          AND start_time < :endExclusive
+        ORDER BY start_time
+        """,
+    )
+    suspend fun getCompletedCardioSessions(
+        startInclusive: Long,
+        endExclusive: Long,
+    ): List<DashboardSessionRow>
+
+    @Query(
+        """
+        SELECT measured_at AS timestamp, weight_kg AS value
+        FROM body_composition
+        WHERE measured_at >= :startInclusive
+          AND measured_at < :endExclusive
+          AND weight_kg IS NOT NULL
+        ORDER BY measured_at
+        """,
+    )
+    suspend fun getBodyWeightPoints(
+        startInclusive: Long,
+        endExclusive: Long,
+    ): List<DashboardPointRow>
+
+    @Query(
+        """
+        SELECT start_time AS startTime, end_time AS endTime, count AS value
+        FROM hc_steps_records
+        WHERE start_time < :endExclusive
+          AND end_time > :startInclusive
+        ORDER BY start_time
+        """,
+    )
+    suspend fun getStepIntervals(
+        startInclusive: Long,
+        endExclusive: Long,
+    ): List<DashboardIntervalRow>
+
+    @Query(
+        """
+        SELECT sampled_at AS timestamp, bpm AS value
+        FROM hc_heart_rate_samples
+        WHERE sampled_at >= :startInclusive
+          AND sampled_at < :endExclusive
+        ORDER BY sampled_at
+        """,
+    )
+    suspend fun getHeartRateSamples(
+        startInclusive: Long,
+        endExclusive: Long,
+    ): List<DashboardPointRow>
+
+    @Query(
+        """
+        SELECT start_time AS startTime, end_time AS endTime, 0.0 AS value
+        FROM hc_sleep_sessions
+        WHERE start_time < :endExclusive
+          AND end_time > :startInclusive
+        ORDER BY start_time
+        """,
+    )
+    suspend fun getSleepIntervals(
+        startInclusive: Long,
+        endExclusive: Long,
+    ): List<DashboardIntervalRow>
+
+    @Query(
+        """
+        SELECT day_of_week
+        FROM weekly_plan
+        WHERE is_rest_day = 0 AND routine_id IS NOT NULL
+        ORDER BY day_of_week
+        """,
+    )
+    suspend fun getPlannedTrainingDays(): List<Int>
+}

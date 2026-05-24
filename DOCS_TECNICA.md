@@ -211,6 +211,28 @@ La ruta GPS de cardio se renderiza con `CardioRouteMap`, componente reutilizado 
 `CardioCompleteScreen` y el detalle de historial de Progreso. No se anaden permisos,
 networking ni schema Room en esta fase.
 
+## 6.5 Dashboard / Home
+
+Fase 8 reemplaza el placeholder de `Home` por un dashboard local-first:
+
+- `domain.model.dashboard` contiene periodos, widgets, filtros individuales y el snapshot
+  agregado que consume la UI.
+- `DashboardUseCase` agrega datos desde `DashboardRepository`; dominio no importa Room ni
+  Compose y no carga historiales completos de entrenamiento.
+- `DashboardRepository` expone solo lecturas ya existentes: plan semanal, peso corporal,
+  pasos, muestras de frecuencia cardiaca y sueño.
+- `RoomDashboardRepository` usa `DashboardDao` sobre las tablas v1 ya creadas en Fase 1, por
+  lo que no hay migracion ni bump de schema.
+- `HomeScreen` muestra minutos de entrenamiento esta semana, volumen, consistencia, tiempo
+  total de actividad, peso corporal, pasos diarios, frecuencia cardiaca y sueño con periodos
+  independientes por widget.
+- `PeriodSelector` queda como componente compartido para Dashboard y Progreso.
+
+El widget de frecuencia cardiaca muestra el minimo diario de las muestras importadas en
+`hc_heart_rate_samples`; no se etiqueta como frecuencia en reposo hasta que Fase 10 anada una
+cache dedicada para `RestingHeartRateRecord`. Los pasos se parten proporcionalmente por dia
+local cuando un intervalo cruza medianoche o el inicio del periodo.
+
 ---
 
 ## 7. Foreground Services

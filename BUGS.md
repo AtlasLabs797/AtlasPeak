@@ -24,6 +24,32 @@
 
 ## Entradas
 
+### BUG-015 - Dashboard etiquetaba minimo cardiaco como frecuencia en reposo
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-24
+- **Fase:** 8
+- **Severidad:** Media
+- **Sintoma:** el dashboard llamaba "frecuencia cardiaca en reposo" a un minimo diario calculado desde muestras genericas de pulso.
+- **Causa raiz:** la DB v1 tiene `hc_heart_rate_samples`, pero no una cache dedicada para `RestingHeartRateRecord`.
+- **Solucion:** el widget queda etiquetado como minimo diario de frecuencia cardiaca hasta que Fase 10 anada la lectura/caché real de reposo.
+- **Prevencion:** no usar nombres clinicos o fisiologicos si el dato importado no tiene esa semantica exacta.
+- **Fecha resolucion:** 2026-05-24
+
+---
+
+### BUG-014 - Consistencia semanal contaba dias fuera del plan
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-24
+- **Fase:** 8
+- **Severidad:** Media
+- **Sintoma:** la consistencia con plan podia contar entrenamientos hechos en dias no planificados y, ademas, el target semanal podia duplicar un dia al convertir `now - 7 dias` a fechas inclusivas.
+- **Causa raiz:** se mezclo una ventana exacta en milisegundos con conteo inclusivo de calendario y el numerador no filtraba por `weekly_plan`.
+- **Solucion:** la semana empieza el lunes local, el numerador con plan solo cuenta dias activos planificados y el target usa los dias calendario del periodo.
+- **Prevencion:** tests unitarios `snapshot ignores active days outside weekly plan` y `snapshot does not count eight calendar days for weekly plan target`.
+- **Fecha resolucion:** 2026-05-24
+
+---
+
 ### BUG-013 - Cardio aparecia duplicado como fuerza en Progreso
 - **Estado:** Resuelto
 - **Fecha deteccion:** 2026-05-24

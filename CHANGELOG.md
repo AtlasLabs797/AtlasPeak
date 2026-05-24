@@ -10,6 +10,51 @@
 
 ## [No publicado]
 
+### Fase 8 - Dashboard / Home
+
+#### 2026-05-24 - Dashboard local con métricas de entrenamiento y salud
+
+**Añadido**
+- Añadidos modelos de dominio `DashboardPeriod`, `DashboardWidget`, `DashboardFilters`,
+  `DashboardPoint`, `DashboardInterval`, `DashboardSessionSummary`, `DashboardConsistency`
+  y `DashboardSnapshot`.
+- Añadido `DashboardUseCase` para agregar volumen total, consistencia, minutos de
+  entrenamiento semanal, tiempo total de actividad, peso corporal, pasos, frecuencia cardiaca
+  y sueño desde repositorios de dominio.
+- Añadido contrato `DashboardRepository`, `DashboardDao` y `RoomDashboardRepository` para leer
+  datos existentes de `body_composition`, `weekly_plan` y caches de Health Connect.
+- Reemplazado el placeholder de `Home` por `HomeScreen`, con tarjetas KPI, selectores de
+  periodo por widget y gráficas Vico interactivas.
+- Añadido `PeriodSelector` compartido y reutilizado también en `ProgressScreen`.
+- Añadidos strings ES/EN y tests unitarios para las agregaciones de dashboard.
+
+**Corregido**
+- Registrado y resuelto `BUG-014`: la consistencia con plan ya no cuenta entrenamientos fuera
+  del plan y la semana empieza en lunes local.
+- Registrado y resuelto `BUG-015`: el widget de pulso ya no etiqueta el mínimo diario como
+  frecuencia cardiaca en reposo.
+- Los intervalos de pasos que cruzan medianoche o el inicio de periodo se parten
+  proporcionalmente por día local.
+- `HomeViewModel` cancela refrescos obsoletos al cambiar periodos para evitar snapshots
+  viejos sobre filtros nuevos.
+
+**Cambiado**
+- El dashboard lee resúmenes de sesiones desde `DashboardDao` en vez de cargar historiales
+  completos de fuerza/cardio para agregar KPIs.
+
+**Seguridad**
+- Sin nuevos permisos, red, auth, backup ni schema Room. Revalidado: sin secretos nuevos,
+  sin `ACCESS_BACKGROUND_LOCATION`, sin cleartext/fallback destructivo y sin textos
+  hardcodeados nuevos en UI.
+
+**Verificado**
+- `./gradlew testDebugUnitTest --tests com.atlaspeak.domain.usecase.dashboard.DashboardUseCaseTest --no-daemon`
+  pasa.
+- `./gradlew assembleDebug assembleRelease test lint compileDebugAndroidTestKotlin --no-daemon`
+  pasa.
+- QA visual runtime bloqueada: `adb devices` no lista dispositivos, `emulator -list-avds` no
+  devuelve AVDs y `emulator -accel-check` falla con código 6 por Hyper-V/WHPX.
+
 ### Fase 7 - Progreso
 
 #### 2026-05-24 - Historial unificado, progreso por ejercicio y grupos musculares

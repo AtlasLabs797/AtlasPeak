@@ -4,6 +4,7 @@ import androidx.room.Database
 import androidx.room.RoomDatabase
 import com.atlaspeak.data.db.dao.AuthSecurityDao
 import com.atlaspeak.data.db.dao.CardioDao
+import com.atlaspeak.data.db.dao.DashboardDao
 import com.atlaspeak.data.db.dao.ExerciseDao
 import com.atlaspeak.data.db.dao.HealthConnectDao
 import com.atlaspeak.data.db.dao.ReferenceDao
@@ -70,6 +71,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun settingsDao(): SettingsDao
     abstract fun authSecurityDao(): AuthSecurityDao
     abstract fun healthConnectDao(): HealthConnectDao
+    abstract fun dashboardDao(): DashboardDao
 
     companion object {
         const val DATABASE_NAME = "atlas_peak.db"

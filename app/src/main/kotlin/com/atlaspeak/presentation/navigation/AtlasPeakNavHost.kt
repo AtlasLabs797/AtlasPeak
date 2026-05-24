@@ -13,6 +13,7 @@ import com.atlaspeak.R
 import com.atlaspeak.presentation.auth.LoginRoute
 import com.atlaspeak.presentation.cardio.ActiveCardioRoute
 import com.atlaspeak.presentation.cardio.CardioCompleteRoute
+import com.atlaspeak.presentation.home.HomeRoute
 import com.atlaspeak.presentation.onboarding.OnboardingRoute
 import com.atlaspeak.presentation.progress.ProgressRoute
 import com.atlaspeak.presentation.screen.PlaceholderScreen
@@ -70,7 +71,7 @@ fun AtlasPeakNavHost(
             )
         }
         composable(AppRoute.Home.route) {
-            PlaceholderScreen(titleRes = R.string.screen_home_title)
+            HomeRoute()
         }
         composable(AppRoute.Train.route) {
             TrainRoute(

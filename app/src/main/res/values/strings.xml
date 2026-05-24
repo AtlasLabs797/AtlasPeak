@@ -234,6 +234,29 @@
     <string name="progress_chart_date_range">%1$s - %2$s</string>
     <string name="progress_group_summary">%1$d ejercicios - %2$.1f kg</string>
 
+    <!-- Inicio / dashboard -->
+    <string name="home_weekly_minutes_title">Minutos de entrenamiento esta semana</string>
+    <string name="home_widget_volume_title">Volumen total</string>
+    <string name="home_widget_volume_subtitle">Kg levantados en el periodo</string>
+    <string name="home_widget_consistency_title">Consistencia</string>
+    <string name="home_widget_consistency_plan">Días activos vs plan semanal</string>
+    <string name="home_widget_consistency_period">Días activos vs periodo</string>
+    <string name="home_widget_activity_title">Tiempo total de actividad</string>
+    <string name="home_widget_activity_subtitle">Fuerza y cardio completados</string>
+    <string name="home_widget_body_weight_title">Peso corporal</string>
+    <string name="home_widget_steps_title">Pasos diarios</string>
+    <string name="home_widget_heart_rate_title">Frecuencia cardíaca mínima diaria</string>
+    <string name="home_widget_sleep_title">Horas de sueño</string>
+    <string name="home_widget_sleep_subtitle">Promedio de sesiones importadas</string>
+    <string name="home_value_minutes">%1$d min</string>
+    <string name="home_value_kg">%1$.1f kg</string>
+    <string name="home_value_steps">%1$d pasos</string>
+    <string name="home_value_bpm">%1$d bpm</string>
+    <string name="home_value_hours">%1$.1f h</string>
+    <string name="home_value_consistency">%1$d / %2$d días</string>
+    <string name="home_value_empty">--</string>
+    <string name="home_chart_empty">Sin datos en este periodo.</string>
+
     <string name="error_generic">Algo salió mal. Inténtalo de nuevo.</string>
     <string name="error_no_connection">Sin conexión a internet.</string>
     <!-- Pantallas base -->

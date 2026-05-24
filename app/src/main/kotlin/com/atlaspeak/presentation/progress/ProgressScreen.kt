@@ -53,11 +53,15 @@ import com.atlaspeak.domain.model.progress.ProgressHistoryType
 import com.atlaspeak.domain.model.progress.ProgressPeriod
 import com.atlaspeak.domain.model.workout.WorkoutSession
 import com.atlaspeak.presentation.cardio.CardioRouteMap
+import com.atlaspeak.presentation.component.PeriodSelector
+import com.atlaspeak.presentation.component.PeriodSelectorItem
 import com.atlaspeak.presentation.theme.LocalSpacing
+import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
+import com.patrykandpatrick.vico.compose.cartesian.marker.rememberDefaultCartesianMarker
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
 import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
@@ -165,16 +169,11 @@ private fun PeriodChips(
     selectedPeriod: ProgressPeriod,
     onPeriodSelected: (ProgressPeriod) -> Unit,
 ) {
-    val spacing = LocalSpacing.current
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
-        items(ProgressPeriod.entries, key = { it.name }) { period ->
-            FilterChip(
-                selected = selectedPeriod == period,
-                onClick = { onPeriodSelected(period) },
-                label = { Text(stringResource(period.labelRes())) },
-            )
-        }
-    }
+    PeriodSelector(
+        items = ProgressPeriod.entries.map { PeriodSelectorItem(it, it.labelRes()) },
+        selected = selectedPeriod,
+        onSelected = onPeriodSelected,
+    )
 }
 
 @Composable
@@ -585,6 +584,9 @@ private fun ProgressLineChart(
             dateLabels.getOrNull(value.roundToInt()).orEmpty()
         }
     }
+    val marker = rememberDefaultCartesianMarker(
+        label = rememberTextComponent(color = MaterialTheme.colorScheme.onSurface),
+    )
     LaunchedEffect(points) {
         modelProducer.runTransaction {
             lineSeries {
@@ -597,6 +599,7 @@ private fun ProgressLineChart(
             rememberLineCartesianLayer(),
             startAxis = VerticalAxis.rememberStart(),
             bottomAxis = HorizontalAxis.rememberBottom(valueFormatter = bottomFormatter),
+            marker = marker,
         ),
         modelProducer = modelProducer,
         modifier = modifier,
