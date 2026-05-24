@@ -217,6 +217,12 @@ interface SettingsDao {
     @Query("UPDATE app_settings SET biometrics_enabled = :enabled WHERE id = 1")
     suspend fun updateBiometricsEnabled(enabled: Boolean)
 
+    @Query("UPDATE app_settings SET last_backup_at = :timestampMillis WHERE id = 1")
+    suspend fun updateLastBackupAt(timestampMillis: Long)
+
+    @Query("UPDATE app_settings SET backup_auto_enabled = :enabled WHERE id = 1")
+    suspend fun updateBackupAutoEnabled(enabled: Boolean)
+
     @Query(
         """
         UPDATE app_settings

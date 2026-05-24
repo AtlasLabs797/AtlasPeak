@@ -24,6 +24,45 @@
 
 ## Entradas
 
+### BUG-019 - Drive upload usaba multipart form-data
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-24
+- **Fase:** 12
+- **Severidad:** Alta
+- **Sintoma:** el backup a Drive compilaba, pero el endpoint `uploadType=multipart` podia rechazar la subida porque el cuerpo era `multipart/form-data`.
+- **Causa raiz:** se uso `@Multipart` de Retrofit, pensado para formularios, y se asumio que equivalia al multipart de Drive.
+- **Solucion:** `DriveApiService` recibe un `RequestBody` `multipart/related`; `RetrofitDriveBackupService` construye metadata JSON primero y binario cifrado despues.
+- **Prevencion:** test unitario `Drive upload body uses multipart related with metadata before encrypted media`.
+- **Fecha resolucion:** 2026-05-24
+
+---
+
+### BUG-018 - Auto-backup repetia subidas por last_backup_at
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-24
+- **Fase:** 12
+- **Severidad:** Media
+- **Sintoma:** el worker podia subir un backup diario aunque el usuario no cambiara datos, porque el backup anterior actualizaba `app_settings.last_backup_at`.
+- **Causa raiz:** el hash estable incluia una columna que muta como efecto lateral del propio backup.
+- **Solucion:** la canonicalizacion del snapshot para hash ignora `last_backup_at` y mantiene el resto de settings.
+- **Prevencion:** test unitario `backup change hash canonicalization ignores last backup timestamp only`.
+- **Fecha resolucion:** 2026-05-24
+
+---
+
+### BUG-017 - Accion Drive pendiente se perdia al volver del consentimiento
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-24
+- **Fase:** 12
+- **Severidad:** Media
+- **Sintoma:** tras autorizar Drive, la app podia no ejecutar listar/backup/restore si la Activity se recreaba durante el flujo de consentimiento.
+- **Causa raiz:** `BackupRestoreRoute` guardaba la accion pendiente en `remember`, que no sobrevive recreacion.
+- **Solucion:** la accion pendiente se guarda como clave `rememberSaveable` y se reconstruye al recibir el resultado de AuthorizationClient.
+- **Prevencion:** no guardar acciones pendientes de Activity Result en estado no saveable.
+- **Fecha resolucion:** 2026-05-24
+
+---
+
 ### BUG-016 - Health Connect no soporta porcentaje de agua corporal
 - **Estado:** Resuelto
 - **Fecha deteccion:** 2026-05-24

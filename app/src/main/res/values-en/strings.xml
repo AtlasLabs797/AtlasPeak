@@ -307,6 +307,41 @@
         <item>Today counts even when it is not perfect.</item>
     </string-array>
 
+    <!-- Backup / export -->
+    <string name="backup_screen_body">Encrypted Drive App Data backup and manual export from private storage.</string>
+    <string name="backup_password_title">Backup password</string>
+    <string name="backup_password_body">The same local password decrypts backups on another device. Automatic backup stores this password encrypted on this device.</string>
+    <string name="backup_password_required">Enter the password to encrypt or restore.</string>
+    <string name="backup_auto_title">Daily automatic backup</string>
+    <string name="backup_auto_enabled">Automatic backup enabled.</string>
+    <string name="backup_auto_disabled">Automatic backup disabled.</string>
+    <string name="backup_last_backup">Last backup: %1$s</string>
+    <string name="backup_last_never">never</string>
+    <string name="backup_drive_title">Google Drive</string>
+    <string name="backup_drive_body">Uses the drive.appdata scope. Google only receives the encrypted file.</string>
+    <string name="backup_drive_create">Create in Drive</string>
+    <string name="backup_drive_refresh">List</string>
+    <string name="backup_drive_empty">No Drive backups yet.</string>
+    <string name="backup_drive_loaded">Drive backups loaded.</string>
+    <string name="backup_drive_created">Encrypted backup uploaded to Drive.</string>
+    <string name="backup_drive_failed">Could not complete the Drive operation.</string>
+    <string name="backup_drive_auth_failed">Could not authorize Google Drive.</string>
+    <string name="backup_file_meta">Date: %1$s</string>
+    <string name="backup_restore_action">Restore</string>
+    <string name="backup_restore_confirm">Confirm restore</string>
+    <string name="backup_restore_confirm_body">This replaces local data with the selected backup.</string>
+    <string name="backup_restore_success">Backup restored.</string>
+    <string name="backup_restore_failed">Could not restore. Check the password and file.</string>
+    <string name="backup_export_title">Manual export</string>
+    <string name="backup_export_body">Manual exports exclude password hashes and lockout state.</string>
+    <string name="backup_local_create">Share encrypted backup</string>
+    <string name="backup_local_created">Encrypted backup created.</string>
+    <string name="backup_export_json">Share JSON</string>
+    <string name="backup_export_csv">Share CSV ZIP</string>
+    <string name="backup_export_created">Export created.</string>
+    <string name="backup_export_failed">Could not create the export.</string>
+    <string name="backup_share_title">Share file</string>
+
     <!-- Body composition -->
     <string name="body_screen_subtitle">Current values and body composition trends</string>
     <string name="body_add_entry">Add measurement</string>

@@ -43,6 +43,7 @@ vico = "2.1.3"
 # Auth (Credential Manager / Google Identity)
 credentials = "1.3.0"
 googleid = "1.1.1"
+playServicesAuth = "21.5.1"
 
 # Red (solo Drive REST v3)
 retrofit = "2.11.0"
@@ -120,6 +121,7 @@ vico-compose-m3 = { module = "com.patrykandpatrick.vico:compose-m3", version.ref
 androidx-credentials = { module = "androidx.credentials:credentials", version.ref = "credentials" }
 androidx-credentials-play-services-auth = { module = "androidx.credentials:credentials-play-services-auth", version.ref = "credentials" }
 googleid = { module = "com.google.android.libraries.identity.googleid:googleid", version.ref = "googleid" }
+play-services-auth = { module = "com.google.android.gms:play-services-auth", version.ref = "playServicesAuth" }
 
 # Red
 retrofit = { module = "com.squareup.retrofit2:retrofit", version.ref = "retrofit" }

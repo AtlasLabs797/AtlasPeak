@@ -103,6 +103,15 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
 - **Solucion:** `NotificationPermissionChecker` valida permiso runtime y `NotificationManagerCompat` antes de programar o publicar. Los workers terminan sin notificar si el permiso no existe, sin bucles de retry. Los canales estan separados (`training_reminders`, `motivational_messages`, `summaries`) y el texto de UI/documentacion comunica horarios aproximados. No se solicita `SCHEDULE_EXACT_ALARM`.
 - **Prevencion:** cualquier worker nuevo debe comprobar permisos antes de mostrar datos en lockscreen, usar `VISIBILITY_PRIVATE` cuando el contenido sea personal y documentar si el horario es exacto o best-effort.
 
+### SEC-018 - Backup Drive no puede usar ID token ni contrasena efimera
+- **Estado:** Resuelto
+- **Fecha:** 2026-05-24
+- **Severidad:** Alta
+- **Sintoma:** Fase 12 necesitaba Drive REST; el cliente Google existente solo devolvia ID token de autenticacion, inutil como `Authorization: Bearer` para Drive. Ademas, un worker diario no puede cifrar backups con PBKDF2 si la app no conserva ninguna credencial de backup.
+- **Causa raiz:** se mezclaron autenticacion Google (quien eres) y autorizacion Google (permiso para Drive), y el spec asumia backup automatico sin definir como obtener la contrasena fuera de una accion manual.
+- **Solucion:** Drive usa `AuthorizationClient` con scope minimo `drive.appdata`; los tokens de acceso se tratan como efimeros y el worker no lanza UI de consentimiento. El backup automatico solo se activa si el usuario introduce la contrasena y acepta guardarla en `EncryptedSharedPreferences` protegido por Android Keystore. Los exports manuales sin cifrar excluyen `users` y `auth_security`.
+- **Prevencion:** tests de manager/HTTP prueban que se sube binario cifrado, no JSON, con `multipart/related` para Drive; revision permanente: ID tokens nunca son bearer tokens de Drive; cualquier export no cifrado debe excluir credenciales, hashes y estado de bloqueo.
+
 ### SEC-001 — Backup no restaurable: falta el salt en el archivo cifrado
 - **Estado:** 🟢 Resuelto (en diseño)
 - **Fecha:** 2026-05-23
@@ -239,6 +248,7 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
 | RA-01 | Rate-limit reseteable borrando datos de la app | La defensa real es el hash fuerte; sin servidor no hay alternativa |
 | RA-02 | Pérdida de contraseña **y** cuenta Google → datos irrecuperables | Documentado y advertido en onboarding; no hay solución sin comprometer el cifrado |
 | RA-03 | `FLAG_SECURE` solo en pantallas críticas, no en todas | Coste/beneficio; el resto no muestra datos sensibles |
+| RA-04 | Backup automatico guarda la contrasena cifrada en el dispositivo | Es el coste de cifrar backups diarios sin servidor ni pedir contrasena cada dia; opt-in explicito y protegido por Keystore |
 
 ---
 

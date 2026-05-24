@@ -88,7 +88,7 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
-        val TABLES = setOf(
+        val TABLE_ORDER = listOf(
             "users",
             "user_profile",
             "muscle_groups",
@@ -110,6 +110,8 @@ abstract class AppDatabase : RoomDatabase() {
             "hc_sleep_stages",
             "hc_heart_rate_samples",
         )
+
+        val TABLES = TABLE_ORDER.toSet()
 
         val V1_TABLES = TABLES
     }

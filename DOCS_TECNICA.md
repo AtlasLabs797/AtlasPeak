@@ -35,10 +35,11 @@ Regla dura: `presentation` no conoce Room ni Retrofit. Mapea siempre a **domain 
 
 ```
 data/
+  backup/       Snapshot Room, codec ATPK, export local, DriveBackupManager, BackupWorker
   db/            AppDatabase (SQLCipher), dao/, entity/
   repository/    implementaciones de las interfaces de domain
   healthconnect/ HealthConnectManager (permisos, import, export)
-  drive/         DriveApiService (Retrofit), DriveBackupManager (serializar/cifrar/subir)
+  drive/         DriveApiService (Retrofit), AuthorizationClient/Drive token provider
   location/      LocationTracker (FusedLocationProvider → Flow<LatLng>)
   security/      EncryptionManager (Keystore, AES-256-GCM, PBKDF2)
 domain/
@@ -104,14 +105,16 @@ Notas de integridad:
 - **Gate de app:** `AtlasPeakNavHost` arranca en `Launch`. Si `onboarding_completed=false`
   navega a `Onboarding`; si ya está completado navega a `Login`. Tras autenticación local
   correcta navega a `Home` limpiando login del back stack.
-- **Google:** Credential Manager se lanza desde la `FragmentActivity` de UI. Un resultado
-  Google correcto **no desbloquea** la DB local; la contraseña local sigue siendo el gate.
+- **Google:** Credential Manager se lanza desde la `FragmentActivity` de UI para identidad.
+  Drive usa un flujo separado de `AuthorizationClient` con scope `drive.appdata`. Un ID token
+  Google no es un bearer token valido para Drive y nunca desbloquea la DB local.
 - **Biometría:** `BiometricPrompt` clase `BIOMETRIC_STRONG`. Solo desbloqueo, no auth nueva.
   Timeout configurable (1/5/15/nunca). Re-pide al volver a foreground tras el timeout.
 - **Rate limiting:** 5 intentos → bloqueo 15 min. Contador en tabla `auth_security` (DB cifrada).
 - **`FLAG_SECURE`** en Login, Biometría, Perfil, Backup.
-- **Red:** solo HTTPS (`network_security_config.xml`, sin cleartext). Drive con
-  `Authorization: Bearer {token}`; token OAuth en `EncryptedSharedPreferences`.
+- **Red:** solo HTTPS (`network_security_config.xml`, sin cleartext). Drive REST usa
+  `Authorization: Bearer {access_token}` obtenido por `AuthorizationClient`; Atlas Peak no
+  reutiliza ID tokens como credenciales Drive.
 - **Backup cifrado** (formato corregido, SEC-001):
   ```
   [magic "ATPK" (4B)] [versión (1B)] [iteraciones (4B BE)] [salt (16B)] [IV (12B)] [ciphertext+tag GCM]
@@ -119,6 +122,11 @@ Notas de integridad:
   Clave = PBKDF2(contraseña, salt-del-archivo, iteraciones-del-archivo). El salt viaja en el
   archivo (no es secreto) → permite restaurar en otro dispositivo. AES-256-GCM (tag de 16B
   incluido por el proveedor JCE).
+- **Backup automatico:** opt-in. Para cifrar sin pedir contrasena cada dia, la contrasena de
+  backup se guarda cifrada en `EncryptedSharedPreferences` protegido por Keystore. Si no hay
+  grant silencioso de Drive o contrasena guardada, el worker termina sin lanzar UI.
+- **Export manual:** JSON/CSV sin cifrar excluye `users` y `auth_security` para no compartir
+  hashes de contrasena, salts ni estado de bloqueo.
 - **Secretos:** `MAPS_API_KEY` y `OAUTH_WEB_CLIENT_ID` en `secrets.properties` (gitignored),
   inyectados via `manifestPlaceholders` y `BuildConfig`. **Sin `google-services.json`.**
 
@@ -130,6 +138,7 @@ No hay backend, así que "iniciar sesión" no autentica contra ningún servidor 
 El gate real es la **contraseña local**. Google Identity Services (Credential Manager) sirve
 **solo** para obtener el token OAuth con scope `drive.appdata` y poder hacer backup. Por eso
 Google es **opcional** y el onboarding lo permite saltar; la app funciona 100% offline sin él.
+La obtencion de permiso Drive sucede en la pantalla de Backup, no durante login.
 
 ## 6.1 Onboarding
 
@@ -331,13 +340,24 @@ Health Connect permite sincronizar y volver a pedir permisos si fueron revocados
 
 ## 10. Backup / Drive
 
-- `DriveApiService` (Retrofit) habla con Drive REST API v3, scope `drive.appdata` (carpeta
-  privada de la app, invisible al usuario).
-- `DriveBackupManager`: serializa la DB a JSON (Kotlinx) → cifra (formato §5) → sube.
-- `BackupWorker` (WorkManager): backup diario si hubo cambios desde el último.
-- Máximo **5 backups**; al crear el sexto se borra el más antiguo.
-- Restore: listar → descargar → leer cabecera → derivar clave → descifrar → transacción Room
-  (reemplazo completo de datos).
+- `DriveApiService` (Retrofit) habla con Drive REST API v3 sobre `appDataFolder`.
+  La subida usa `uploadType=multipart` con cuerpo `multipart/related`: metadata JSON primero,
+  binario cifrado despues. `multipart/form-data` no es valido para este endpoint.
+- `GoogleDriveAuthorizationClient` solicita `drive.appdata` desde UI con `AuthorizationClient`;
+  `GoogleDriveAccessTokenProvider` solo intenta grant silencioso para el worker.
+- `RoomBackupSnapshotStore` vuelca/restaura las 20 tablas de Room. Restore borra en orden
+  inverso de FK e inserta en orden de schema dentro de una transaccion.
+- `DriveBackupManager`: snapshot DB completo -> JSON Kotlinx -> ATPK/AES-256-GCM -> upload.
+- `BackupWorker` (WorkManager): diario, con red, solo si auto-backup esta activo, hay token
+  Drive silencioso, contrasena guardada y hash estable de snapshot distinto. El hash ignora
+  `app_settings.last_backup_at` para no subir un backup diario solo porque el anterior actualizo
+  esa marca.
+- Maximo **5 backups**; tras subir correctamente se lista y borra el mas antiguo sobrante.
+- Restore: listar -> descargar -> leer cabecera -> derivar clave -> descifrar -> validar
+  schema/tablas -> transaccion Room (reemplazo completo de datos).
+- `LocalBackupExportManager` crea archivos en `filesDir/exports` y los comparte con
+  `FileProvider`. El backup local `.enc` es cifrado; JSON/CSV ZIP son exports manuales sin
+  auth secrets.
 
 ---
 

@@ -10,6 +10,58 @@
 
 ## [No publicado]
 
+### Fase 12 - Backup Google Drive + export
+
+#### 2026-05-24 - Backup cifrado, Drive appData y exports manuales
+
+**Anadido**
+- Anadio `BackupRestoreScreen` real con contrasena de backup, toggle de auto-backup, lista
+  Drive, backup manual, restore confirmado, backup local cifrado, export JSON y export CSV ZIP.
+- Anadio flujo Drive separado con `AuthorizationClient` + scope `drive.appdata`; Credential
+  Manager sigue siendo identidad opcional, no bearer token de Drive.
+- Anadio `DriveApiService`, `RetrofitDriveBackupService`, `DriveBackupManager`,
+  `RoomBackupSnapshotStore`, `BackupFileCodec`, `BackupJsonCodec`, `LocalBackupExportManager`,
+  `BackupCredentialStore`, `BackupWorker` y `BackupWorkScheduler`.
+- Anadio tests unitarios para cabecera ATPK/PBKDF2 600k, round-trip cifrado, rechazo de schema,
+  exports sin `users`/`auth_security`, manager Drive, cuerpo HTTP `multipart/related` y hash
+  estable del auto-backup.
+- Anadio test instrumentado compilable de restore positivo con Room real y FKs de workouts /
+  Health Connect.
+- Anadio `.gitignore` dentro de `app/` para que los scanners no dependan solo del `.gitignore`
+  raiz al buscar secretos.
+
+**Cambiado**
+- `AtlasPeakApplication` programa el worker diario de backup tras el seed inicial.
+- `AppDatabase` expone `TABLE_ORDER`/`TABLES` para snapshot/restore de las 20 tablas.
+- `SettingsDao` actualiza `last_backup_at` y `backup_auto_enabled`.
+- `SPEC.md` y `DOCS_TECNICA.md` documentan que Drive upload usa `multipart/related`, no
+  `multipart/form-data`, y que el hash de auto-backup ignora `last_backup_at`.
+- Dependencia `play-services-auth` vive en `gradle/libs.versions.toml` para `AuthorizationClient`.
+
+**Corregido**
+- Registrados y resueltos `BUG-017`, `BUG-018` y `BUG-019`: accion Drive pendiente saveable,
+  auto-backup sin subidas repetidas por `last_backup_at`, y upload Drive con cuerpo HTTP valido.
+
+**Seguridad**
+- Registrado `SEC-018`: ID token de Google no se usa como bearer token Drive; el worker no
+  abre UI de consentimiento; auto-backup con contrasena guardada es opt-in y protegido con
+  EncryptedSharedPreferences + Android Keystore.
+- El backup cifrado usa formato `[ATPK][version][iterations BE][salt16][iv12][ciphertext+tag]`,
+  PBKDF2-HMAC-SHA256 600.000 iteraciones y AES-256-GCM.
+- Exports manuales JSON/CSV excluyen `users` y `auth_security`; el backup cifrado completo si
+  incluye tablas necesarias para restaurar.
+
+**Verificado**
+- `./gradlew compileDebugKotlin testDebugUnitTest compileDebugAndroidTestKotlin --no-daemon`
+  pasa tras corregir los hallazgos del review lateral.
+- `./gradlew assembleDebug assembleRelease test lint compileDebugAndroidTestKotlin --no-daemon`
+  pasa como gate completo de cierre.
+- `python Skills/05_Security/cyber-neo/scripts/scan_secrets.py app` no encuentra secretos.
+- `git diff --check` pasa.
+- Review lateral de Fase 12 ejecuto hallazgos P1/P2 y quedaron corregidos antes de cerrar.
+- QA visual/runtime bloqueada: no hay dispositivos/AVDs disponibles y `emulator -accel-check`
+  falla con codigo 6 por Hyper-V/WHPX.
+
 ### Fase 11 - Plan semanal + notificaciones
 
 #### 2026-05-24 - Planificacion semanal, scheduler y canales Android

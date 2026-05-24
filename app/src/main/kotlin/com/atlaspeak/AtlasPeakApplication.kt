@@ -3,6 +3,7 @@ package com.atlaspeak
 import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import com.atlaspeak.data.backup.BackupWorkScheduler
 import com.atlaspeak.data.notification.AtlasPeakNotificationHelper
 import com.atlaspeak.data.db.seed.DatabaseSeeder
 import com.atlaspeak.domain.repository.NotificationScheduler
@@ -24,6 +25,7 @@ class AtlasPeakApplication : Application(), Configuration.Provider {
     @Inject lateinit var workerFactory: HiltWorkerFactory
     @Inject lateinit var notificationHelper: AtlasPeakNotificationHelper
     @Inject lateinit var notificationScheduler: NotificationScheduler
+    @Inject lateinit var backupWorkScheduler: BackupWorkScheduler
 
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder()
@@ -36,6 +38,7 @@ class AtlasPeakApplication : Application(), Configuration.Provider {
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             databaseSeeder.seed()
             notificationScheduler.rescheduleAll()
+            backupWorkScheduler.scheduleDaily()
         }
     }
 }

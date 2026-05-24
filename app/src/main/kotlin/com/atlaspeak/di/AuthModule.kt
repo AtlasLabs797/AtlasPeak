@@ -1,6 +1,12 @@
 package com.atlaspeak.di
 
 import com.atlaspeak.data.repository.PreferencesOnboardingRepository
+import com.atlaspeak.data.backup.BackupSnapshotStore
+import com.atlaspeak.data.backup.RoomBackupSnapshotStore
+import com.atlaspeak.data.backup.DriveBackupService
+import com.atlaspeak.data.drive.RetrofitDriveBackupService
+import com.atlaspeak.data.drive.DriveAccessTokenProvider
+import com.atlaspeak.data.drive.GoogleDriveAccessTokenProvider
 import com.atlaspeak.data.healthconnect.HealthConnectManager
 import com.atlaspeak.data.notification.WorkManagerNotificationScheduler
 import com.atlaspeak.data.repository.RoomAuthRepository
@@ -61,6 +67,15 @@ abstract class AuthModule {
 
     @Binds
     abstract fun bindNotificationScheduler(scheduler: WorkManagerNotificationScheduler): NotificationScheduler
+
+    @Binds
+    abstract fun bindBackupSnapshotStore(store: RoomBackupSnapshotStore): BackupSnapshotStore
+
+    @Binds
+    abstract fun bindDriveBackupService(service: RetrofitDriveBackupService): DriveBackupService
+
+    @Binds
+    abstract fun bindDriveAccessTokenProvider(provider: GoogleDriveAccessTokenProvider): DriveAccessTokenProvider
 
     @Binds
     abstract fun bindPasswordHasher(encryptionManager: EncryptionManager): PasswordHasher

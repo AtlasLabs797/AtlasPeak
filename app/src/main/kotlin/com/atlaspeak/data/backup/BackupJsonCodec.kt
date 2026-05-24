@@ -1,0 +1,28 @@
+package com.atlaspeak.data.backup
+
+import com.atlaspeak.data.db.AppDatabase
+import javax.inject.Inject
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+
+class BackupJsonCodec @Inject constructor() {
+    private val json = Json {
+        encodeDefaults = true
+        explicitNulls = true
+        ignoreUnknownKeys = false
+    }
+
+    fun encode(snapshot: DatabaseBackupSnapshot): String = json.encodeToString(snapshot)
+
+    fun decode(value: String): DatabaseBackupSnapshot {
+        val snapshot = json.decodeFromString<DatabaseBackupSnapshot>(value)
+        require(snapshot.formatVersion == DatabaseBackupSnapshot.FORMAT_VERSION) { "Unsupported backup format" }
+        require(snapshot.schemaVersion <= CURRENT_SCHEMA_VERSION) { "Unsupported future schema" }
+        require(snapshot.tables.keys == AppDatabase.TABLES) { "Backup table set does not match the app schema" }
+        return snapshot
+    }
+
+    companion object {
+        const val CURRENT_SCHEMA_VERSION = 2
+    }
+}

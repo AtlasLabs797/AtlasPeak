@@ -11,6 +11,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.atlaspeak.R
 import com.atlaspeak.presentation.auth.LoginRoute
+import com.atlaspeak.presentation.backup.BackupRestoreRoute
 import com.atlaspeak.presentation.body.BodyCompositionRoute
 import com.atlaspeak.presentation.cardio.ActiveCardioRoute
 import com.atlaspeak.presentation.cardio.CardioCompleteRoute
@@ -164,7 +165,7 @@ fun AtlasPeakNavHost(
             NotificationSettingsRoute(onBack = { navController.popBackStack() })
         }
         composable(AppRoute.BackupRestore.route) {
-            PlaceholderScreen(titleRes = R.string.screen_backup_restore_title)
+            BackupRestoreRoute(onBack = { navController.popBackStack() })
         }
     }
 }

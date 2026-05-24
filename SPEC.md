@@ -304,6 +304,7 @@ Si el usuario pierde acceso a Google **y** olvida la contraseña local → los d
 
 - Backup a **Google Drive App Data folder** (carpeta privada, invisible para el usuario, solo accesible por Atlas Peak)
 - Acceso via **Drive REST API v3** con OAuth2 — scope: `https://www.googleapis.com/auth/drive.appdata`
+- El permiso Drive se obtiene con Google Identity `AuthorizationClient`; el ID token de Credential Manager no se usa como bearer token.
 - Retrofit + OkHttp como cliente HTTP (consistente con el resto del stack)
 - **Proceso de backup:**
   1. Serializar toda la DB a JSON (Kotlinx Serialization)
@@ -448,6 +449,7 @@ dependencies {
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
     implementation("androidx.credentials:credentials:1.3.0")
     implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
+    implementation("com.google.android.gms:play-services-auth:21.5.1") // AuthorizationClient para Drive
 
     // ── Google Drive REST API v3 (via Retrofit, sin Google API Client library) ─
     // Se consume directamente con Retrofit + bearer token OAuth2
@@ -455,7 +457,7 @@ dependencies {
     implementation("com.squareup.retrofit2:converter-kotlinx-serialization:2.11.0")
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
-    // OkHttp interceptor para añadir Authorization: Bearer {token} automáticamente
+    // DriveApiService envia Authorization: Bearer {access_token} obtenido por AuthorizationClient
 
     // ── Kotlinx Serialization ────────────────────────────────────────────────
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
@@ -1128,6 +1130,8 @@ Proceso de cifrado de backup (v2.2 — corregido):
 4. Formato del archivo:
    [magic "ATPK" (4B)] [versión (1B)] [iteraciones (4B BE)] [salt_backup (16B)] [IV (12B)] [ciphertext + tag GCM (16B)]
 5. Upload a Drive App Data folder: atlas_peak_backup_{timestamp}.enc
+   - Drive REST `uploadType=multipart` usa `multipart/related`: metadata JSON primero, binario
+     cifrado despues. No usar `multipart/form-data`.
 
 Por qué la cabecera:
 - El salt y las iteraciones NO son secretos; deben acompañar al ciphertext para poder
@@ -1144,13 +1148,21 @@ Ventaja clave (ahora sí funciona):
 Aviso: cambiar la contraseña local invalida los backups previos (estaban cifrados con la
 clave derivada de la contraseña antigua). La app advierte de esto y ofrece crear un backup
 nuevo. (SEC-002)
+
+Backup automatico: como no hay backend ni refresh server-side, la app solo puede cifrar en
+segundo plano si el usuario acepta guardar la contraseña de backup cifrada en el dispositivo
+(`EncryptedSharedPreferences` + Android Keystore). Si no hay grant silencioso de Drive o no
+hay contraseña guardada, `BackupWorker` termina sin lanzar UI de consentimiento. (SEC-018)
+El detector de cambios ignora `app_settings.last_backup_at` para no crear backups repetidos por
+la propia marca de exito del backup anterior.
 ```
 
 ### 7.4 Red
 
 - `network_security_config.xml`: cleartext prohibido en producción
-- Todas las llamadas a Drive REST API usan `Authorization: Bearer {token}`
-- Token OAuth2 de Google almacenado en `EncryptedSharedPreferences`
+- Todas las llamadas a Drive REST API usan `Authorization: Bearer {access_token}`
+- El `access_token` sale de `AuthorizationClient` con scope `drive.appdata`; un ID token de
+  Credential Manager nunca se usa contra Drive.
 - `OkHttp logging interceptor` desactivado en builds release (BuildConfig.DEBUG)
 
 ### 7.5 Export de Datos
@@ -1159,6 +1171,9 @@ nuevo. (SEC-002)
 - Se comparten via `FileProvider` + Android `ShareSheet`
 - El archivo no queda accesible a otras apps directamente
 - `FileProvider` configurado en manifest con `android:exported="false"`
+- El backup cifrado contiene las tablas necesarias para restaurar (`users` incluido). El
+  export manual JSON/CSV, al no estar cifrado, excluye hashes/salts de contraseña y
+  `auth_security`.
 
 ### 7.6 Puntos Débiles Conocidos y Aceptados
 
@@ -1230,7 +1245,7 @@ Descargar: https://git-scm.com
 
 Ambos valores se colocan en secrets.properties (LOCAL, gitignored), nunca en el repo:
    OAUTH_WEB_CLIENT_ID=xxxxxxxx.apps.googleusercontent.com
-   MAPS_API_KEY=AIzaSy...
+   MAPS_API_KEY=TU_MAPS_API_KEY
 
 Ver secrets.properties.template. Razón del cambio: google-services.json es un artefacto de
 Firebase/GMS que ni se usa aquí y contiene una API key que acabaría en el repo. (SEC-004)
@@ -1458,11 +1473,12 @@ jobs:
 
 **FASE 12 — Backup + Export (2 semanas)**
 - `DriveApiService.kt`: Retrofit interface para Drive REST API v3
+- `AuthorizationClient` con scope `drive.appdata`; no usar ID token como token Drive
 - `DriveBackupManager.kt`: serialize → encrypt (AES-256-GCM, clave derivada de password) → upload
 - `BackupRestoreScreen`: listar backups, crear manual, restaurar
 - `BackupWorker`: backup automático diario si hay cambios
-- Export JSON completo + CSV por tipo
-- `ExportScreen` con opciones y Share Sheet
+- Export JSON completo sin auth secrets + CSV ZIP por tipo
+- `BackupRestoreScreen` incluye opciones de export y Share Sheet
 
 **FASE 13 — Wear OS (4 semanas)**
 - Semana 1: `WearableDataManager.kt` en módulo phone — DataClient + MessageClient

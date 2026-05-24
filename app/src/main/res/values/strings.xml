@@ -318,6 +318,41 @@
         <item>Hoy cuenta aunque no sea perfecto.</item>
     </string-array>
 
+    <!-- Backup / export -->
+    <string name="backup_screen_body">Copia cifrada en Drive App Data y export manual desde almacenamiento privado.</string>
+    <string name="backup_password_title">Contrasena de backup</string>
+    <string name="backup_password_body">La misma contrasena local descifra tus copias en otro dispositivo. El backup automatico guarda esta contrasena cifrada en este dispositivo.</string>
+    <string name="backup_password_required">Introduce la contrasena para cifrar o restaurar.</string>
+    <string name="backup_auto_title">Backup automatico diario</string>
+    <string name="backup_auto_enabled">Backup automatico activado.</string>
+    <string name="backup_auto_disabled">Backup automatico desactivado.</string>
+    <string name="backup_last_backup">Ultima copia: %1$s</string>
+    <string name="backup_last_never">nunca</string>
+    <string name="backup_drive_title">Google Drive</string>
+    <string name="backup_drive_body">Usa el scope drive.appdata. Google solo recibe el archivo cifrado.</string>
+    <string name="backup_drive_create">Crear en Drive</string>
+    <string name="backup_drive_refresh">Listar</string>
+    <string name="backup_drive_empty">No hay copias en Drive.</string>
+    <string name="backup_drive_loaded">Copias de Drive cargadas.</string>
+    <string name="backup_drive_created">Backup cifrado subido a Drive.</string>
+    <string name="backup_drive_failed">No se pudo completar la operacion con Drive.</string>
+    <string name="backup_drive_auth_failed">No se pudo autorizar Google Drive.</string>
+    <string name="backup_file_meta">Fecha: %1$s</string>
+    <string name="backup_restore_action">Restaurar</string>
+    <string name="backup_restore_confirm">Confirmar restauracion</string>
+    <string name="backup_restore_confirm_body">Esto reemplaza los datos locales por el backup seleccionado.</string>
+    <string name="backup_restore_success">Backup restaurado.</string>
+    <string name="backup_restore_failed">No se pudo restaurar. Comprueba la contrasena y el archivo.</string>
+    <string name="backup_export_title">Export manual</string>
+    <string name="backup_export_body">Los exports manuales excluyen hashes de contrasena y estado de bloqueo.</string>
+    <string name="backup_local_create">Compartir backup cifrado</string>
+    <string name="backup_local_created">Backup cifrado creado.</string>
+    <string name="backup_export_json">Compartir JSON</string>
+    <string name="backup_export_csv">Compartir CSV ZIP</string>
+    <string name="backup_export_created">Export creado.</string>
+    <string name="backup_export_failed">No se pudo crear el export.</string>
+    <string name="backup_share_title">Compartir archivo</string>
+
     <!-- Cuerpo / composición corporal -->
     <string name="body_screen_subtitle">Valores actuales y evolución de composición corporal</string>
     <string name="body_add_entry">Añadir medición</string>
