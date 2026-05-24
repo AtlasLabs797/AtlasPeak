@@ -200,6 +200,40 @@
     <string name="cardio_route_not_saved">Sin ruta GPS guardada.</string>
 
     <!-- Errores genéricos -->
+    <!-- Progreso -->
+    <string name="progress_tab_history">Historial</string>
+    <string name="progress_tab_exercises">Ejercicios</string>
+    <string name="progress_tab_muscle_groups">Grupos</string>
+    <string name="progress_period_week">Semana</string>
+    <string name="progress_period_month">Mes</string>
+    <string name="progress_period_three_months">3 meses</string>
+    <string name="progress_period_year">Año</string>
+    <string name="progress_period_ytd">Año actual</string>
+    <string name="progress_history_search">Buscar historial</string>
+    <string name="progress_filter_all">Todo</string>
+    <string name="progress_history_strength">Fuerza</string>
+    <string name="progress_history_cardio">Cardio</string>
+    <string name="progress_history_type_date">%1$s - %2$s</string>
+    <string name="progress_history_empty">Completa entrenamientos para ver historial.</string>
+    <string name="progress_history_strength_detail">Detalle de fuerza</string>
+    <string name="progress_history_cardio_detail">Detalle de cardio</string>
+    <string name="progress_unknown_strength">Entrenamiento de fuerza</string>
+    <string name="progress_unknown_cardio">Sesión de cardio</string>
+    <string name="progress_exercises_empty">Aún no hay datos por ejercicio en este periodo.</string>
+    <string name="progress_groups_empty">Aún no hay datos por grupo muscular en este periodo.</string>
+    <string name="progress_metric_latest_weight">Último máximo</string>
+    <string name="progress_metric_latest_volume">Último volumen</string>
+    <string name="progress_metric_total_volume">Volumen total</string>
+    <string name="progress_metric_weight_value">%1$.1f kg</string>
+    <string name="progress_metric_volume_value">%1$.1f kg</string>
+    <string name="progress_metric_distance_value">%1$.2f km</string>
+    <string name="progress_metric_empty">--</string>
+    <string name="progress_chart_weight_title">Peso máximo</string>
+    <string name="progress_chart_volume_title">Volumen</string>
+    <string name="progress_chart_empty">Sin puntos suficientes.</string>
+    <string name="progress_chart_date_range">%1$s - %2$s</string>
+    <string name="progress_group_summary">%1$d ejercicios - %2$.1f kg</string>
+
     <string name="error_generic">Algo salió mal. Inténtalo de nuevo.</string>
     <string name="error_no_connection">Sin conexión a internet.</string>
     <!-- Pantallas base -->

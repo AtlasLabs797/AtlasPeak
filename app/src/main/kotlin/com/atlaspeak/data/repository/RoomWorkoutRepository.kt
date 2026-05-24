@@ -29,12 +29,12 @@ class RoomWorkoutRepository @Inject constructor(
     }
 
     override suspend fun session(id: String): WorkoutSession? {
-        val entity = database.workoutDao().getSession(id) ?: return null
+        val entity = database.workoutDao().getStrengthSession(id) ?: return null
         return entity.toDomain(database.workoutDao().getSets(id))
     }
 
     override suspend fun sessions(): List<WorkoutSession> {
-        return database.workoutDao().getSessions().map { entity ->
+        return database.workoutDao().getStrengthSessions().map { entity ->
             entity.toDomain(database.workoutDao().getSets(entity.id))
         }
     }

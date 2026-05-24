@@ -115,8 +115,14 @@ interface WorkoutDao {
     @Query("SELECT * FROM workout_sessions WHERE id = :id")
     suspend fun getSession(id: String): WorkoutSessionEntity?
 
+    @Query("SELECT * FROM workout_sessions WHERE id = :id AND type = 'STRENGTH'")
+    suspend fun getStrengthSession(id: String): WorkoutSessionEntity?
+
     @Query("SELECT * FROM workout_sessions ORDER BY start_time DESC")
     suspend fun getSessions(): List<WorkoutSessionEntity>
+
+    @Query("SELECT * FROM workout_sessions WHERE type = 'STRENGTH' ORDER BY start_time DESC")
+    suspend fun getStrengthSessions(): List<WorkoutSessionEntity>
 
     @Query("DELETE FROM workout_sessions WHERE id = :id")
     suspend fun deleteSession(id: String)

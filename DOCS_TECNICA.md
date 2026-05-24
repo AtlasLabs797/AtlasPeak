@@ -51,7 +51,8 @@ presentation/
   navigation/    Launch gate, NavHost, bottom navigation, secure route effect
   workout/       TrainScreen, TrainViewModel (biblioteca de ejercicios, rutinas y cardio)
   cardio/        ActiveCardioScreen, CardioCompleteScreen y ViewModels
-  screen/        home/ workout/ cardio/ progress/ body/ plan/ profile/
+  progress/      ProgressScreen, ProgressViewModel (historial y graficas)
+  screen/        home/ workout/ cardio/ body/ plan/ profile/
   component/     composables reutilizables (MetricCard, PeriodSelector, Chart, RestTimer…)
   viewmodel/     1 ViewModel por feature; expone StateFlow<UiState>
   theme/         Theme, Color, Typography, Shape, Spacing
@@ -184,6 +185,31 @@ Fase 6 activa cardio dentro del tab `Train` y las pantallas fullscreen:
 
 La estimacion de calorias en Fase 6 usa fallback MET por tipo y peso fijo de 75 kg porque
 la integracion real con `body_composition` llega en Fase 8 y Health Connect en Fase 10.
+
+## 6.4 Progreso
+
+Fase 7 reemplaza el placeholder de `Progress` por una pantalla real con tres tabs internos:
+
+- **Historial:** combina sesiones completadas de fuerza (`WorkoutRepository`) y cardio
+  (`CardioRepository`), ordena por `startTime DESC`, filtra por periodo/tipo y busca por
+  rutina, tipo de cardio o nombre de ejercicio.
+- **Ejercicios:** agrega sets completados por sesion y ejercicio, con maximo de peso,
+  volumen por sesion, volumen total y graficas Vico de peso/volumen.
+- **Grupos musculares:** agrupa los mismos puntos por grupo principal y secundario del
+  ejercicio, mostrando cada ejercicio con su grafica individual de volumen.
+
+`ProgressUseCase` vive en dominio y solo depende de repositorios de dominio; no importa Room,
+entities ni Compose. `ProgressViewModel` recalcula graficas solo cuando cambia el periodo y
+refresca el historial de forma independiente al cambiar busqueda/tipo para evitar trabajo
+innecesario en pantallas con mucho historial.
+
+`WorkoutRepository` expone solo sesiones de fuerza: aunque `workout_sessions` es cabecera
+comun para fuerza/cardio, `RoomWorkoutRepository` filtra `type = 'STRENGTH'`. Cardio se lee
+exclusivamente por `CardioRepository`, evitando duplicados en historiales unificados.
+
+La ruta GPS de cardio se renderiza con `CardioRouteMap`, componente reutilizado por
+`CardioCompleteScreen` y el detalle de historial de Progreso. No se anaden permisos,
+networking ni schema Room en esta fase.
 
 ---
 

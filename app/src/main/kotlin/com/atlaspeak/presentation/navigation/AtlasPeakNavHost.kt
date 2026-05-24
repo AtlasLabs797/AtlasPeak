@@ -14,6 +14,7 @@ import com.atlaspeak.presentation.auth.LoginRoute
 import com.atlaspeak.presentation.cardio.ActiveCardioRoute
 import com.atlaspeak.presentation.cardio.CardioCompleteRoute
 import com.atlaspeak.presentation.onboarding.OnboardingRoute
+import com.atlaspeak.presentation.progress.ProgressRoute
 import com.atlaspeak.presentation.screen.PlaceholderScreen
 import com.atlaspeak.presentation.workout.ActiveWorkoutRoute
 import com.atlaspeak.presentation.workout.TrainRoute
@@ -139,7 +140,7 @@ fun AtlasPeakNavHost(
             )
         }
         composable(AppRoute.Progress.route) {
-            PlaceholderScreen(titleRes = R.string.screen_progress_title)
+            ProgressRoute()
         }
         composable(AppRoute.Body.route) {
             PlaceholderScreen(titleRes = R.string.screen_body_title)

@@ -10,6 +10,46 @@
 
 ## [No publicado]
 
+### Fase 7 - Progreso
+
+#### 2026-05-24 - Historial unificado, progreso por ejercicio y grupos musculares
+
+**Anadido**
+- Anadidos modelos de dominio para `ProgressPeriod`, filtros de historial, items de historial,
+  puntos por ejercicio y progreso por grupo muscular.
+- Anadido `ProgressUseCase` para combinar historial de fuerza/cardio, filtrar por periodo,
+  tipo y busqueda, y agregar maximo de peso, volumen y reps por sesion.
+- Anadida `ProgressScreen` con tabs internos Historial, Ejercicios y Grupos; incluye
+  selector de periodo semana/mes/3 meses/ano/ano actual.
+- El historial de Progreso muestra sesiones de fuerza y cardio completadas, detalle de sets,
+  metricas de cardio y mapa de ruta cuando existe GPS.
+- Anadidas graficas Vico para evolucion de peso maximo y volumen por ejercicio, con eje X
+  formateado por fecha.
+- Anadido `CardioRouteMap` reutilizable para no duplicar la integracion de Google Maps.
+- Anadidos strings ES/EN y tests unitarios de dominio para historial, filtros y agregaciones.
+
+**Cambiado**
+- La ruta `Progress` deja de usar placeholder y queda conectada al bottom nav.
+- `CardioCompleteScreen` reutiliza `CardioRouteMap`.
+
+**Corregido**
+- `WorkoutRepository` ya no expone cabeceras de cardio como sesiones de fuerza, evitando que
+  el historial de Progreso duplique cardio como fuerza vacia.
+
+**Seguridad**
+- Sin nuevos permisos, red, auth, backup ni schema Room. Revalidado: sin secretos nuevos,
+  sin `ACCESS_BACKGROUND_LOCATION`, sin cleartext y sin textos hardcodeados nuevos en UI.
+
+**Verificado**
+- `./gradlew testDebugUnitTest --tests com.atlaspeak.domain.usecase.progress.ProgressUseCaseTest --no-daemon`
+  pasa.
+- `./gradlew compileDebugKotlin --no-daemon` pasa.
+- `./gradlew assembleDebug assembleRelease test lint compileDebugAndroidTestKotlin --no-daemon`
+  pasa tras corregir la regresion `BUG-013`.
+- `emulator -accel-check` falla con codigo 6 por Hyper-V/WHPX, `emulator -list-avds` no
+  devuelve AVDs y `adb devices` no lista dispositivos; no se pudieron capturar screenshots
+  runtime de la UI de Progreso.
+
 ### Fase 6 - Cardio + GPS
 
 #### 2026-05-23 - Cardio GPS, timer/countdown, entrada manual y resumen con mapa

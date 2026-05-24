@@ -24,6 +24,17 @@
 
 ## Entradas
 
+### BUG-013 - Cardio aparecia duplicado como fuerza en Progreso
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-24
+- **Fase:** 7
+- **Severidad:** Alta
+- **Sintoma:** una sesion de cardio completada podia aparecer dos veces en Progreso: como cardio real y como fuerza vacia con `0.0 kg`.
+- **Causa raiz:** `workout_sessions` es cabecera comun para fuerza/cardio, pero `WorkoutRepository.sessions()` leia todas las filas sin filtrar `type = 'STRENGTH'`.
+- **Solucion:** `WorkoutDao` expone queries especificas de fuerza, `RoomWorkoutRepository` usa solo esas queries y `ProgressUseCase` ignora defensivamente sesiones sin sets completados.
+- **Prevencion:** test de regresion en `ProgressUseCaseTest` con una cabecera sin sets para evitar duplicados en historial.
+- **Fecha resolucion:** 2026-05-24
+
 ### BUG-012 - Fallo interno del FGS cardio podia borrar el estado de error
 - **Estado:** Resuelto
 - **Fecha deteccion:** 2026-05-23

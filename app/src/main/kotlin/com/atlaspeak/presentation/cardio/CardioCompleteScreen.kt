@@ -1,11 +1,9 @@
 package com.atlaspeak.presentation.cardio
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
@@ -23,13 +21,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.atlaspeak.R
 import com.atlaspeak.domain.model.cardio.CardioSession
-import com.atlaspeak.domain.model.cardio.LocationPoint
 import com.atlaspeak.presentation.theme.LocalSpacing
-import com.google.android.gms.maps.model.CameraPosition
-import com.google.android.gms.maps.model.LatLng
-import com.google.maps.android.compose.GoogleMap
-import com.google.maps.android.compose.Polyline
-import com.google.maps.android.compose.rememberCameraPositionState
 
 @Composable
 fun CardioCompleteRoute(
@@ -96,7 +88,7 @@ private fun CardioSummary(session: CardioSession) {
             Text(stringResource(R.string.cardio_complete_max_speed, session.maxSpeedKmh ?: 0.0))
             Text(stringResource(R.string.cardio_complete_calories, session.caloriesBurned ?: 0))
             if (session.route.isNotEmpty()) {
-                RouteMap(route = session.route)
+                CardioRouteMap(route = session.route)
             } else {
                 Text(
                     text = stringResource(R.string.cardio_route_not_saved),
@@ -104,32 +96,6 @@ private fun CardioSummary(session: CardioSession) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun RouteMap(route: List<LocationPoint>) {
-    val points = route.map { LatLng(it.latitude, it.longitude) }
-    if (points.isEmpty()) return
-    val routeColor = MaterialTheme.colorScheme.primary
-    val cameraPositionState = rememberCameraPositionState {
-        position = CameraPosition.fromLatLngZoom(points.first(), 15f)
-    }
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(220.dp),
-    ) {
-        GoogleMap(
-            modifier = Modifier.fillMaxSize(),
-            cameraPositionState = cameraPositionState,
-        ) {
-            Polyline(
-                points = points,
-                color = routeColor,
-                width = 8f,
-            )
         }
     }
 }
