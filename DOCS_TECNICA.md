@@ -388,13 +388,22 @@ en el código.
 - **Compose UI:** pantallas críticas (ActiveWorkout, Login, Onboarding).
 - **WorkManager:** workers con `work-testing`.
 - Objetivo: **≥70%** cobertura en `domain` y `data`.
+- Gate local/CI: `./gradlew jacocoDebugDomainDataCoverageVerification`.
+  - Reporte HTML: `app/build/reports/jacoco/jacocoDebugDomainDataReport/html/index.html`.
+  - La tarea mide el core testeable en JVM (`domain`, mappers, codecs, use cases y managers
+    puros de `data`) y excluye bordes que requieren runtime Android/emulador: Room adapters,
+    WorkManager wrappers, Health Connect client, notificaciones Android, FileProvider,
+    Credential/Keystore y GPS.
+  - Esos bordes quedan cubiertos por tests instrumentados/compilacion `compileDebugAndroidTestKotlin`
+    y por `connectedAndroidTest` cuando haya dispositivo o AVD disponible.
 
 ---
 
 ## 14. Build, CI y release
 
 - Versiones **solo** en `gradle/libs.versions.toml` (version catalog).
-- CI (GitHub Actions): `assembleDebug` + `test` + `lint` en cada push/PR.
+- CI (GitHub Actions): `assembleDebug` + `test` + `jacocoDebugDomainDataCoverageVerification` +
+  `lint` en cada push/PR.
 - Release: AAB firmado con keystore local (`keystore.properties`, fuera del repo). R8/ProGuard
   activo (reglas para Room, Hilt, Retrofit, Kotlinx Serialization, SQLCipher).
 - Crash reporting: **Android Vitals** (Play Console), sin SDK.

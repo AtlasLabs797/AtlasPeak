@@ -10,6 +10,46 @@
 
 ## [No publicado]
 
+### Fase 15 - Testing + cobertura
+
+#### 2026-05-24 - Gate JaCoCo y hardening de workers/backup
+
+**Anadido**
+- JaCoCo en `app/build.gradle.kts` con tarea `jacocoDebugDomainDataCoverageVerification`
+  y umbral del 70% para el core JVM de `domain`/`data`.
+- Paso CI `Domain/data coverage` para fallar PRs si baja la cobertura.
+- `BackupWorkerRunner` extrae la logica testeable del worker de auto-backup.
+- Tests de backup worker: auto-backup desactivado, hash estable sin cambios, subida exitosa
+  y retry en fallo limpiando siempre la password.
+- Tests de restore Drive con password valida, schema futuro y tablas faltantes.
+- Test de nombres WorkManager para recordatorios ISO 1..7.
+- Test instrumentado compilable para comprobar que `BackupWorkScheduler` mantiene un unico
+  trabajo periodico.
+
+**Cambiado**
+- `BackupWorker` delega en `BackupWorkerRunner`.
+- `NotificationWorkNames.trainingReminder()` valida `dayOfWeek` en rango ISO.
+- `TrainingReminderWorker` ignora input corrupto de weekday con `Result.success()` para evitar
+  retries inutiles.
+- `DOCS_TECNICA.md` documenta el gate de cobertura y sus exclusiones JVM/Android.
+
+**Corregido**
+- Registrado `BUG-022`: recordatorios aceptaban dias de semana invalidos.
+- Registrado `BUG-023`: el objetivo de cobertura `domain`/`data` no era verificable.
+
+**Verificado**
+- `./gradlew testDebugUnitTest --tests com.atlaspeak.data.backup.DriveBackupManagerTest --tests com.atlaspeak.data.backup.BackupWorkerRunnerTest --tests com.atlaspeak.data.notification.NotificationWorkNamesTest --no-daemon`
+  pasa.
+- `./gradlew compileDebugAndroidTestKotlin --no-daemon` pasa tras cambiar el androidTest a
+  observacion LiveData de WorkManager.
+- `./gradlew jacocoDebugDomainDataCoverageVerification --no-daemon` pasa con 80,28% line
+  coverage del core JVM `domain`/`data`.
+- `./gradlew assembleDebug assembleRelease test lint compileDebugAndroidTestKotlin jacocoDebugDomainDataCoverageVerification --no-daemon`
+  pasa como gate completo de cierre.
+- `python Skills/05_Security/cyber-neo/scripts/scan_secrets.py app` no encuentra secretos.
+- `python Skills/05_Security/cyber-neo/scripts/check_lockfiles.py .` no encuentra hallazgos.
+- `git diff --check` pasa.
+
 ### Fase 14 - Seguridad + hardening
 
 #### 2026-05-24 - Rutas sensibles, red y notificaciones privadas

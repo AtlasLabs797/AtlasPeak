@@ -24,6 +24,32 @@
 
 ## Entradas
 
+### BUG-023 - Objetivo de cobertura domain/data no era verificable
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-24
+- **Fase:** 15
+- **Severidad:** Media
+- **Sintoma:** el spec exigia >=70% de cobertura en `domain` y `data`, pero Gradle/CI no tenian tarea de cobertura ni threshold.
+- **Causa raiz:** se habian anadido tests por fase, pero no una metrica ejecutable que fallara el build si la cobertura bajaba.
+- **Solucion:** JaCoCo en `app/build.gradle.kts`, tarea `jacocoDebugDomainDataCoverageVerification` con umbral 70% y paso CI dedicado.
+- **Prevencion:** `DOCS_TECNICA.md` documenta la tarea y CI la ejecuta en cada push/PR.
+- **Fecha resolucion:** 2026-05-24
+
+---
+
+### BUG-022 - Recordatorios aceptaban dias de semana invalidos
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-24
+- **Fase:** 15
+- **Severidad:** Baja
+- **Sintoma:** `NotificationWorkNames.trainingReminder()` podia generar nombres como `training_reminder_0` o `training_reminder_8`.
+- **Causa raiz:** no habia validacion del rango ISO 1..7 en la fabrica de nombres de WorkManager.
+- **Solucion:** `NotificationWorkNames` valida `dayOfWeek in 1..7`; `TrainingReminderWorker` trata input corrupto como `Result.success()` para evitar retries inutiles.
+- **Prevencion:** `NotificationWorkNamesTest` cubre dias validos e invalidos.
+- **Fecha resolucion:** 2026-05-24
+
+---
+
 ### BUG-021 - Notificaciones foreground exponian actividad en lockscreen
 - **Estado:** Resuelto
 - **Fecha deteccion:** 2026-05-24

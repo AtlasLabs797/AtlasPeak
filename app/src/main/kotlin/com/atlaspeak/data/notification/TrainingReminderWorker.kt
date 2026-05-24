@@ -24,6 +24,7 @@ class TrainingReminderWorker @AssistedInject constructor(
     override suspend fun doWork(): Result {
         return try {
             val dayOfWeek = inputData.getInt(NotificationWorkNames.KEY_DAY_OF_WEEK, 0)
+            if (dayOfWeek !in NotificationWorkNames.ISO_WEEKDAYS) return Result.success()
             val settings = settingsRepository.settings()
             if (settings.notificationsEnabled && permissionChecker.canPostNotifications()) {
                 weeklyPlanRepository.plan()

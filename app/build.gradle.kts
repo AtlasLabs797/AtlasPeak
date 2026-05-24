@@ -1,4 +1,6 @@
 import java.util.Properties
+import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
+import org.gradle.testing.jacoco.tasks.JacocoReport
 
 plugins {
     alias(libs.plugins.android.application)
@@ -7,6 +9,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
+    jacoco
 }
 
 // ── Secretos (LOCAL, gitignored). Ver secrets.properties.template y SECURITY.md SEC-004/005 ─
@@ -182,4 +185,98 @@ dependencies {
     androidTestImplementation(libs.androidx.room.testing)
     androidTestImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.work.testing)
+}
+
+jacoco {
+    toolVersion = libs.versions.jacoco.get()
+}
+
+val coverageExcludes = listOf(
+    "**/R.class",
+    "**/R$*.class",
+    "**/BuildConfig.*",
+    "**/Manifest*.*",
+    "**/*Test*.*",
+    "**/*_MembersInjector.*",
+    "**/*_Factory*.*",
+    "**/*Module*.*",
+    "**/*Hilt*.*",
+    "**/Hilt_*.*",
+    "**/*Dao_Impl*.*",
+    "**/*Database_Impl*.*",
+    "**/*JsonAdapter*.*",
+    "**/*\$serializer*.*",
+    "**/*\$Companion.*",
+    "**/*\$DefaultImpls.*",
+    "**/data/db/dao/**",
+    "**/data/db/entity/**",
+    "**/data/repository/Room*.*",
+    "**/data/notification/*Worker*.*",
+    "**/data/notification/AtlasPeakNotificationHelper*.*",
+    "**/data/notification/WorkManagerNotificationScheduler*.*",
+    "**/data/healthconnect/HealthConnectManager*.*",
+    "**/data/location/LocationTracker*.*",
+    "**/data/backup/BackupWorker.*",
+    "**/data/backup/BackupWorkScheduler*.*",
+    "**/data/backup/BackupCredentialStore*.*",
+    "**/data/security/DatabasePassphraseProvider*.*",
+    "**/data/drive/DriveApiService*.*",
+    "**/data/drive/GoogleDriveAccessTokenProvider*.*",
+)
+val domainDataIncludes = listOf(
+    "com/atlaspeak/domain/**",
+    "com/atlaspeak/data/**",
+)
+fun domainDataClassDirectories() = files(
+    fileTree("${layout.buildDirectory.get().asFile}/tmp/kotlin-classes/debug") {
+        include(domainDataIncludes)
+        exclude(coverageExcludes)
+    },
+    fileTree("${layout.buildDirectory.get().asFile}/intermediates/javac/debug/compileDebugJavaWithJavac/classes") {
+        include(domainDataIncludes)
+        exclude(coverageExcludes)
+    },
+)
+fun debugUnitTestExecutionData() = fileTree(layout.buildDirectory) {
+    include(
+        "jacoco/testDebugUnitTest.exec",
+        "outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec",
+    )
+}
+
+tasks.register<JacocoReport>("jacocoDebugDomainDataReport") {
+    dependsOn("testDebugUnitTest")
+    group = "verification"
+    description = "Generates JaCoCo coverage for JVM-testable domain and data debug unit tests."
+
+    classDirectories.setFrom(domainDataClassDirectories())
+    sourceDirectories.setFrom(files("src/main/kotlin", "src/main/java"))
+    executionData.setFrom(debugUnitTestExecutionData())
+
+    reports {
+        xml.required.set(true)
+        html.required.set(true)
+        csv.required.set(false)
+    }
+}
+
+tasks.register<JacocoCoverageVerification>("jacocoDebugDomainDataCoverageVerification") {
+    dependsOn("jacocoDebugDomainDataReport")
+    group = "verification"
+    description = "Fails when JVM-testable domain and data line coverage drops below 70 percent."
+
+    classDirectories.setFrom(domainDataClassDirectories())
+    sourceDirectories.setFrom(files("src/main/kotlin", "src/main/java"))
+    executionData.setFrom(debugUnitTestExecutionData())
+
+    violationRules {
+        rule {
+            element = "BUNDLE"
+            limit {
+                counter = "LINE"
+                value = "COVEREDRATIO"
+                minimum = "0.70".toBigDecimal()
+            }
+        }
+    }
 }

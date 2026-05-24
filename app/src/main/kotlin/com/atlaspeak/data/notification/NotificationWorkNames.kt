@@ -6,5 +6,10 @@ object NotificationWorkNames {
     const val MOTIVATIONAL_MESSAGE = "motivational_message"
     const val KEY_DAY_OF_WEEK = "day_of_week"
 
-    fun trainingReminder(dayOfWeek: Int): String = "training_reminder_$dayOfWeek"
+    fun trainingReminder(dayOfWeek: Int): String {
+        require(dayOfWeek in ISO_WEEKDAYS) { "dayOfWeek must be in 1..7" }
+        return "training_reminder_$dayOfWeek"
+    }
+
+    val ISO_WEEKDAYS = 1..7
 }

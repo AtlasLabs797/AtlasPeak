@@ -1,5 +1,6 @@
 package com.atlaspeak.data.backup
 
+import com.atlaspeak.data.db.AppDatabase
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
@@ -13,7 +14,9 @@ class DriveBackupManagerTest {
     private val snapshot = DatabaseBackupSnapshot(
         schemaVersion = 2,
         exportedAt = 1_800_000_000_000,
-        tables = mapOf("users" to listOf(mapOf("id" to JsonPrimitive("local")))),
+        tables = AppDatabase.TABLES.associateWith { table ->
+            listOf(mapOf("id" to JsonPrimitive("$table-id")))
+        },
     )
 
     @Test
@@ -56,6 +59,55 @@ class DriveBackupManagerTest {
         assertEquals(0, store.restoreCount)
     }
 
+    @Test
+    fun `restoreBackup with valid password restores snapshot once`() = runTest(dispatcher) {
+        val codec = BackupFileCodec(dispatcher = dispatcher)
+        val encrypted = codec.encrypt(BackupJsonCodec().encode(snapshot).encodeToByteArray(), "right-password".toCharArray())
+        val store = FakeSnapshotStore(snapshot)
+        val service = FakeDriveBackupService().apply { downloadedBytes = encrypted }
+        val manager = manager(store, service, codec)
+
+        val result = manager.restoreBackup("access-token", "file-1", "right-password".toCharArray())
+
+        assertTrue(result is BackupOperationResult.Success)
+        assertEquals("access-token", service.downloadToken)
+        assertEquals("file-1", service.downloadFileId)
+        assertEquals(1, store.restoreCount)
+        assertEquals(snapshot, store.restoredSnapshot)
+    }
+
+    @Test
+    fun `restoreBackup rejects future schema without writing`() = runTest(dispatcher) {
+        val codec = BackupFileCodec(dispatcher = dispatcher)
+        val futureSnapshot = snapshot.copy(schemaVersion = BackupJsonCodec.CURRENT_SCHEMA_VERSION + 1)
+        val encrypted = codec.encrypt(BackupJsonCodec().encode(futureSnapshot).encodeToByteArray(), "right-password".toCharArray())
+        val store = FakeSnapshotStore(snapshot)
+        val service = FakeDriveBackupService().apply { downloadedBytes = encrypted }
+        val manager = manager(store, service, codec)
+
+        val result = manager.restoreBackup("access-token", "file-1", "right-password".toCharArray())
+
+        assertTrue(result is BackupOperationResult.Failed)
+        assertEquals(BackupFailureReason.InvalidBackup, (result as BackupOperationResult.Failed).reason)
+        assertEquals(0, store.restoreCount)
+    }
+
+    @Test
+    fun `restoreBackup rejects missing tables without writing`() = runTest(dispatcher) {
+        val codec = BackupFileCodec(dispatcher = dispatcher)
+        val incompleteSnapshot = snapshot.copy(tables = snapshot.tables - "users")
+        val encrypted = codec.encrypt(BackupJsonCodec().encode(incompleteSnapshot).encodeToByteArray(), "right-password".toCharArray())
+        val store = FakeSnapshotStore(snapshot)
+        val service = FakeDriveBackupService().apply { downloadedBytes = encrypted }
+        val manager = manager(store, service, codec)
+
+        val result = manager.restoreBackup("access-token", "file-1", "right-password".toCharArray())
+
+        assertTrue(result is BackupOperationResult.Failed)
+        assertEquals(BackupFailureReason.InvalidBackup, (result as BackupOperationResult.Failed).reason)
+        assertEquals(0, store.restoreCount)
+    }
+
     private fun manager(
         store: FakeSnapshotStore,
         service: FakeDriveBackupService,
@@ -71,11 +123,13 @@ class DriveBackupManagerTest {
     private class FakeSnapshotStore(private val snapshot: DatabaseBackupSnapshot) : BackupSnapshotStore {
         var lastBackupAt: Long? = null
         var restoreCount = 0
+        var restoredSnapshot: DatabaseBackupSnapshot? = null
 
         override suspend fun snapshot(): DatabaseBackupSnapshot = snapshot
 
         override suspend fun restore(snapshot: DatabaseBackupSnapshot) {
             restoreCount += 1
+            restoredSnapshot = snapshot
         }
 
         override suspend fun markBackupCompleted(timestampMillis: Long) {
@@ -97,6 +151,8 @@ class DriveBackupManagerTest {
         var uploadToken: String? = null
         var uploadedName = ""
         var uploadedBytes = ByteArray(0)
+        var downloadToken: String? = null
+        var downloadFileId: String? = null
         val deletedIds = mutableListOf<String>()
 
         override suspend fun uploadBackup(accessToken: String, fileName: String, encryptedBytes: ByteArray): DriveBackupFile {
@@ -108,7 +164,11 @@ class DriveBackupManagerTest {
 
         override suspend fun listBackups(accessToken: String): List<DriveBackupFile> = backupsAfterUpload
 
-        override suspend fun downloadBackup(accessToken: String, fileId: String): ByteArray = downloadedBytes
+        override suspend fun downloadBackup(accessToken: String, fileId: String): ByteArray {
+            downloadToken = accessToken
+            downloadFileId = fileId
+            return downloadedBytes
+        }
 
         override suspend fun deleteBackup(accessToken: String, fileId: String) {
             deletedIds += fileId
