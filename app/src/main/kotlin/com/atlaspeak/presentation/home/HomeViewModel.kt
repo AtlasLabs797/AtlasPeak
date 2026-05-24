@@ -39,7 +39,7 @@ class HomeViewModel @Inject constructor(
         refresh()
     }
 
-    private fun refresh() {
+    fun refresh() {
         refreshJob?.cancel()
         refreshJob = viewModelScope.launch {
             val filters = mutableState.value.filters

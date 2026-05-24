@@ -4,14 +4,18 @@ import com.atlaspeak.domain.model.auth.AuthSecurityState
 import com.atlaspeak.domain.model.auth.LocalAuthResult
 import com.atlaspeak.domain.model.auth.LocalUser
 import com.atlaspeak.domain.model.onboarding.OnboardingStep
+import com.atlaspeak.domain.model.planning.NotificationSettings
 import com.atlaspeak.domain.model.profile.UserProfile
 import com.atlaspeak.domain.repository.AuthRepository
+import com.atlaspeak.domain.repository.NotificationScheduler
+import com.atlaspeak.domain.repository.NotificationSettingsRepository
 import com.atlaspeak.domain.repository.OnboardingRepository
 import com.atlaspeak.domain.repository.ProfileRepository
 import com.atlaspeak.domain.security.PasswordHash
 import com.atlaspeak.domain.security.PasswordHasher
 import com.atlaspeak.domain.usecase.auth.LocalAuthUseCase
 import com.atlaspeak.domain.usecase.onboarding.PasswordStrengthEvaluator
+import com.atlaspeak.domain.usecase.planning.NotificationSettingsUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -114,6 +118,10 @@ class OnboardingViewModelTest {
         onboardingRepository = onboardingRepository,
         profileRepository = profileRepository,
         passwordStrengthEvaluator = PasswordStrengthEvaluator(),
+        notificationSettingsUseCase = NotificationSettingsUseCase(
+            FakeNotificationSettingsRepository(),
+            FakeNotificationScheduler(),
+        ),
     )
 
     private class FakePasswordHasher : PasswordHasher {
@@ -172,5 +180,19 @@ class OnboardingViewModelTest {
         override suspend fun saveProfile(profile: UserProfile) {
             this.profile = profile
         }
+    }
+
+    private class FakeNotificationSettingsRepository : NotificationSettingsRepository {
+        private var settings = NotificationSettings()
+
+        override suspend fun settings(): NotificationSettings = settings
+
+        override suspend fun update(settings: NotificationSettings) {
+            this.settings = settings
+        }
+    }
+
+    private class FakeNotificationScheduler : NotificationScheduler {
+        override suspend fun rescheduleAll() = Unit
     }
 }

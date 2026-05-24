@@ -9,6 +9,7 @@ import com.atlaspeak.domain.model.profile.UserProfile
 import com.atlaspeak.domain.repository.OnboardingRepository
 import com.atlaspeak.domain.repository.ProfileRepository
 import com.atlaspeak.domain.usecase.auth.LocalAuthUseCase
+import com.atlaspeak.domain.usecase.planning.NotificationSettingsUseCase
 import com.atlaspeak.domain.usecase.onboarding.PasswordStrengthEvaluator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -24,6 +25,7 @@ class OnboardingViewModel @Inject constructor(
     private val onboardingRepository: OnboardingRepository,
     private val profileRepository: ProfileRepository,
     private val passwordStrengthEvaluator: PasswordStrengthEvaluator,
+    private val notificationSettingsUseCase: NotificationSettingsUseCase,
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(OnboardingUiState())
     val state: StateFlow<OnboardingUiState> = mutableState.asStateFlow()
@@ -87,6 +89,14 @@ class OnboardingViewModel @Inject constructor(
     }
 
     fun markPermissionHandled() {
+        nextStep()
+    }
+
+    fun markNotificationPermissionHandled(granted: Boolean) {
+        viewModelScope.launch {
+            val settings = notificationSettingsUseCase.settings()
+            notificationSettingsUseCase.update(settings.copy(notificationsEnabled = granted))
+        }
         nextStep()
     }
 

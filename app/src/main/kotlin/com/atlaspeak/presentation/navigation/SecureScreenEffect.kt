@@ -32,6 +32,8 @@ private val secureRoutes = setOf(
     AppRoute.Onboarding.route,
     AppRoute.Body.route,
     AppRoute.Profile.route,
+    AppRoute.WeeklyPlan.route,
+    AppRoute.Settings.route,
     AppRoute.BackupRestore.route,
 )
 

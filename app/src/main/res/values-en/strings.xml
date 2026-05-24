@@ -17,6 +17,7 @@
     <string name="action_skip">Skip</string>
     <string name="action_continue">Continue</string>
     <string name="action_retry">Retry</string>
+    <string name="action_back">Back</string>
 
     <string name="onboarding_welcome_title">Your training, on your device</string>
     <string name="onboarding_welcome_body">Atlas Peak stores your training locally, with no tracking and optional encrypted backup.</string>
@@ -246,6 +247,65 @@
     <string name="home_value_consistency">%1$d / %2$d days</string>
     <string name="home_value_empty">--</string>
     <string name="home_chart_empty">No data in this period.</string>
+
+    <!-- Profile / weekly plan / notifications -->
+    <string name="profile_subtitle">Planning, permissions, and backups.</string>
+    <string name="profile_weekly_plan">Weekly planning</string>
+    <string name="profile_weekly_plan_body">Routine, rest, and reminder per day.</string>
+    <string name="profile_notification_settings">Notifications</string>
+    <string name="profile_notification_settings_body">Channels, summaries, and motivational messages.</string>
+    <string name="profile_backup_body">Encrypted backups and exports.</string>
+    <string name="weekly_plan_title">Weekly planning</string>
+    <string name="weekly_plan_body">The week starts on Monday. Reminders use WorkManager and may arrive around the chosen time.</string>
+    <string name="weekly_plan_saved">Plan updated.</string>
+    <string name="weekly_plan_invalid_time">Use a valid HH:mm time.</string>
+    <string name="weekly_plan_select_routine">Select routine</string>
+    <string name="weekly_plan_no_routine">No routine</string>
+    <string name="weekly_plan_rest_day">Rest day</string>
+    <string name="weekly_plan_reminder_enabled">Reminder</string>
+    <string name="weekly_plan_reminder_time">Reminder time</string>
+    <string name="weekly_plan_reminder_best_effort">Android may adjust the exact time to save battery.</string>
+    <string name="weekday_monday">Monday</string>
+    <string name="weekday_tuesday">Tuesday</string>
+    <string name="weekday_wednesday">Wednesday</string>
+    <string name="weekday_thursday">Thursday</string>
+    <string name="weekday_friday">Friday</string>
+    <string name="weekday_saturday">Saturday</string>
+    <string name="weekday_sunday">Sunday</string>
+    <string name="notification_settings_title">Notifications</string>
+    <string name="notification_settings_body">Enable only the alerts that earn their place. Nothing is shown without system permission.</string>
+    <string name="notification_settings_saved">Notifications updated.</string>
+    <string name="notification_settings_system_denied">Android is blocking Atlas Peak notifications. Enable them in system settings before saving this control.</string>
+    <string name="notification_settings_global">Allow notifications</string>
+    <string name="notification_settings_global_body">Global control for reminders, messages, and summaries.</string>
+    <string name="notification_settings_motivation">Motivational messages</string>
+    <string name="notification_settings_motivation_body">One short daily alert when notifications are enabled.</string>
+    <string name="notification_settings_daily_summary">Daily summary</string>
+    <string name="notification_settings_daily_summary_body">Volume and consistency for the current period.</string>
+    <string name="notification_settings_daily_time">Daily summary time</string>
+    <string name="notification_settings_weekly_summary">Weekly summary</string>
+    <string name="notification_settings_weekly_summary_body">Monday at 08:30, subject to Android policies.</string>
+    <string name="notification_channel_training_reminders">Training reminders</string>
+    <string name="notification_channel_training_reminders_desc">Weekly plan alerts.</string>
+    <string name="notification_channel_motivation">Motivational messages</string>
+    <string name="notification_channel_motivation_desc">Short adherence alerts.</string>
+    <string name="notification_channel_summaries">Summaries</string>
+    <string name="notification_channel_summaries_desc">Daily and weekly summaries.</string>
+    <string name="notifications_training_title">Planned workout</string>
+    <string name="notifications_training_generic_routine">Workout</string>
+    <string name="notifications_training_text">%1$s around %2$s</string>
+    <string name="notifications_time_unspecified">configured time</string>
+    <string name="notifications_daily_summary_title">Daily summary</string>
+    <string name="notifications_weekly_summary_title">Weekly summary</string>
+    <string name="notifications_summary_text">Volume: %1$.1f kg. Consistency: %2$d/%3$d days.</string>
+    <string name="notifications_summary_text_with_weight">Volume: %1$.1f kg. Consistency: %2$d/%3$d days. Weight: %4$.1f kg.</string>
+    <string name="notifications_motivation_title">Atlas Peak</string>
+    <string-array name="notifications_motivation_messages">
+        <item>Make the session easy: start with the first set.</item>
+        <item>Consistency wins when the plan is small and clear.</item>
+        <item>Train what you planned; adjust later with data.</item>
+        <item>Today counts even when it is not perfect.</item>
+    </string-array>
 
     <!-- Body composition -->
     <string name="body_screen_subtitle">Current values and body composition trends</string>

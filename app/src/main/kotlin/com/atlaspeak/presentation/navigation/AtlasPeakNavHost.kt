@@ -16,6 +16,9 @@ import com.atlaspeak.presentation.cardio.ActiveCardioRoute
 import com.atlaspeak.presentation.cardio.CardioCompleteRoute
 import com.atlaspeak.presentation.home.HomeRoute
 import com.atlaspeak.presentation.onboarding.OnboardingRoute
+import com.atlaspeak.presentation.planning.NotificationSettingsRoute
+import com.atlaspeak.presentation.planning.WeeklyPlanRoute
+import com.atlaspeak.presentation.profile.ProfileRoute
 import com.atlaspeak.presentation.progress.ProgressRoute
 import com.atlaspeak.presentation.screen.PlaceholderScreen
 import com.atlaspeak.presentation.workout.ActiveWorkoutRoute
@@ -148,7 +151,17 @@ fun AtlasPeakNavHost(
             BodyCompositionRoute()
         }
         composable(AppRoute.Profile.route) {
-            PlaceholderScreen(titleRes = R.string.screen_profile_title)
+            ProfileRoute(
+                onWeeklyPlan = { navController.navigate(AppRoute.WeeklyPlan.route) },
+                onSettings = { navController.navigate(AppRoute.Settings.route) },
+                onBackupRestore = { navController.navigate(AppRoute.BackupRestore.route) },
+            )
+        }
+        composable(AppRoute.WeeklyPlan.route) {
+            WeeklyPlanRoute(onBack = { navController.popBackStack() })
+        }
+        composable(AppRoute.Settings.route) {
+            NotificationSettingsRoute(onBack = { navController.popBackStack() })
         }
         composable(AppRoute.BackupRestore.route) {
             PlaceholderScreen(titleRes = R.string.screen_backup_restore_title)

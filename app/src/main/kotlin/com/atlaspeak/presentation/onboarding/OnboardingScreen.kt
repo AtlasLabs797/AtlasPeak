@@ -69,7 +69,7 @@ fun OnboardingRoute(
     val context = LocalContext.current
     val notificationLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
-    ) { viewModel.markPermissionHandled() }
+    ) { granted -> viewModel.markNotificationPermissionHandled(granted) }
     val locationLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { viewModel.markPermissionHandled() }
@@ -89,7 +89,7 @@ fun OnboardingRoute(
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                         notificationLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
                     } else {
-                        viewModel.markPermissionHandled()
+                        viewModel.markNotificationPermissionHandled(true)
                     }
                 }
                 OnboardingStep.HealthConnect -> {

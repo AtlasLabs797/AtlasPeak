@@ -198,14 +198,14 @@ Panel con scroll vertical. Todos los widgets tienen selector de período individ
 
 ### 2.8 NOTIFICACIONES
 
-- **Canal 1 — Recordatorios de entrenamiento:** muestra nombre de rutina del día + hora configurada en el plan semanal. Ejemplo: "Pecho + Tríceps a las 18:00"
+- **Canal 1 — Recordatorios de entrenamiento:** muestra nombre de rutina del día + hora configurada en el plan semanal. Ejemplo: "Pecho + Tríceps sobre las 18:00"
 - **Canal 2 — Mensajes motivacionales:** mensajes aleatorios predefinidos, activables/desactivables en ajustes
 - **Canal 3 — Resúmenes:**
   - Resumen diario: 8:30 AM por defecto, hora configurable por usuario
   - Resumen semanal: lunes a las 8:30 AM
   - Contenido: volumen del período, consistencia, peso corporal si hay datos recientes
 - Todos los canales configurables individualmente en ajustes
-- `WorkManager` para programación y ejecución en background
+- `WorkManager` para programación y ejecución en background. Estos avisos son **best-effort**: Android puede ajustar la hora exacta por batería, Doze o cuotas del sistema. No se pide `SCHEDULE_EXACT_ALARM` en v1.
 - En Android 13+: solicitar permiso `POST_NOTIFICATIONS` en onboarding
 
 ### 2.9 SINCRONIZACIÓN HEALTH CONNECT

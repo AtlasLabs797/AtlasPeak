@@ -94,6 +94,15 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
 - **Solucion:** `HealthConnectManager` comprueba disponibilidad y `getGrantedPermissions()` antes de cada sync, rehace una ventana movil de 30 dias sin pedir `READ_HEALTH_DATA_HISTORY`, no solicita lectura corporal, usa solo los permisos declarados en manifest, expone una accion de permisos en `Body` y declara pantalla de rationale/privacidad para Health Connect.
 - **Prevencion:** cualquier nuevo tipo de dato Health Connect debe anadir permiso manifest + UI + revision de minimo privilegio antes de leer o escribir.
 
+### SEC-017 - Notificaciones con permiso revocable y horarios best-effort
+- **Estado:** Resuelto
+- **Fecha:** 2026-05-24
+- **Severidad:** Media
+- **Sintoma:** Fase 11 programa recordatorios y resumenes; `POST_NOTIFICATIONS` puede denegarse o revocarse, y WorkManager no garantiza alarmas exactas.
+- **Causa raiz:** Android 13+ protege notificaciones con permiso runtime y WorkManager ejecuta trabajo diferible sujeto a Doze, bateria y cuotas del sistema.
+- **Solucion:** `NotificationPermissionChecker` valida permiso runtime y `NotificationManagerCompat` antes de programar o publicar. Los workers terminan sin notificar si el permiso no existe, sin bucles de retry. Los canales estan separados (`training_reminders`, `motivational_messages`, `summaries`) y el texto de UI/documentacion comunica horarios aproximados. No se solicita `SCHEDULE_EXACT_ALARM`.
+- **Prevencion:** cualquier worker nuevo debe comprobar permisos antes de mostrar datos en lockscreen, usar `VISIBILITY_PRIVATE` cuando el contenido sea personal y documentar si el horario es exacto o best-effort.
+
 ### SEC-001 — Backup no restaurable: falta el salt en el archivo cifrado
 - **Estado:** 🟢 Resuelto (en diseño)
 - **Fecha:** 2026-05-23

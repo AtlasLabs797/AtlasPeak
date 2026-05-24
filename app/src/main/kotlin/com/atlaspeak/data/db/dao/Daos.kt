@@ -21,6 +21,7 @@ import com.atlaspeak.data.db.entity.RoutineEntity
 import com.atlaspeak.data.db.entity.RoutineExerciseEntity
 import com.atlaspeak.data.db.entity.UserEntity
 import com.atlaspeak.data.db.entity.UserProfileEntity
+import com.atlaspeak.data.db.entity.WeeklyPlanEntity
 import com.atlaspeak.data.db.entity.WorkoutSessionEntity
 import com.atlaspeak.data.db.entity.WorkoutSetEntity
 
@@ -215,6 +216,87 @@ interface SettingsDao {
 
     @Query("UPDATE app_settings SET biometrics_enabled = :enabled WHERE id = 1")
     suspend fun updateBiometricsEnabled(enabled: Boolean)
+
+    @Query(
+        """
+        UPDATE app_settings
+        SET notifications_enabled = :notificationsEnabled,
+            motivational_messages = :motivationalMessages,
+            daily_summary_enabled = :dailySummaryEnabled,
+            daily_summary_time = :dailySummaryTime,
+            weekly_summary_enabled = :weeklySummaryEnabled
+        WHERE id = 1
+        """,
+    )
+    suspend fun updateNotificationSettings(
+        notificationsEnabled: Boolean,
+        motivationalMessages: Boolean,
+        dailySummaryEnabled: Boolean,
+        dailySummaryTime: String,
+        weeklySummaryEnabled: Boolean,
+    )
+}
+
+data class WeeklyPlanRow(
+    val id: String,
+    val dayOfWeek: Int,
+    val routineId: String?,
+    val routineName: String?,
+    val isRestDay: Boolean,
+    val notificationEnabled: Boolean,
+    val notificationTime: String?,
+)
+
+@Dao
+interface WeeklyPlanDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(day: WeeklyPlanEntity)
+
+    @Query(
+        """
+        SELECT
+            weekly_plan.id AS id,
+            weekly_plan.day_of_week AS dayOfWeek,
+            weekly_plan.routine_id AS routineId,
+            routines.name AS routineName,
+            weekly_plan.is_rest_day AS isRestDay,
+            weekly_plan.notification_enabled AS notificationEnabled,
+            weekly_plan.notification_time AS notificationTime
+        FROM weekly_plan
+        LEFT JOIN routines ON routines.id = weekly_plan.routine_id
+        ORDER BY weekly_plan.day_of_week
+        """,
+    )
+    suspend fun getPlan(): List<WeeklyPlanRow>
+
+    @Query(
+        """
+        SELECT
+            weekly_plan.id AS id,
+            weekly_plan.day_of_week AS dayOfWeek,
+            weekly_plan.routine_id AS routineId,
+            routines.name AS routineName,
+            weekly_plan.is_rest_day AS isRestDay,
+            weekly_plan.notification_enabled AS notificationEnabled,
+            weekly_plan.notification_time AS notificationTime
+        FROM weekly_plan
+        LEFT JOIN routines ON routines.id = weekly_plan.routine_id
+        WHERE weekly_plan.day_of_week = :dayOfWeek
+        LIMIT 1
+        """,
+    )
+    suspend fun getDay(dayOfWeek: Int): WeeklyPlanRow?
+
+    @Query(
+        """
+        SELECT start_time
+        FROM workout_sessions
+        WHERE completed = 1
+          AND start_time >= :startInclusive
+          AND start_time < :endExclusive
+        """,
+    )
+    suspend fun getCompletedTrainingSessionStartTimes(startInclusive: Long, endExclusive: Long): List<Long>
 }
 
 @Dao

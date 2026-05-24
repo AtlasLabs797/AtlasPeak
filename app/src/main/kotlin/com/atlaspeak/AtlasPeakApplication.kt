@@ -1,7 +1,11 @@
 package com.atlaspeak
 
 import android.app.Application
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
+import com.atlaspeak.data.notification.AtlasPeakNotificationHelper
 import com.atlaspeak.data.db.seed.DatabaseSeeder
+import com.atlaspeak.domain.repository.NotificationScheduler
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
@@ -12,16 +16,26 @@ import kotlinx.coroutines.launch
 /**
  * Punto de entrada de la app. Hilt genera el contenedor a partir de aqui.
  *
- * WorkManager, canales de notificacion y jobs en segundo plano se activan en sus fases.
+ * WorkManager usa HiltWorkerFactory porque los workers dependen de repositorios Room.
  */
 @HiltAndroidApp
-class AtlasPeakApplication : Application() {
+class AtlasPeakApplication : Application(), Configuration.Provider {
     @Inject lateinit var databaseSeeder: DatabaseSeeder
+    @Inject lateinit var workerFactory: HiltWorkerFactory
+    @Inject lateinit var notificationHelper: AtlasPeakNotificationHelper
+    @Inject lateinit var notificationScheduler: NotificationScheduler
+
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder()
+            .setWorkerFactory(workerFactory)
+            .build()
 
     override fun onCreate() {
         super.onCreate()
+        notificationHelper.ensureChannels()
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             databaseSeeder.seed()
+            notificationScheduler.rescheduleAll()
         }
     }
 }

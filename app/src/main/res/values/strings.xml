@@ -21,6 +21,7 @@
     <string name="action_skip">Saltar</string>
     <string name="action_continue">Continuar</string>
     <string name="action_retry">Reintentar</string>
+    <string name="action_back">Volver</string>
 
     <!-- Onboarding -->
     <string name="onboarding_welcome_title">Tu entrenamiento, en tu dispositivo</string>
@@ -257,6 +258,65 @@
     <string name="home_value_consistency">%1$d / %2$d días</string>
     <string name="home_value_empty">--</string>
     <string name="home_chart_empty">Sin datos en este periodo.</string>
+
+    <!-- Perfil / plan semanal / notificaciones -->
+    <string name="profile_subtitle">Planificación, permisos y copias de seguridad.</string>
+    <string name="profile_weekly_plan">Planificación semanal</string>
+    <string name="profile_weekly_plan_body">Rutina, descanso y recordatorio por día.</string>
+    <string name="profile_notification_settings">Notificaciones</string>
+    <string name="profile_notification_settings_body">Canales, resúmenes y mensajes motivacionales.</string>
+    <string name="profile_backup_body">Backups cifrados y exportaciones.</string>
+    <string name="weekly_plan_title">Planificación semanal</string>
+    <string name="weekly_plan_body">La semana empieza en lunes. Los recordatorios se programan con WorkManager y pueden llegar alrededor de la hora elegida.</string>
+    <string name="weekly_plan_saved">Plan actualizado.</string>
+    <string name="weekly_plan_invalid_time">Usa una hora válida en formato HH:mm.</string>
+    <string name="weekly_plan_select_routine">Seleccionar rutina</string>
+    <string name="weekly_plan_no_routine">Sin rutina</string>
+    <string name="weekly_plan_rest_day">Día de descanso</string>
+    <string name="weekly_plan_reminder_enabled">Recordatorio</string>
+    <string name="weekly_plan_reminder_time">Hora de recordatorio</string>
+    <string name="weekly_plan_reminder_best_effort">Android puede ajustar la hora exacta para ahorrar batería.</string>
+    <string name="weekday_monday">Lunes</string>
+    <string name="weekday_tuesday">Martes</string>
+    <string name="weekday_wednesday">Miércoles</string>
+    <string name="weekday_thursday">Jueves</string>
+    <string name="weekday_friday">Viernes</string>
+    <string name="weekday_saturday">Sábado</string>
+    <string name="weekday_sunday">Domingo</string>
+    <string name="notification_settings_title">Notificaciones</string>
+    <string name="notification_settings_body">Activa solo los avisos que aporten algo. Sin permiso del sistema no se muestra nada.</string>
+    <string name="notification_settings_saved">Notificaciones actualizadas.</string>
+    <string name="notification_settings_system_denied">Android bloquea las notificaciones de Atlas Peak. Actívalas en ajustes del sistema para guardar este control.</string>
+    <string name="notification_settings_global">Permitir notificaciones</string>
+    <string name="notification_settings_global_body">Control global para recordatorios, mensajes y resúmenes.</string>
+    <string name="notification_settings_motivation">Mensajes motivacionales</string>
+    <string name="notification_settings_motivation_body">Un aviso corto diario si las notificaciones están activas.</string>
+    <string name="notification_settings_daily_summary">Resumen diario</string>
+    <string name="notification_settings_daily_summary_body">Volumen y consistencia del periodo actual.</string>
+    <string name="notification_settings_daily_time">Hora del resumen diario</string>
+    <string name="notification_settings_weekly_summary">Resumen semanal</string>
+    <string name="notification_settings_weekly_summary_body">Lunes a las 08:30, sujeto a políticas de Android.</string>
+    <string name="notification_channel_training_reminders">Recordatorios de entrenamiento</string>
+    <string name="notification_channel_training_reminders_desc">Avisos del plan semanal.</string>
+    <string name="notification_channel_motivation">Mensajes motivacionales</string>
+    <string name="notification_channel_motivation_desc">Avisos cortos de adherencia.</string>
+    <string name="notification_channel_summaries">Resúmenes</string>
+    <string name="notification_channel_summaries_desc">Resumen diario y semanal.</string>
+    <string name="notifications_training_title">Entrenamiento planificado</string>
+    <string name="notifications_training_generic_routine">Entrenamiento</string>
+    <string name="notifications_training_text">%1$s sobre las %2$s</string>
+    <string name="notifications_time_unspecified">hora configurada</string>
+    <string name="notifications_daily_summary_title">Resumen diario</string>
+    <string name="notifications_weekly_summary_title">Resumen semanal</string>
+    <string name="notifications_summary_text">Volumen: %1$.1f kg. Consistencia: %2$d/%3$d días.</string>
+    <string name="notifications_summary_text_with_weight">Volumen: %1$.1f kg. Consistencia: %2$d/%3$d días. Peso: %4$.1f kg.</string>
+    <string name="notifications_motivation_title">Atlas Peak</string>
+    <string-array name="notifications_motivation_messages">
+        <item>Haz la sesión fácil: empieza por el primer set.</item>
+        <item>La consistencia gana cuando el plan es pequeño y claro.</item>
+        <item>Entrena lo planificado; ajusta después con datos.</item>
+        <item>Hoy cuenta aunque no sea perfecto.</item>
+    </string-array>
 
     <!-- Cuerpo / composición corporal -->
     <string name="body_screen_subtitle">Valores actuales y evolución de composición corporal</string>

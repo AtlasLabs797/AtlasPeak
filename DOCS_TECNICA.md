@@ -253,8 +253,8 @@ Fase 9 reemplaza el placeholder de `Body` por una pantalla real sobre la tabla v
   Grasa visceral, proteina, masa osea y edad corporal son solo manuales hasta nueva decision
   de producto.
 
-La integracion real con Health Connect no se implementa en esta fase. La pantalla esta bajo
-`FLAG_SECURE` porque muestra datos de salud.
+La pantalla esta bajo `FLAG_SECURE` porque muestra datos de salud. Desde Fase 10 la tarjeta
+Health Connect permite sincronizar y volver a pedir permisos si fueron revocados.
 
 ---
 
@@ -301,7 +301,35 @@ La integracion real con Health Connect no se implementa en esta fase. La pantall
 
 ---
 
-## 9. Backup / Drive
+## 9. Plan semanal y notificaciones
+
+- `ProfileScreen` reemplaza el placeholder y enlaza a `WeeklyPlanScreen`, `SettingsScreen`
+  de notificaciones y backup. `Profile`, `WeeklyPlan`, `Settings` y `Backup` estan bajo
+  `FLAG_SECURE`.
+- `WeeklyPlanUseCase` normaliza siete dias ISO (`1=Lunes ... 7=Domingo`), valida `HH:mm`,
+  convierte dias de descanso en filas sin rutina/recordatorio y reprograma notificaciones al
+  guardar cada dia.
+- `RoomWeeklyPlanRepository` usa la tabla `weekly_plan` existente; no hay cambio de schema en
+  Fase 11. La marca visual de completado sale de `workout_sessions.completed` dentro de la
+  semana local actual.
+- `NotificationSettingsUseCase` y `RoomNotificationSettingsRepository` usan `app_settings`
+  para el control global, mensajes motivacionales, resumen diario, hora diaria y resumen semanal.
+- WorkManager usa Hilt: `AtlasPeakApplication` implementa `Configuration.Provider`, inyecta
+  `HiltWorkerFactory` y el manifest mantiene desactivado el initializer por defecto.
+- Canales Android separados: `training_reminders`, `motivational_messages` y `summaries`.
+  Los canales de foreground services (`active_workout`, `active_cardio`) no se reutilizan.
+- Scheduler: `WorkManagerNotificationScheduler` cancela y recrea trabajos unicos con nombres
+  estables (`training_reminder_1..7`, `daily_summary`, `weekly_summary`, `motivational_message`).
+  Usa `OneTimeWorkRequest` para el siguiente disparo y los workers reprograman al terminar.
+- Los horarios son **best-effort**. WorkManager no garantiza una alarma exacta; Atlas Peak no
+  solicita `SCHEDULE_EXACT_ALARM` en v1 porque seria friccion innecesaria para recordatorios
+  de fitness.
+- Antes de notificar se comprueba `POST_NOTIFICATIONS`/`NotificationManagerCompat`. Si el
+  permiso esta denegado, el worker termina sin notificar ni entrar en bucles de retry.
+
+---
+
+## 10. Backup / Drive
 
 - `DriveApiService` (Retrofit) habla con Drive REST API v3, scope `drive.appdata` (carpeta
   privada de la app, invisible al usuario).
@@ -313,7 +341,7 @@ La integracion real con Health Connect no se implementa en esta fase. La pantall
 
 ---
 
-## 10. Cálculo de calorías (cross-table, ojo)
+## 11. Cálculo de calorías (cross-table, ojo)
 
 El GPS aporta **distancia/velocidad**, no calorías. La estimación necesita el **peso** del
 usuario, que NO está en `user_profile` sino en el último registro de `body_composition`.
@@ -323,7 +351,7 @@ en el código.
 
 ---
 
-## 11. Estado, concurrencia y errores
+## 12. Estado, concurrencia y errores
 
 - UI: un `data class XxxUiState` por pantalla; ViewModel expone `StateFlow`. La UI usa
   `collectAsStateWithLifecycle`.
@@ -332,7 +360,7 @@ en el código.
 
 ---
 
-## 12. Testing
+## 13. Testing
 
 - **Unit (MockK):** UseCases, ViewModels, `EncryptionManager`, lógica de conflictos HC.
 - **Integración (Room in-memory):** DAOs, repos, migraciones.
@@ -343,7 +371,7 @@ en el código.
 
 ---
 
-## 13. Build, CI y release
+## 14. Build, CI y release
 
 - Versiones **solo** en `gradle/libs.versions.toml` (version catalog).
 - CI (GitHub Actions): `assembleDebug` + `test` + `lint` en cada push/PR.

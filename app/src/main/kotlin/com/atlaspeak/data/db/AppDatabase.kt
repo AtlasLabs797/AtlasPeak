@@ -15,6 +15,7 @@ import com.atlaspeak.data.db.dao.RoutineDao
 import com.atlaspeak.data.db.dao.SettingsDao
 import com.atlaspeak.data.db.dao.UserDao
 import com.atlaspeak.data.db.dao.UserProfileDao
+import com.atlaspeak.data.db.dao.WeeklyPlanDao
 import com.atlaspeak.data.db.dao.WorkoutDao
 import com.atlaspeak.data.db.entity.AppSettingsEntity
 import com.atlaspeak.data.db.entity.AuthSecurityEntity
@@ -76,6 +77,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun bodyCompositionDao(): BodyCompositionDao
     abstract fun healthConnectDao(): HealthConnectDao
     abstract fun dashboardDao(): DashboardDao
+    abstract fun weeklyPlanDao(): WeeklyPlanDao
 
     companion object {
         const val DATABASE_NAME = "atlas_peak.db"

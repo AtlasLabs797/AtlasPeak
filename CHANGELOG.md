@@ -10,6 +10,60 @@
 
 ## [No publicado]
 
+### Fase 11 - Plan semanal + notificaciones
+
+#### 2026-05-24 - Planificacion semanal, scheduler y canales Android
+
+**Añadido**
+- Añadidos modelos/use cases/repositorios para `weekly_plan` y ajustes de notificaciones sobre
+  las tablas existentes, sin cambio de schema Room.
+- Reemplazado el placeholder de `Profile` por pantalla real con acceso a plan semanal,
+  ajustes de notificaciones y backup.
+- Añadida `WeeklyPlanScreen` con cards por dia ISO, asignacion de rutina, descanso,
+  completado semanal y hora de recordatorio.
+- Añadida pantalla de ajustes de notificaciones para control global, mensajes motivacionales,
+  resumen diario, hora diaria y resumen semanal.
+- Añadidos canales Android separados para recordatorios, mensajes motivacionales y resumenes.
+- Añadidos `TrainingReminderWorker`, `DailySummaryWorker`, `WeeklySummaryWorker` y
+  `MotivationalMessageWorker` con Hilt + WorkManager.
+- Añadido `WorkManagerNotificationScheduler` con trabajos unicos y reprogramacion best-effort
+  por siguiente disparo.
+
+**Cambiado**
+- `AtlasPeakApplication` implementa `Configuration.Provider` e inyecta `HiltWorkerFactory`,
+  alineado con el manifest que desactiva el initializer por defecto de WorkManager.
+- El onboarding persiste el resultado del permiso `POST_NOTIFICATIONS` en `app_settings`.
+- `Home` refresca al volver a primer plano para que el widget de consistencia recoja cambios
+  recientes del plan semanal.
+- `SPEC.md` y `DOCS_TECNICA.md` aclaran que los horarios de WorkManager son aproximados; v1 no
+  pide `SCHEDULE_EXACT_ALARM`.
+
+**Corregido**
+- La pantalla de ajustes ya no permite guardar “notificaciones activas” si Android bloquea el
+  permiso real; solicita `POST_NOTIFICATIONS` cuando aplica o abre ajustes del sistema.
+- Los resumenes diarios/semanales incluyen el peso corporal reciente cuando el snapshot del
+  dashboard lo tiene disponible.
+
+**Seguridad**
+- Registrado `SEC-017`: workers y scheduler comprueban permiso runtime antes de notificar,
+  evitan retry loops cuando el permiso esta revocado, usan canales separados y visibilidad
+  privada para contenido personal.
+- Revalidado: sin secretos nuevos, sin `ACCESS_BACKGROUND_LOCATION`, sin cleartext/fallback
+  destructivo y sin nuevos permisos exact-alarm.
+
+**Verificado**
+- `./gradlew testDebugUnitTest --tests com.atlaspeak.domain.usecase.planning.WeeklyPlanUseCaseTest --tests com.atlaspeak.domain.usecase.planning.NotificationSettingsUseCaseTest --tests com.atlaspeak.data.notification.NotificationScheduleCalculatorTest --no-daemon`
+  pasa.
+- `./gradlew assembleDebug assembleRelease test lint compileDebugAndroidTestKotlin --no-daemon`
+  pasa.
+- Revision independiente de Fase 11 aprobada tras corregir permisos reales de notificacion y
+  peso reciente en resumenes.
+- Scanner `cyber-neo` sobre `app/` no encuentra secretos reales; el unico aviso es ausencia de
+  `.gitignore` dentro de `app/`, mitigado por `.gitignore` raiz que ignora `secrets.properties`,
+  `keystore.properties`, `local.properties` y `google-services.json`.
+- QA visual runtime bloqueada: `adb devices` no lista dispositivos, `emulator -list-avds` no
+  devuelve AVDs y `emulator -accel-check` falla con codigo 6 por Hyper-V/WHPX.
+
 ### Fase 10 - Health Connect
 
 #### 2026-05-24 - Import/export Health Connect y migracion DB v2
