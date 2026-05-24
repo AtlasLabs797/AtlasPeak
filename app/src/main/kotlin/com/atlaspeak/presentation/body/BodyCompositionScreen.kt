@@ -41,6 +41,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -520,6 +522,7 @@ private fun BodyMetricChartCard(metric: BodyMetric, points: List<BodyMetricPoint
             } else {
                 BodyLineChart(
                     points = points,
+                    metricLabel = stringResource(metric.labelRes()),
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(180.dp),
@@ -532,6 +535,7 @@ private fun BodyMetricChartCard(metric: BodyMetric, points: List<BodyMetricPoint
 @Composable
 private fun BodyLineChart(
     points: List<BodyMetricPoint>,
+    metricLabel: String,
     modifier: Modifier = Modifier,
 ) {
     val modelProducer = remember { CartesianChartModelProducer() }
@@ -551,6 +555,14 @@ private fun BodyLineChart(
             }
         }
     }
+    val chartDescription = stringResource(
+        R.string.body_chart_summary,
+        metricLabel,
+        points.size,
+        points.first().timestamp.formatDate(),
+        points.last().timestamp.formatDate(),
+        points.last().value.formattedValue(points.last().metric),
+    )
     CartesianChartHost(
         chart = rememberCartesianChart(
             rememberLineCartesianLayer(),
@@ -559,7 +571,7 @@ private fun BodyLineChart(
             marker = marker,
         ),
         modelProducer = modelProducer,
-        modifier = modifier,
+        modifier = modifier.semantics { contentDescription = chartDescription },
     )
 }
 

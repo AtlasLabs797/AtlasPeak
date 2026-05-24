@@ -652,7 +652,7 @@ routines
   id                TEXT    PK
   name              TEXT    NOT NULL
   description       TEXT
-  color_tag         TEXT                -- hex ej: "#E53935", nullable
+  color_tag         TEXT                -- hex ej: "#D32F2F", nullable
   estimated_duration_min INTEGER        -- calculado, nullable
   created_at        INTEGER NOT NULL
   updated_at        INTEGER NOT NULL
@@ -1044,7 +1044,7 @@ Cada pantalla con feature potencialmente premium comprueba el flag antes de rend
 
 | Token | Rol | Valor aproximado |
 |-------|-----|-----------------|
-| `primary` | Accent principal | Rojo `#E53935` |
+| `primary` | Accent principal | Rojo `#D32F2F` |
 | `onPrimary` | Texto sobre rojo | Blanco |
 | `surface` | Fondo de cards | Neutro oscuro / claro |
 | `background` | Fondo base | Casi negro / casi blanco |

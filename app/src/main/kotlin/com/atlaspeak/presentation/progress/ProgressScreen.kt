@@ -40,6 +40,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -247,15 +249,26 @@ private fun HistoryItemCard(
     onClick: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
+    val cardColors = CardDefaults.cardColors(
+        containerColor = if (selected) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            MaterialTheme.colorScheme.surface
+        },
+        contentColor = if (selected) {
+            MaterialTheme.colorScheme.onPrimaryContainer
+        } else {
+            MaterialTheme.colorScheme.onSurface
+        },
+    )
+    val secondaryTextColor = if (selected) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
     Card(
         onClick = onClick,
-        colors = CardDefaults.cardColors(
-            containerColor = if (selected) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surface
-            },
-        ),
+        colors = cardColors,
     ) {
         Row(
             modifier = Modifier
@@ -291,13 +304,13 @@ private fun HistoryItemCard(
                         item.startedAt.formatDate(),
                     ),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = secondaryTextColor,
                 )
             }
             Text(
                 text = item.metricText(),
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = secondaryTextColor,
             )
         }
     }
@@ -560,6 +573,7 @@ private fun ChartBlock(
         )
         ProgressLineChart(
             points = points,
+            title = stringResource(titleRes),
             modifier = Modifier
                 .fillMaxWidth()
                 .height(if (compact) 140.dp else 180.dp),
@@ -570,6 +584,7 @@ private fun ChartBlock(
 @Composable
 private fun ProgressLineChart(
     points: List<ProgressChartPoint>,
+    title: String,
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
@@ -594,6 +609,14 @@ private fun ProgressLineChart(
             }
         }
     }
+    val chartDescription = stringResource(
+        R.string.progress_chart_summary,
+        title,
+        points.size,
+        points.first().startedAt.formatDate(),
+        points.last().startedAt.formatDate(),
+        points.last().value,
+    )
     CartesianChartHost(
         chart = rememberCartesianChart(
             rememberLineCartesianLayer(),
@@ -602,7 +625,7 @@ private fun ProgressLineChart(
             marker = marker,
         ),
         modelProducer = modelProducer,
-        modifier = modifier,
+        modifier = modifier.semantics { contentDescription = chartDescription },
     )
     if (points.size > 1) {
         Text(

@@ -46,7 +46,7 @@ class StartWorkoutSessionUseCaseTest {
         id = "routine_upper",
         name = "Upper",
         description = null,
-        colorTag = "#E53935",
+        colorTag = "#D32F2F",
         estimatedDurationMin = 19,
         isArchived = false,
         exercises = listOf(

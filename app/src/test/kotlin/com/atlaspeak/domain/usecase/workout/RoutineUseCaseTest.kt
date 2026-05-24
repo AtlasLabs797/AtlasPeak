@@ -32,7 +32,7 @@ class RoutineUseCaseTest {
         assertTrue(
             useCase.createOrUpdateRoutine(
                 name = "Upper",
-                colorTag = "#E53935",
+                colorTag = "#D32F2F",
                 exercises = listOf(
                     RoutineExerciseInput("row", 4, 10, 70.0, 120),
                     RoutineExerciseInput("bench", 3, 8, 80.0, 90),
@@ -59,7 +59,7 @@ class RoutineUseCaseTest {
 
     @Test
     fun `create routine updates existing routine by id`() = runTest {
-        assertTrue(useCase.createOrUpdateRoutine("Upper", "#E53935", listOf(RoutineExerciseInput("row", 4, 10, null, 90)), id = "routine_upper"))
+        assertTrue(useCase.createOrUpdateRoutine("Upper", "#D32F2F", listOf(RoutineExerciseInput("row", 4, 10, null, 90)), id = "routine_upper"))
         assertTrue(useCase.createOrUpdateRoutine("Upper 2", "#1565C0", listOf(RoutineExerciseInput("bench", 3, 8, 80.0, 120)), id = "routine_upper"))
 
         val updated = repository.routines.single()

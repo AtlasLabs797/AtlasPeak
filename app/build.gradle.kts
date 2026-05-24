@@ -48,7 +48,10 @@ android {
         ksp { arg("room.schemaLocation", "$projectDir/schemas") }
 
         vectorDrawables { useSupportLibrary = true }
-        resourceConfigurations += listOf("es", "en")
+    }
+
+    androidResources {
+        localeFilters += listOf("es", "en")
     }
 
     signingConfigs {

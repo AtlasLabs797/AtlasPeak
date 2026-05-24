@@ -1,7 +1,14 @@
 package com.atlaspeak.presentation.navigation
 
+import android.provider.Settings
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -30,9 +37,14 @@ import com.atlaspeak.presentation.workout.WorkoutCompleteRoute
 fun AtlasPeakNavHost(
     navController: NavHostController,
 ) {
+    val reduceMotion = LocalContext.current.isAnimatorScaleOff()
     NavHost(
         navController = navController,
         startDestination = AppRoute.Launch.route,
+        enterTransition = { atlasEnterTransition(reduceMotion) },
+        exitTransition = { atlasExitTransition(reduceMotion) },
+        popEnterTransition = { atlasEnterTransition(reduceMotion) },
+        popExitTransition = { atlasExitTransition(reduceMotion) },
     ) {
         composable(AppRoute.Launch.route) {
             val viewModel: LaunchViewModel = hiltViewModel()
@@ -168,4 +180,16 @@ fun AtlasPeakNavHost(
             BackupRestoreRoute(onBack = { navController.popBackStack() })
         }
     }
+}
+
+private fun android.content.Context.isAnimatorScaleOff(): Boolean {
+    return Settings.Global.getFloat(contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
+}
+
+private fun atlasEnterTransition(reduceMotion: Boolean): EnterTransition {
+    return if (reduceMotion) EnterTransition.None else fadeIn(animationSpec = tween(220))
+}
+
+private fun atlasExitTransition(reduceMotion: Boolean): ExitTransition {
+    return if (reduceMotion) ExitTransition.None else fadeOut(animationSpec = tween(120))
 }

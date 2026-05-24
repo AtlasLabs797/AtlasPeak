@@ -14,9 +14,11 @@ enum class ThemeMode {
     DARK,
 }
 
-private val LightColorScheme = lightColorScheme(
+internal val AtlasPeakLightColorScheme = lightColorScheme(
     primary = AtlasRed,
     onPrimary = Color.White,
+    primaryContainer = Color(0xFFFFDAD6),
+    onPrimaryContainer = Color(0xFF410002),
     secondary = Color(0xFF665F5D),
     onSecondary = Color.White,
     background = Color.White,
@@ -30,9 +32,11 @@ private val LightColorScheme = lightColorScheme(
     onError = Color.White,
 )
 
-private val DarkColorScheme = darkColorScheme(
+internal val AtlasPeakDarkColorScheme = darkColorScheme(
     primary = AtlasRedDark,
     onPrimary = Color(0xFF3A0907),
+    primaryContainer = Color(0xFF93000A),
+    onPrimaryContainer = Color(0xFFFFDAD6),
     secondary = Color(0xFFD3C7C4),
     onSecondary = Color(0xFF362F2D),
     background = Color(0xFF121212),
@@ -58,7 +62,7 @@ fun AtlasPeakTheme(
     }
     CompositionLocalProvider(LocalSpacing provides Spacing()) {
         MaterialTheme(
-            colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme,
+            colorScheme = if (darkTheme) AtlasPeakDarkColorScheme else AtlasPeakLightColorScheme,
             typography = AtlasPeakTypography,
             shapes = AtlasPeakShapes,
             content = content,

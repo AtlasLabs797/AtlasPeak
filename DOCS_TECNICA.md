@@ -21,6 +21,10 @@ presentation  →  domain  →  data
 
 Regla dura: `presentation` no conoce Room ni Retrofit. Mapea siempre a **domain models**.
 
+Tema/UI: los tokens viven en `presentation/theme/`. Las fuentes se empaquetan localmente en
+`app/src/main/res/font/` (Poppins 600/700 e Inter variable) para cumplir `DESIGN.md` sin
+descargas runtime. El origen/licencia esta en `THIRD_PARTY_NOTICES.md`.
+
 ---
 
 ## 2. Módulos

@@ -1,13 +1,22 @@
 package com.atlaspeak.presentation.theme
 
 import androidx.compose.material3.Typography
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import com.atlaspeak.R
 
-private val headingFamily = FontFamily.SansSerif
-private val bodyFamily = FontFamily.SansSerif
+private val headingFamily = FontFamily(
+    Font(R.font.poppins_semibold, weight = FontWeight.SemiBold),
+    Font(R.font.poppins_bold, weight = FontWeight.Bold),
+)
+
+private val bodyFamily = FontFamily(
+    Font(R.font.inter_variable, weight = FontWeight.Normal),
+    Font(R.font.inter_variable, weight = FontWeight.Medium),
+)
 
 private fun TextStyle.withTabularNumbers() = copy(
     platformStyle = PlatformTextStyle(includeFontPadding = false),
@@ -16,15 +25,15 @@ private fun TextStyle.withTabularNumbers() = copy(
 
 val AtlasPeakTypography = Typography().let { base ->
     base.copy(
-        displayLarge = base.displayLarge.copy(fontFamily = headingFamily, fontWeight = FontWeight.Bold),
-        displayMedium = base.displayMedium.copy(fontFamily = headingFamily, fontWeight = FontWeight.Bold),
-        displaySmall = base.displaySmall.copy(fontFamily = headingFamily, fontWeight = FontWeight.Bold),
-        headlineLarge = base.headlineLarge.copy(fontFamily = headingFamily, fontWeight = FontWeight.SemiBold),
-        headlineMedium = base.headlineMedium.copy(fontFamily = headingFamily, fontWeight = FontWeight.SemiBold),
-        headlineSmall = base.headlineSmall.copy(fontFamily = headingFamily, fontWeight = FontWeight.SemiBold),
-        titleLarge = base.titleLarge.copy(fontFamily = headingFamily, fontWeight = FontWeight.SemiBold),
-        titleMedium = base.titleMedium.copy(fontFamily = headingFamily, fontWeight = FontWeight.SemiBold),
-        titleSmall = base.titleSmall.copy(fontFamily = headingFamily, fontWeight = FontWeight.SemiBold),
+        displayLarge = base.displayLarge.copy(fontFamily = headingFamily, fontWeight = FontWeight.Bold).withTabularNumbers(),
+        displayMedium = base.displayMedium.copy(fontFamily = headingFamily, fontWeight = FontWeight.Bold).withTabularNumbers(),
+        displaySmall = base.displaySmall.copy(fontFamily = headingFamily, fontWeight = FontWeight.Bold).withTabularNumbers(),
+        headlineLarge = base.headlineLarge.copy(fontFamily = headingFamily, fontWeight = FontWeight.SemiBold).withTabularNumbers(),
+        headlineMedium = base.headlineMedium.copy(fontFamily = headingFamily, fontWeight = FontWeight.SemiBold).withTabularNumbers(),
+        headlineSmall = base.headlineSmall.copy(fontFamily = headingFamily, fontWeight = FontWeight.SemiBold).withTabularNumbers(),
+        titleLarge = base.titleLarge.copy(fontFamily = headingFamily, fontWeight = FontWeight.SemiBold).withTabularNumbers(),
+        titleMedium = base.titleMedium.copy(fontFamily = headingFamily, fontWeight = FontWeight.SemiBold).withTabularNumbers(),
+        titleSmall = base.titleSmall.copy(fontFamily = headingFamily, fontWeight = FontWeight.SemiBold).withTabularNumbers(),
         bodyLarge = base.bodyLarge.copy(fontFamily = bodyFamily, fontWeight = FontWeight.Normal),
         bodyMedium = base.bodyMedium.copy(fontFamily = bodyFamily, fontWeight = FontWeight.Normal),
         bodySmall = base.bodySmall.copy(fontFamily = bodyFamily, fontWeight = FontWeight.Normal),

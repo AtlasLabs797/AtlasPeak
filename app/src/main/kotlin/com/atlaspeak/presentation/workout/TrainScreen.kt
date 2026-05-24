@@ -536,11 +536,18 @@ private fun CardioSessionCard(
     onClick: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
+    val cardColors = CardDefaults.cardColors(
+        containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+        contentColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+    )
+    val secondaryTextColor = if (selected) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
     Card(
         onClick = onClick,
-        colors = CardDefaults.cardColors(
-            containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
-        ),
+        colors = cardColors,
     ) {
         Column(
             modifier = Modifier
@@ -561,7 +568,7 @@ private fun CardioSessionCard(
                     session.distanceKm ?: 0.0,
                 ),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = secondaryTextColor,
             )
         }
     }
@@ -1082,15 +1089,26 @@ private fun RoutineCard(
     onArchive: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
+    val cardColors = CardDefaults.cardColors(
+        containerColor = if (selected) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            MaterialTheme.colorScheme.surface
+        },
+        contentColor = if (selected) {
+            MaterialTheme.colorScheme.onPrimaryContainer
+        } else {
+            MaterialTheme.colorScheme.onSurface
+        },
+    )
+    val secondaryTextColor = if (selected) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
     Card(
         onClick = onClick,
-        colors = CardDefaults.cardColors(
-            containerColor = if (selected) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surface
-            },
-        ),
+        colors = cardColors,
     ) {
         Row(
             modifier = Modifier
@@ -1113,7 +1131,7 @@ private fun RoutineCard(
                 Text(
                     text = stringResource(R.string.workout_routine_summary, routine.exercises.size, routine.estimatedDurationMin),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = secondaryTextColor,
                 )
             }
             IconButton(onClick = onArchive) {
@@ -1191,11 +1209,18 @@ private fun WorkoutSessionCard(
     onClick: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
+    val cardColors = CardDefaults.cardColors(
+        containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+        contentColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+    )
+    val secondaryTextColor = if (selected) {
+        MaterialTheme.colorScheme.onPrimaryContainer
+    } else {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    }
     Card(
         onClick = onClick,
-        colors = CardDefaults.cardColors(
-            containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
-        ),
+        colors = cardColors,
     ) {
         Column(
             modifier = Modifier
@@ -1216,7 +1241,7 @@ private fun WorkoutSessionCard(
                     session.totalVolumeKg ?: 0.0,
                 ),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = secondaryTextColor,
             )
         }
     }
@@ -1361,7 +1386,7 @@ private data class RoutineColorTag(
 )
 
 private val routineColorTags = listOf(
-    RoutineColorTag("#E53935", R.string.workout_color_red, Color(0xFFE53935)),
+    RoutineColorTag("#D32F2F", R.string.workout_color_red, Color(0xFFD32F2F)),
     RoutineColorTag("#2E7D32", R.string.workout_color_green, Color(0xFF2E7D32)),
     RoutineColorTag("#1565C0", R.string.workout_color_blue, Color(0xFF1565C0)),
     RoutineColorTag("#6A1B9A", R.string.workout_color_purple, Color(0xFF6A1B9A)),

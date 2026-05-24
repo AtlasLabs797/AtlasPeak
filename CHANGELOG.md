@@ -10,6 +10,48 @@
 
 ## [No publicado]
 
+### Fase 16 - Polish + performance + accesibilidad
+
+#### 2026-05-24 - Tipografia, contraste AA y QA estatica de UI
+
+**Anadido**
+- Fuentes locales Poppins 600/700 e Inter variable en `app/src/main/res/font/`.
+- `THIRD_PARTY_NOTICES.md` documenta origen y licencia OFL de Poppins/Inter.
+- `ThemeAccessibilityTest` verifica contraste WCAG AA en pares `on*`/fondo light y dark.
+- `StaticUiPolicyTest` bloquea strings visibles hardcodeados en presentation, icon-only
+  buttons sin descripcion, perdida de fuentes Atlas Peak y desalineacion ES/EN.
+
+**Cambiado**
+- `Typography.kt` usa Poppins para display/headline/title y Inter para body/label.
+- `primary` light cambia de `#E53935` a `#D32F2F` para cumplir contraste AA con texto blanco.
+- Icono launcher, color rojo de rutina por defecto, `SPEC.md` y `DESIGN.md` quedan alineados
+  con `#D32F2F`.
+- `primaryContainer/onPrimaryContainer` quedan definidos en light/dark y las tarjetas
+  seleccionadas usan contenido seleccionado con contraste probado.
+- Graficos de dashboard/progreso/cuerpo y mapas GPS exponen resumen semantico localizado.
+- Filas de switch/checkbox fusionan label/control con rol accesible; el rest timer expone
+  progreso y usa un anillo visible.
+- `NavHost` usa fade breve y lo desactiva si `ANIMATOR_DURATION_SCALE` es 0.
+- `resourceConfigurations` se reemplaza por `androidResources.localeFilters`.
+
+**Corregido**
+- Registrado `BUG-024`: primary light no cumplia contraste AA.
+- Registrado `BUG-025`: la tipografia del sistema de diseno no estaba aplicada.
+- Registrado `BUG-026`: estados seleccionados usaban `primaryContainer` sin token Atlas.
+- Registrado `BUG-027`: graficos, mapa y toggles tenian semantica insuficiente para TalkBack.
+
+**Verificado**
+- `./gradlew testDebugUnitTest --tests com.atlaspeak.presentation.StaticUiPolicyTest --tests com.atlaspeak.presentation.theme.ThemeAccessibilityTest --tests com.atlaspeak.domain.usecase.workout.RoutineUseCaseTest --tests com.atlaspeak.domain.usecase.workout.StartWorkoutSessionUseCaseTest --no-daemon`
+  pasa.
+- `./gradlew assembleDebug assembleRelease test lint compileDebugAndroidTestKotlin jacocoDebugDomainDataCoverageVerification --no-daemon`
+  pasa como gate completo de cierre.
+- APK release minificado: `app-release-unsigned.apk` = 26,86 MB.
+- `python Skills/05_Security/cyber-neo/scripts/scan_secrets.py app` no encuentra secretos.
+- `python Skills/05_Security/cyber-neo/scripts/check_lockfiles.py .` no encuentra hallazgos.
+- `git diff --check` pasa.
+- QA visual/performance runtime bloqueada: no hay dispositivos `adb`, no hay AVDs, y
+  `emulator -accel-check` devuelve codigo 6 con aviso Hyper-V/WHPX.
+
 ### Fase 15 - Testing + cobertura
 
 #### 2026-05-24 - Gate JaCoCo y hardening de workers/backup

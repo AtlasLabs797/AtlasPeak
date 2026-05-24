@@ -29,8 +29,10 @@ automáticos** siguiendo el sistema, con override manual en ajustes (`SYSTEM/LIG
 
 | Token | Rol | Light (aprox.) | Dark (aprox.) |
 |-------|-----|----------------|---------------|
-| `primary` | Accent principal | `#E53935` (rojo) | `#FF6B66` |
+| `primary` | Accent principal | `#D32F2F` (rojo AA) | `#FF6B66` |
 | `onPrimary` | Texto sobre primary | `#FFFFFF` | `#3A0907` |
+| `primaryContainer` | Seleccionados / estado activo suave | `#FFDAD6` | `#93000A` |
+| `onPrimaryContainer` | Texto sobre selected container | `#410002` | `#FFDAD6` |
 | `secondary` | Acciones secundarias / chips | neutro cálido | neutro cálido |
 | `surface` | Fondo de cards | `#FAFAFA` | `#1B1B1B` |
 | `surfaceVariant` | Cards secundarias / inputs | `#EFEFEF` | `#262626` |

@@ -442,7 +442,7 @@ enum class TrainUiMessage {
     InvalidCardioType,
 }
 
-const val DEFAULT_ROUTINE_COLOR_TAG = "#E53935"
+const val DEFAULT_ROUTINE_COLOR_TAG = "#D32F2F"
 
 private fun String.onlyDigits(): String = filter { it.isDigit() }.take(3)
 

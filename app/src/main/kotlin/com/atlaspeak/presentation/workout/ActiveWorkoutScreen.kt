@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
@@ -57,8 +58,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -385,8 +391,19 @@ private fun RestTimerOverlay(
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(spacing.md),
                 ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(progress = { timer.progress })
+                    val restDescription = stringResource(R.string.workout_rest_progress_cd, timer.remainingSeconds)
+                    Box(
+                        modifier = Modifier.semantics {
+                            contentDescription = restDescription
+                            progressBarRangeInfo = ProgressBarRangeInfo(timer.progress, 0f..1f)
+                        },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(
+                            progress = { timer.progress },
+                            modifier = Modifier.size(156.dp),
+                            strokeWidth = 6.dp,
+                        )
                         Text(
                             text = timer.remainingSeconds.toString(),
                             style = MaterialTheme.typography.headlineLarge,

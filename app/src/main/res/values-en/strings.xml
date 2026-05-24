@@ -130,6 +130,7 @@
     <string name="workout_set_number">Set %1$d</string>
     <string name="workout_remove_set_cd">Delete set</string>
     <string name="workout_rest_title">Rest</string>
+    <string name="workout_rest_progress_cd">Rest: %1$d seconds remaining.</string>
     <string name="workout_complete_title">Workout complete</string>
     <string name="workout_complete_duration">Duration: %1$d s</string>
     <string name="workout_complete_volume">Volume: %1$.1f kg</string>
@@ -192,6 +193,7 @@
     <string name="cardio_complete_calories">Estimated calories: %1$d kcal</string>
     <string name="cardio_route_saved">Route saved</string>
     <string name="cardio_route_not_saved">No GPS route saved.</string>
+    <string name="cardio_route_map_summary">GPS route map with %1$d points and %2$.2f km.</string>
 
     <string name="progress_tab_history">History</string>
     <string name="progress_tab_exercises">Exercises</string>
@@ -224,6 +226,7 @@
     <string name="progress_chart_volume_title">Volume</string>
     <string name="progress_chart_empty">Not enough points.</string>
     <string name="progress_chart_date_range">%1$s - %2$s</string>
+    <string name="progress_chart_summary">Chart %1$s with %2$d points, from %3$s to %4$s, latest value %5$.1f.</string>
     <string name="progress_group_summary">%1$d exercises - %2$.1f kg</string>
 
     <string name="home_weekly_minutes_title">Training minutes this week</string>
@@ -247,6 +250,7 @@
     <string name="home_value_consistency">%1$d / %2$d days</string>
     <string name="home_value_empty">--</string>
     <string name="home_chart_empty">No data in this period.</string>
+    <string name="home_chart_summary">Dashboard chart with %1$d points, from %2$s to %3$s, latest value %4$.1f.</string>
 
     <!-- Profile / weekly plan / notifications -->
     <string name="profile_subtitle">Planning, permissions, and backups.</string>
@@ -352,6 +356,7 @@
     <string name="body_entry_saved">Measurement saved.</string>
     <string name="body_entry_invalid">Enter at least one valid metric.</string>
     <string name="body_chart_empty">No data for this metric in the period.</string>
+    <string name="body_chart_summary">Chart for %1$s with %2$d points, from %3$s to %4$s, latest value %5$s.</string>
     <string name="body_health_title">Health Connect</string>
     <string name="body_health_status_ready">Local sync available</string>
     <string name="body_health_sync">Sync</string>

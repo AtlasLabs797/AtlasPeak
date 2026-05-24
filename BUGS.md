@@ -24,6 +24,58 @@
 
 ## Entradas
 
+### BUG-027 - Graficos, mapa y toggles tenian semantica insuficiente para TalkBack
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-24
+- **Fase:** 16
+- **Severidad:** Media
+- **Sintoma:** charts, mapa GPS y filas de switch/checkbox podian ser visualmente correctos pero pobres para lectores de pantalla.
+- **Causa raiz:** Vico/GoogleMap se renderizaban sin resumen semantico y algunos controles dejaban label y switch/checkbox como nodos separados.
+- **Solucion:** resumen localizado para charts y ruta GPS; filas de switch/checkbox usan click del row, rol y merge semantico; rest timer expone progreso y texto.
+- **Prevencion:** revision lateral de UI obligatoria en Fase 16 y `StaticUiPolicyTest` mantiene i18n/descripcion minima.
+- **Fecha resolucion:** 2026-05-24
+
+---
+
+### BUG-026 - Estados seleccionados usaban primaryContainer sin token Atlas
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-24
+- **Fase:** 16
+- **Severidad:** Media
+- **Sintoma:** tarjetas seleccionadas usaban `primaryContainer`, pero el tema no lo definia y caia en los colores baseline de Material.
+- **Causa raiz:** el tema solo fijo `primary/onPrimary` y dejo roles contenedor a defaults de Material.
+- **Solucion:** se definen `primaryContainer/onPrimaryContainer` light/dark, los textos secundarios seleccionados usan `onPrimaryContainer`, y el test de contraste cubre esos pares.
+- **Prevencion:** `ThemeAccessibilityTest` cubre roles contenedor ademas de roles principales.
+- **Fecha resolucion:** 2026-05-24
+
+---
+
+### BUG-025 - Tipografia del sistema de diseno no estaba aplicada
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-24
+- **Fase:** 16
+- **Severidad:** Media
+- **Sintoma:** `Typography.kt` usaba `FontFamily.SansSerif` aunque `DESIGN.md` y `SPEC.md` exigen Poppins para titulos/numeros e Inter para cuerpo/labels.
+- **Causa raiz:** la fase de fundacion dejo fallback generico en vez de assets locales o Google Fonts.
+- **Solucion:** fuentes Poppins 600/700 e Inter variable vendorizadas en `res/font/`, `Typography.kt` usa esos assets y `THIRD_PARTY_NOTICES.md` registra origen/licencia.
+- **Prevencion:** `StaticUiPolicyTest` falla si vuelve `FontFamily.SansSerif` o faltan los assets esperados.
+- **Fecha resolucion:** 2026-05-24
+
+---
+
+### BUG-024 - Primary light no cumplia contraste AA con texto blanco
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-24
+- **Fase:** 16
+- **Severidad:** Alta
+- **Sintoma:** `onPrimary` blanco sobre `primary #E53935` daba contraste ~4.23:1, por debajo del minimo WCAG AA 4.5:1 para texto normal.
+- **Causa raiz:** el rojo de marca se copio como valor visual aproximado sin test de contraste automatizado.
+- **Solucion:** primary light cambia a `#D32F2F`; icono, swatch rojo por defecto y specs quedan alineados.
+- **Prevencion:** `ThemeAccessibilityTest` verifica pares `on*`/fondo de light y dark contra WCAG AA.
+- **Fecha resolucion:** 2026-05-24
+
+---
+
 ### BUG-023 - Objetivo de cobertura domain/data no era verificable
 - **Estado:** Resuelto
 - **Fecha deteccion:** 2026-05-24
