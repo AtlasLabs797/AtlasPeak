@@ -10,8 +10,14 @@ sealed class AppRoute(val route: String) {
     data object Progress : AppRoute("progress")
     data object Body : AppRoute("body")
     data object Profile : AppRoute("profile")
-    data object ActiveWorkout : AppRoute("active_workout")
-    data object WorkoutComplete : AppRoute("workout_complete")
+    data object ActiveWorkout : AppRoute("active_workout/{routineId}") {
+        const val ROUTINE_ID = "routineId"
+        fun createRoute(routineId: String) = "active_workout/$routineId"
+    }
+    data object WorkoutComplete : AppRoute("workout_complete/{sessionId}") {
+        const val SESSION_ID = "sessionId"
+        fun createRoute(sessionId: String) = "workout_complete/$sessionId"
+    }
     data object ActiveCardio : AppRoute("active_cardio")
     data object CardioComplete : AppRoute("cardio_complete")
     data object BackupRestore : AppRoute("backup_restore")

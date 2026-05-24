@@ -81,6 +81,7 @@
     <!-- Entrenar: ejercicios y rutinas -->
     <string name="workout_tab_exercises">Ejercicios</string>
     <string name="workout_tab_routines">Rutinas</string>
+    <string name="workout_tab_history">Historial</string>
     <string name="workout_search_exercises">Buscar ejercicios</string>
     <string name="workout_filter_all">Todos</string>
     <string name="workout_custom_exercise_title">Crear ejercicio custom</string>
@@ -122,6 +123,28 @@
     <string name="workout_color_green">Verde</string>
     <string name="workout_color_blue">Azul</string>
     <string name="workout_color_purple">Morado</string>
+    <string name="workout_notification_channel">Entrenamiento activo</string>
+    <string name="workout_notification_title">Entrenamiento activo</string>
+    <string name="workout_notification_text">Tiempo: %1$s</string>
+    <string name="workout_active_missing_routine">No se pudo iniciar esta rutina.</string>
+    <string name="workout_timer_service_unavailable">El cronometro persistente no pudo arrancar por permisos del dispositivo.</string>
+    <string name="workout_active_progress">%1$d / %2$d ejercicios</string>
+    <string name="workout_active_exercise_sheet">Ejercicios</string>
+    <string name="workout_finish_action">Finalizar</string>
+    <string name="workout_add_set">Anadir set</string>
+    <string name="workout_set_number">Set %1$d</string>
+    <string name="workout_remove_set_cd">Eliminar set</string>
+    <string name="workout_rest_title">Descanso</string>
+    <string name="workout_complete_title">Entrenamiento completado</string>
+    <string name="workout_complete_duration">Duracion: %1$d s</string>
+    <string name="workout_complete_volume">Volumen: %1$.1f kg</string>
+    <string name="workout_complete_sets">Sets completados: %1$d</string>
+    <string name="workout_complete_prs">Records personales: %1$d</string>
+    <string name="workout_history_title">Historial de fuerza</string>
+    <string name="workout_history_empty">Completa una rutina para ver el historial.</string>
+    <string name="workout_history_session_summary">%1$d s - %2$.1f kg</string>
+    <string name="workout_history_detail_title">Detalle de sesion</string>
+    <string name="workout_history_set_line">Set %1$d - %2$d reps - %3$.1f kg</string>
 
     <!-- Errores genéricos -->
     <string name="error_generic">Algo salió mal. Inténtalo de nuevo.</string>

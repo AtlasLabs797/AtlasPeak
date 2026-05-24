@@ -74,6 +74,7 @@
 
     <string name="workout_tab_exercises">Exercises</string>
     <string name="workout_tab_routines">Routines</string>
+    <string name="workout_tab_history">History</string>
     <string name="workout_search_exercises">Search exercises</string>
     <string name="workout_filter_all">All</string>
     <string name="workout_custom_exercise_title">Create custom exercise</string>
@@ -115,6 +116,28 @@
     <string name="workout_color_green">Green</string>
     <string name="workout_color_blue">Blue</string>
     <string name="workout_color_purple">Purple</string>
+    <string name="workout_notification_channel">Active workout</string>
+    <string name="workout_notification_title">Active workout</string>
+    <string name="workout_notification_text">Time: %1$s</string>
+    <string name="workout_active_missing_routine">Could not start this routine.</string>
+    <string name="workout_timer_service_unavailable">The persistent timer could not start because of device permissions.</string>
+    <string name="workout_active_progress">%1$d / %2$d exercises</string>
+    <string name="workout_active_exercise_sheet">Exercises</string>
+    <string name="workout_finish_action">Finish</string>
+    <string name="workout_add_set">Add set</string>
+    <string name="workout_set_number">Set %1$d</string>
+    <string name="workout_remove_set_cd">Delete set</string>
+    <string name="workout_rest_title">Rest</string>
+    <string name="workout_complete_title">Workout complete</string>
+    <string name="workout_complete_duration">Duration: %1$d s</string>
+    <string name="workout_complete_volume">Volume: %1$.1f kg</string>
+    <string name="workout_complete_sets">Completed sets: %1$d</string>
+    <string name="workout_complete_prs">Personal records: %1$d</string>
+    <string name="workout_history_title">Strength history</string>
+    <string name="workout_history_empty">Complete a routine to see history.</string>
+    <string name="workout_history_session_summary">%1$d s - %2$.1f kg</string>
+    <string name="workout_history_detail_title">Session detail</string>
+    <string name="workout_history_set_line">Set %1$d - %2$d reps - %3$.1f kg</string>
 
     <string name="error_generic">Something went wrong. Please try again.</string>
     <string name="error_no_connection">No internet connection.</string>

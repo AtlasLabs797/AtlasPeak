@@ -171,7 +171,10 @@ fase porque las tablas `exercises`, `routines` y `routine_exercises` ya estaban 
 - **WorkoutForegroundService** (`foregroundServiceType=health`): cronómetro de sesión de
   fuerza persistente + notificación. Expone `StateFlow<WorkoutTimerState>`; el ViewModel se
   suscribe via `bindService()`. Requiere `FOREGROUND_SERVICE_HEALTH` y
-  `ACTIVITY_RECOGNITION` en Android 14+. Se destruye al completar/abandonar.
+  `ACTIVITY_RECOGNITION` en Android 14+. En la implementacion actual el estado se publica via
+  `WorkoutTimerRegistry`, `ActiveWorkout` solicita `ACTIVITY_RECOGNITION` antes de arrancarlo,
+  y el servicio se detiene al completar la sesion. Si `startForeground` falla por permisos
+  runtime, la pantalla activa sigue funcionando y muestra un aviso.
 - **CardioForegroundService** (`foregroundServiceType=location`): recibe ubicaciones de
   `LocationTracker`, mantiene cronómetro + notificación, expone `StateFlow<CardioSessionState>`.
   **No** requiere `ACCESS_BACKGROUND_LOCATION` porque se inicia con la app visible.

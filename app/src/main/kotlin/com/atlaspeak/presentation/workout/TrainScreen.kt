@@ -25,6 +25,7 @@ import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.FitnessCenter
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Button
@@ -64,6 +65,7 @@ import com.atlaspeak.presentation.theme.LocalSpacing
 
 @Composable
 fun TrainRoute(
+    onStartRoutine: (String) -> Unit,
     viewModel: TrainViewModel = hiltViewModel(),
 ) {
     val state = viewModel.state.collectAsStateWithLifecycle().value
@@ -90,7 +92,9 @@ fun TrainRoute(
         onCreateRoutine = viewModel::createRoutine,
         onEditRoutine = viewModel::startEditingRoutine,
         onCancelRoutineEditing = viewModel::cancelRoutineEditing,
+        onStartRoutine = onStartRoutine,
         onSelectRoutine = viewModel::selectRoutine,
+        onSelectWorkoutSession = viewModel::selectWorkoutSession,
         onArchiveRoutine = viewModel::archiveRoutine,
     )
 }
@@ -119,7 +123,9 @@ fun TrainScreen(
     onCreateRoutine: () -> Unit,
     onEditRoutine: (Routine) -> Unit,
     onCancelRoutineEditing: () -> Unit,
+    onStartRoutine: (String) -> Unit,
     onSelectRoutine: (String) -> Unit,
+    onSelectWorkoutSession: (String) -> Unit,
     onArchiveRoutine: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -154,6 +160,12 @@ fun TrainScreen(
                     onClick = { onTabSelected(TrainTab.Routines) },
                     text = { Text(stringResource(R.string.workout_tab_routines)) },
                     icon = { Icon(Icons.Filled.Timer, contentDescription = null) },
+                )
+                Tab(
+                    selected = state.selectedTab == TrainTab.History,
+                    onClick = { onTabSelected(TrainTab.History) },
+                    text = { Text(stringResource(R.string.workout_tab_history)) },
+                    icon = { Icon(Icons.Filled.History, contentDescription = null) },
                 )
             }
             if (state.isLoading) {
@@ -190,11 +202,45 @@ fun TrainScreen(
                         onCreateRoutine = onCreateRoutine,
                         onEditRoutine = onEditRoutine,
                         onCancelRoutineEditing = onCancelRoutineEditing,
+                        onStartRoutine = onStartRoutine,
                         onSelectRoutine = onSelectRoutine,
                         onArchiveRoutine = onArchiveRoutine,
                     )
+                    TrainTab.History -> WorkoutHistoryContent(
+                        state = state,
+                        onSelectWorkoutSession = onSelectWorkoutSession,
+                    )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun WorkoutHistoryContent(
+    state: TrainUiState,
+    onSelectWorkoutSession: (String) -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(spacing.screen),
+        verticalArrangement = Arrangement.spacedBy(spacing.cardGap),
+    ) {
+        item { SectionTitle(R.string.workout_history_title) }
+        if (state.workoutSessions.isEmpty()) {
+            item { EmptyState(R.string.workout_history_empty) }
+        } else {
+            items(state.workoutSessions, key = { it.id }) { session ->
+                WorkoutSessionCard(
+                    session = session,
+                    selected = session.id == state.selectedWorkoutSessionId,
+                    onClick = { onSelectWorkoutSession(session.id) },
+                )
+            }
+        }
+        state.selectedWorkoutSession?.let { session ->
+            item { WorkoutSessionDetailCard(session) }
         }
     }
 }
@@ -270,6 +316,7 @@ private fun RoutineContent(
     onCreateRoutine: () -> Unit,
     onEditRoutine: (Routine) -> Unit,
     onCancelRoutineEditing: () -> Unit,
+    onStartRoutine: (String) -> Unit,
     onSelectRoutine: (String) -> Unit,
     onArchiveRoutine: (String) -> Unit,
 ) {
@@ -315,6 +362,7 @@ private fun RoutineContent(
                 RoutineDetailCard(
                     routine = routine,
                     onEdit = { onEditRoutine(routine) },
+                    onStart = { onStartRoutine(routine.id) },
                 )
             }
         }
@@ -737,6 +785,7 @@ private fun RoutineCard(
 private fun RoutineDetailCard(
     routine: Routine,
     onEdit: () -> Unit,
+    onStart: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
     ElevatedCard {
@@ -749,6 +798,14 @@ private fun RoutineDetailCard(
                 text = routine.name,
                 style = MaterialTheme.typography.titleMedium,
             )
+            Button(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = spacing.minTouchTarget),
+                onClick = onStart,
+            ) {
+                Text(stringResource(R.string.action_start))
+            }
             Button(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -775,6 +832,75 @@ private fun RoutineDetailCard(
                             exercise.restSeconds,
                         ),
                         style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun WorkoutSessionCard(
+    session: com.atlaspeak.domain.model.workout.WorkoutSession,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    Card(
+        onClick = onClick,
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+        ),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(spacing.card),
+            verticalArrangement = Arrangement.spacedBy(spacing.xs),
+        ) {
+            Text(
+                text = session.routineName.orEmpty(),
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = stringResource(
+                    R.string.workout_history_session_summary,
+                    session.durationSeconds ?: 0,
+                    session.totalVolumeKg ?: 0.0,
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun WorkoutSessionDetailCard(session: com.atlaspeak.domain.model.workout.WorkoutSession) {
+    val spacing = LocalSpacing.current
+    ElevatedCard {
+        Column(
+            modifier = Modifier.padding(spacing.card),
+            verticalArrangement = Arrangement.spacedBy(spacing.sm),
+        ) {
+            SectionTitle(R.string.workout_history_detail_title)
+            session.exercises.forEach { exercise ->
+                Text(
+                    text = exercise.exerciseName,
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                exercise.sets.forEach { set ->
+                    Text(
+                        text = stringResource(
+                            R.string.workout_history_set_line,
+                            set.setNumber,
+                            set.actualReps ?: set.plannedReps,
+                            set.weightKg ?: 0.0,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (set.isPersonalRecord) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
             }

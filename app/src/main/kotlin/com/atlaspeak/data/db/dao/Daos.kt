@@ -19,6 +19,8 @@ import com.atlaspeak.data.db.entity.RoutineEntity
 import com.atlaspeak.data.db.entity.RoutineExerciseEntity
 import com.atlaspeak.data.db.entity.UserEntity
 import com.atlaspeak.data.db.entity.UserProfileEntity
+import com.atlaspeak.data.db.entity.WorkoutSessionEntity
+import com.atlaspeak.data.db.entity.WorkoutSetEntity
 
 @Dao
 interface UserDao {
@@ -96,6 +98,60 @@ interface RoutineDao {
 
     @Query("UPDATE routines SET is_archived = 1, updated_at = :updatedAt WHERE id = :id")
     suspend fun archiveRoutine(id: String, updatedAt: Long)
+}
+
+@Dao
+interface WorkoutDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertSession(session: WorkoutSessionEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertSets(sets: List<WorkoutSetEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertSet(set: WorkoutSetEntity)
+
+    @Query("SELECT * FROM workout_sessions WHERE id = :id")
+    suspend fun getSession(id: String): WorkoutSessionEntity?
+
+    @Query("SELECT * FROM workout_sessions ORDER BY start_time DESC")
+    suspend fun getSessions(): List<WorkoutSessionEntity>
+
+    @Query("SELECT * FROM workout_sets WHERE session_id = :sessionId ORDER BY exercise_id, set_number")
+    suspend fun getSets(sessionId: String): List<WorkoutSetEntity>
+
+    @Query("DELETE FROM workout_sets WHERE id = :id")
+    suspend fun deleteSet(id: String)
+
+    @Query(
+        """
+        SELECT MAX(workout_sets.weight_kg)
+        FROM workout_sets
+        INNER JOIN workout_sessions ON workout_sets.session_id = workout_sessions.id
+        WHERE workout_sets.exercise_id = :exerciseId
+          AND workout_sets.completed = 1
+          AND workout_sessions.start_time < :before
+          AND workout_sets.weight_kg IS NOT NULL
+        """,
+    )
+    suspend fun maxCompletedWeightBefore(exerciseId: String, before: Long): Double?
+
+    @Query(
+        """
+        UPDATE workout_sessions
+        SET end_time = :endTime,
+            duration_seconds = :durationSeconds,
+            total_volume_kg = :totalVolumeKg,
+            completed = 1
+        WHERE id = :sessionId
+        """,
+    )
+    suspend fun updateSessionCompletion(
+        sessionId: String,
+        endTime: Long,
+        durationSeconds: Int,
+        totalVolumeKg: Double,
+    )
 }
 
 @Dao

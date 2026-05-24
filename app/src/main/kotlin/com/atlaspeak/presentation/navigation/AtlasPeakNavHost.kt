@@ -5,13 +5,17 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
 import com.atlaspeak.R
 import com.atlaspeak.presentation.auth.LoginRoute
 import com.atlaspeak.presentation.onboarding.OnboardingRoute
 import com.atlaspeak.presentation.screen.PlaceholderScreen
+import com.atlaspeak.presentation.workout.ActiveWorkoutRoute
 import com.atlaspeak.presentation.workout.TrainRoute
+import com.atlaspeak.presentation.workout.WorkoutCompleteRoute
 
 @Composable
 fun AtlasPeakNavHost(
@@ -66,7 +70,35 @@ fun AtlasPeakNavHost(
             PlaceholderScreen(titleRes = R.string.screen_home_title)
         }
         composable(AppRoute.Train.route) {
-            TrainRoute()
+            TrainRoute(
+                onStartRoutine = { routineId ->
+                    navController.navigate(AppRoute.ActiveWorkout.createRoute(routineId))
+                },
+            )
+        }
+        composable(
+            route = AppRoute.ActiveWorkout.route,
+            arguments = listOf(navArgument(AppRoute.ActiveWorkout.ROUTINE_ID) { type = NavType.StringType }),
+        ) {
+            ActiveWorkoutRoute(
+                onWorkoutCompleted = { sessionId ->
+                    navController.navigate(AppRoute.WorkoutComplete.createRoute(sessionId)) {
+                        popUpTo(AppRoute.Train.route)
+                    }
+                },
+            )
+        }
+        composable(
+            route = AppRoute.WorkoutComplete.route,
+            arguments = listOf(navArgument(AppRoute.WorkoutComplete.SESSION_ID) { type = NavType.StringType }),
+        ) {
+            WorkoutCompleteRoute(
+                onDone = {
+                    navController.navigate(AppRoute.Train.route) {
+                        popUpTo(AppRoute.Train.route) { inclusive = true }
+                    }
+                },
+            )
         }
         composable(AppRoute.Progress.route) {
             PlaceholderScreen(titleRes = R.string.screen_progress_title)

@@ -58,6 +58,15 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
 - **Solución:** `FLAG_SECURE` cubre `Onboarding`, se declaran permisos `android.permission.health.*` del spec, y el request de Health Connect comprueba disponibilidad del SDK antes de lanzar el contrato.
 - **Prevención:** revisión de rutas sensibles cada vez que una pantalla capture contraseña, perfil, backup o permisos de salud.
 
+### SEC-013 — Foreground service de fuerza puede fallar por permiso runtime
+- **Estado:** 🟢 Resuelto
+- **Fecha:** 2026-05-23
+- **Severidad:** Media
+- **Síntoma:** Fase 5 activa `WorkoutForegroundService` con `foregroundServiceType=health`. En Android 14+ el tipo health puede requerir permisos runtime; si el usuario los salta, `startForeground` puede lanzar `SecurityException`.
+- **Causa raíz:** el manifest declara permisos, pero la concesión runtime depende del usuario y del dispositivo.
+- **Solución:** `ActiveWorkout` solicita `ACTIVITY_RECOGNITION` antes de arrancar el servicio. `ActiveWorkoutViewModel` y `WorkoutForegroundService` capturan `SecurityException`; la sesión activa no crashea y muestra un aviso si el cronómetro persistente no arranca.
+- **Prevención:** gate de Fase 5 incluye revisión de permisos FGS; Fase 13 debe validar flujo en dispositivo real Android 14/15.
+
 ### SEC-001 — Backup no restaurable: falta el salt en el archivo cifrado
 - **Estado:** 🟢 Resuelto (en diseño)
 - **Fecha:** 2026-05-23

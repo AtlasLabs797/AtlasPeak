@@ -6,8 +6,10 @@ import com.atlaspeak.domain.model.workout.Exercise
 import com.atlaspeak.domain.model.workout.MuscleGroup
 import com.atlaspeak.domain.model.workout.Routine
 import com.atlaspeak.domain.model.workout.RoutineExerciseInput
+import com.atlaspeak.domain.model.workout.WorkoutSession
 import com.atlaspeak.domain.usecase.workout.ExerciseUseCase
 import com.atlaspeak.domain.usecase.workout.RoutineUseCase
+import com.atlaspeak.domain.repository.WorkoutRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
 import javax.inject.Inject
@@ -21,6 +23,7 @@ import kotlinx.coroutines.launch
 class TrainViewModel @Inject constructor(
     private val exerciseUseCase: ExerciseUseCase,
     private val routineUseCase: RoutineUseCase,
+    private val workoutRepository: WorkoutRepository,
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(TrainUiState())
     val state: StateFlow<TrainUiState> = mutableState.asStateFlow()
@@ -224,6 +227,10 @@ class TrainViewModel @Inject constructor(
         mutableState.update { it.copy(selectedRoutineId = id, selectedTab = TrainTab.Routines, message = null) }
     }
 
+    fun selectWorkoutSession(id: String) {
+        mutableState.update { it.copy(selectedWorkoutSessionId = id, selectedTab = TrainTab.History, message = null) }
+    }
+
     fun archiveRoutine(id: String) {
         viewModelScope.launch {
             routineUseCase.archiveRoutine(id)
@@ -253,16 +260,22 @@ class TrainViewModel @Inject constructor(
             val snapshot = mutableState.value
             val exercises = exerciseUseCase.library(snapshot.searchQuery, snapshot.selectedMuscleGroupId)
             val routines = routineUseCase.routines()
+            val workoutSessions = workoutRepository.sessions().filter { it.completed }
             val selectedRoutineId = snapshot.selectedRoutineId
                 ?.takeIf { id -> routines.any { it.id == id } }
                 ?: routines.firstOrNull()?.id
+            val selectedWorkoutSessionId = snapshot.selectedWorkoutSessionId
+                ?.takeIf { id -> workoutSessions.any { it.id == id } }
+                ?: workoutSessions.firstOrNull()?.id
             mutableState.update {
                 it.copy(
                     isLoading = false,
                     muscleGroups = groups,
                     exercises = exercises,
                     routines = routines,
+                    workoutSessions = workoutSessions,
                     selectedRoutineId = selectedRoutineId,
+                    selectedWorkoutSessionId = selectedWorkoutSessionId,
                     newExerciseGroupId = it.newExerciseGroupId ?: groups.firstOrNull()?.id,
                 )
             }
@@ -284,7 +297,9 @@ data class TrainUiState(
     val muscleGroups: List<MuscleGroup> = emptyList(),
     val exercises: List<Exercise> = emptyList(),
     val routines: List<Routine> = emptyList(),
+    val workoutSessions: List<WorkoutSession> = emptyList(),
     val selectedRoutineId: String? = null,
+    val selectedWorkoutSessionId: String? = null,
     val searchQuery: String = "",
     val selectedMuscleGroupId: Int? = null,
     val editingExerciseId: String? = null,
@@ -297,6 +312,7 @@ data class TrainUiState(
     val message: TrainUiMessage? = null,
 ) {
     val selectedRoutine: Routine? = routines.firstOrNull { it.id == selectedRoutineId }
+    val selectedWorkoutSession: WorkoutSession? = workoutSessions.firstOrNull { it.id == selectedWorkoutSessionId }
     val draftDurationMinutes: Int = RoutineUseCase.estimatedDurationMinutes(draftInputs())
 
     fun draftInputs(): List<RoutineExerciseInput> = draftItems.map { it.toInput() }
@@ -323,6 +339,7 @@ data class RoutineDraftItem(
 enum class TrainTab {
     Exercises,
     Routines,
+    History,
 }
 
 enum class TrainUiMessage {

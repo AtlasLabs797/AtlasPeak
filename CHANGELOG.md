@@ -10,6 +10,47 @@
 
 ## [No publicado]
 
+### Fase 5 - Entrenamiento activo de fuerza
+
+#### 2026-05-23 - Sesion activa, timer persistente, rest timer e historial
+
+**Anadido**
+- Anadidos modelos de dominio `WorkoutSession`, `ActiveWorkoutExercise`, `WorkoutSet` y
+  `WorkoutSummary`.
+- Anadido contrato `WorkoutRepository`, `RoomWorkoutRepository` y `WorkoutDao` sobre las
+  tablas v1 `workout_sessions` y `workout_sets`; no cambia el schema Room.
+- Anadidos `StartWorkoutSessionUseCase` y `CompleteWorkoutSessionUseCase`.
+- Implementado `WorkoutForegroundService` con notificacion persistente y `StateFlow` de
+  cronometro compartido.
+- Anadida ruta fullscreen `ActiveWorkout` con `HorizontalPager`, progress card, sets
+  editables, check de completado, anadir/eliminar sets y finalizacion de sesion.
+- Anadido overlay de rest timer con progreso circular, skip, vibracion y sonido.
+- Anadido bottom sheet de ejercicios con drag vertical y botones accesibles para reordenar
+  durante la sesion.
+- Anadida pantalla `WorkoutComplete` con resumen de duracion, volumen, sets y records.
+- Anadido historial/detalle de sesiones de fuerza dentro del tab Entrenar.
+- Anadidos tests unitarios para inicio de sesion y cierre con volumen/records personales.
+
+**Corregido**
+- La deteccion de records personales no cuenta dos sets iguales de la misma sesion como dos
+  records nuevos.
+- El arranque del foreground service captura `SecurityException` por permisos runtime y no
+  crashea la sesion activa.
+- `ActiveWorkout` pide `ACTIVITY_RECOGNITION` antes de arrancar el FGS de tipo `health`.
+- El reordenamiento de ejercicios durante la sesion se mantiene al editar sets.
+- El rest timer respeta `rest_sound_enabled` y `rest_vibration_enabled` y libera
+  `ToneGenerator`.
+- Al completar el ultimo set se cierra la sesion y navega automaticamente al resumen.
+
+**Seguridad**
+- Registrado `SEC-013`: FGS de entrenamiento activo y degradacion segura si falta permiso
+  runtime para `foregroundServiceType=health`.
+
+**Verificado**
+- `./gradlew assembleDebug assembleRelease test lint compileDebugAndroidTestKotlin --no-daemon`
+  pasa tras liberar un bloqueo de archivo KSP en Windows con `./gradlew --stop`.
+- QA visual runtime sigue bloqueada por falta de aceleracion Hyper-V/WHPX en el AVD local.
+
 ### Fase 4 - Ejercicios y rutinas
 
 #### 2026-05-23 - Biblioteca, CRUD custom y constructor de rutinas
