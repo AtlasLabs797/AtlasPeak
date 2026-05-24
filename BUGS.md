@@ -24,6 +24,39 @@
 
 ## Entradas
 
+### BUG-012 - Fallo interno del FGS cardio podia borrar el estado de error
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-23
+- **Fase:** 6
+- **Severidad:** Media
+- **Sintoma:** si `CardioForegroundService` fallaba dentro de `startForeground`, el servicio podia destruirse y resetear el registry antes de que la UI mostrara el error.
+- **Causa raiz:** `onDestroy()` llamaba siempre a `stopTracking()` y este limpiaba `CardioTrackerRegistry`.
+- **Solucion:** `stopTracking(clearState)` conserva el estado `failed=true` cuando el servicio muere por fallo interno y solo limpia en parada normal.
+- **Prevencion:** revisar errores asincronos de cada foreground service, no solo excepciones en el punto de arranque.
+- **Fecha resolucion:** 2026-05-23
+
+### BUG-011 - Cardio GPS denegado podia degradar mal a una sesion sin ruta
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-23
+- **Fase:** 6
+- **Severidad:** Alta
+- **Sintoma:** un tipo de cardio con GPS podia arrancar sin permiso de ubicacion y acabar como sesion sin puntos, confundiendo GPS real con entrada manual.
+- **Causa raiz:** la primera implementacion del servicio comprobaba permisos internamente, pero la UI no tenia flujo explicito para denegacion.
+- **Solucion:** `ActiveCardio` solicita `ACCESS_FINE_LOCATION`; si se deniega, muestra aviso y habilita distancia/velocidad manual. El repositorio marca `source` como `GPS` solo si existe ruta.
+- **Prevencion:** cada permiso opcional debe tener estado de UI y degradacion de datos explicita.
+- **Fecha resolucion:** 2026-05-23
+
+### BUG-010 - Historial de cardio ordenado por UUID
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-23
+- **Fase:** 6
+- **Severidad:** Media
+- **Sintoma:** `CardioDao.getCardioSessions()` devolvia sesiones ordenadas por `id DESC`, que no representa cronologia.
+- **Causa raiz:** se uso un campo UUID como atajo de orden.
+- **Solucion:** la query une `cardio_sessions` con `workout_sessions` y ordena por `workout_sessions.start_time DESC`.
+- **Prevencion:** los historiales se ordenan por timestamps, nunca por identificadores aleatorios.
+- **Fecha resolucion:** 2026-05-23
+
 ### BUG-009 - Ultimo set no navegaba automaticamente al resumen
 - **Estado:** Resuelto
 - **Fecha deteccion:** 2026-05-23

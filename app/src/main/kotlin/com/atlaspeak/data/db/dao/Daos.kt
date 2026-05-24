@@ -7,6 +7,7 @@ import androidx.room.Query
 import com.atlaspeak.data.db.entity.AppSettingsEntity
 import com.atlaspeak.data.db.entity.AuthSecurityEntity
 import com.atlaspeak.data.db.entity.CardioTypeEntity
+import com.atlaspeak.data.db.entity.CardioSessionEntity
 import com.atlaspeak.data.db.entity.ExerciseEntity
 import com.atlaspeak.data.db.entity.HcActiveCaloriesRecordEntity
 import com.atlaspeak.data.db.entity.HcHeartRateSampleEntity
@@ -117,6 +118,9 @@ interface WorkoutDao {
     @Query("SELECT * FROM workout_sessions ORDER BY start_time DESC")
     suspend fun getSessions(): List<WorkoutSessionEntity>
 
+    @Query("DELETE FROM workout_sessions WHERE id = :id")
+    suspend fun deleteSession(id: String)
+
     @Query("SELECT * FROM workout_sets WHERE session_id = :sessionId ORDER BY exercise_id, set_number")
     suspend fun getSets(sessionId: String): List<WorkoutSetEntity>
 
@@ -161,6 +165,37 @@ interface CardioDao {
 
     @Query("SELECT COUNT(*) FROM cardio_types WHERE is_preset = 1")
     suspend fun countPresetCardioTypes(): Int
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertCardioType(type: CardioTypeEntity)
+
+    @Query("SELECT * FROM cardio_types WHERE (:includeArchived = 1 OR is_archived = 0)")
+    suspend fun getCardioTypes(includeArchived: Boolean = false): List<CardioTypeEntity>
+
+    @Query("SELECT * FROM cardio_types WHERE id = :id")
+    suspend fun getCardioType(id: String): CardioTypeEntity?
+
+    @Query("UPDATE cardio_types SET is_archived = 1 WHERE id = :id AND is_preset = 0")
+    suspend fun archiveCustomType(id: String)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertCardioSession(session: CardioSessionEntity)
+
+    @Query("SELECT * FROM cardio_sessions WHERE id = :id")
+    suspend fun getCardioSession(id: String): CardioSessionEntity?
+
+    @Query("DELETE FROM cardio_sessions WHERE id = :id")
+    suspend fun deleteCardioSession(id: String)
+
+    @Query(
+        """
+        SELECT cardio_sessions.*
+        FROM cardio_sessions
+        INNER JOIN workout_sessions ON cardio_sessions.session_id = workout_sessions.id
+        ORDER BY workout_sessions.start_time DESC
+        """,
+    )
+    suspend fun getCardioSessions(): List<CardioSessionEntity>
 }
 
 @Dao

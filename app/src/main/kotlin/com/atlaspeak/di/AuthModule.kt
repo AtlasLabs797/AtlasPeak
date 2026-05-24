@@ -2,6 +2,7 @@ package com.atlaspeak.di
 
 import com.atlaspeak.data.repository.PreferencesOnboardingRepository
 import com.atlaspeak.data.repository.RoomAuthRepository
+import com.atlaspeak.data.repository.RoomCardioRepository
 import com.atlaspeak.data.repository.RoomExerciseRepository
 import com.atlaspeak.data.repository.RoomProfileRepository
 import com.atlaspeak.data.repository.RoomRoutineRepository
@@ -9,6 +10,7 @@ import com.atlaspeak.data.repository.RoomWorkoutSettingsRepository
 import com.atlaspeak.data.repository.RoomWorkoutRepository
 import com.atlaspeak.data.security.EncryptionManager
 import com.atlaspeak.domain.repository.AuthRepository
+import com.atlaspeak.domain.repository.CardioRepository
 import com.atlaspeak.domain.repository.ExerciseRepository
 import com.atlaspeak.domain.repository.OnboardingRepository
 import com.atlaspeak.domain.repository.ProfileRepository
@@ -26,6 +28,9 @@ import dagger.hilt.components.SingletonComponent
 abstract class AuthModule {
     @Binds
     abstract fun bindAuthRepository(repository: RoomAuthRepository): AuthRepository
+
+    @Binds
+    abstract fun bindCardioRepository(repository: RoomCardioRepository): CardioRepository
 
     @Binds
     abstract fun bindPasswordHasher(encryptionManager: EncryptionManager): PasswordHasher

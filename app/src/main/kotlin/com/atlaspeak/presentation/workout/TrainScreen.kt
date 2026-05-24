@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Delete
@@ -31,12 +32,14 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Surface
@@ -58,6 +61,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.atlaspeak.R
+import com.atlaspeak.domain.model.cardio.CardioMode
+import com.atlaspeak.domain.model.cardio.CardioSession
+import com.atlaspeak.domain.model.cardio.CardioType
 import com.atlaspeak.domain.model.workout.Exercise
 import com.atlaspeak.domain.model.workout.MuscleGroup
 import com.atlaspeak.domain.model.workout.Routine
@@ -66,6 +72,7 @@ import com.atlaspeak.presentation.theme.LocalSpacing
 @Composable
 fun TrainRoute(
     onStartRoutine: (String) -> Unit,
+    onStartCardio: (String, CardioMode) -> Unit,
     viewModel: TrainViewModel = hiltViewModel(),
 ) {
     val state = viewModel.state.collectAsStateWithLifecycle().value
@@ -96,6 +103,15 @@ fun TrainRoute(
         onSelectRoutine = viewModel::selectRoutine,
         onSelectWorkoutSession = viewModel::selectWorkoutSession,
         onArchiveRoutine = viewModel::archiveRoutine,
+        onNewCardioTypeNameChanged = viewModel::onNewCardioTypeNameChanged,
+        onNewCardioTypeHasGpsChanged = viewModel::onNewCardioTypeHasGpsChanged,
+        onCardioCountdownMinutesChanged = viewModel::onCardioCountdownMinutesChanged,
+        onCreateCustomCardioType = viewModel::createCustomCardioType,
+        onEditCardioType = viewModel::startEditingCardioType,
+        onCancelCardioTypeEditing = viewModel::cancelCardioTypeEditing,
+        onArchiveCardioType = viewModel::archiveCardioType,
+        onStartCardio = onStartCardio,
+        onSelectCardioSession = viewModel::selectCardioSession,
     )
 }
 
@@ -127,6 +143,15 @@ fun TrainScreen(
     onSelectRoutine: (String) -> Unit,
     onSelectWorkoutSession: (String) -> Unit,
     onArchiveRoutine: (String) -> Unit,
+    onNewCardioTypeNameChanged: (String) -> Unit,
+    onNewCardioTypeHasGpsChanged: (Boolean) -> Unit,
+    onCardioCountdownMinutesChanged: (String) -> Unit,
+    onCreateCustomCardioType: () -> Unit,
+    onEditCardioType: (CardioType) -> Unit,
+    onCancelCardioTypeEditing: () -> Unit,
+    onArchiveCardioType: (String) -> Unit,
+    onStartCardio: (String, CardioMode) -> Unit,
+    onSelectCardioSession: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
@@ -160,6 +185,12 @@ fun TrainScreen(
                     onClick = { onTabSelected(TrainTab.Routines) },
                     text = { Text(stringResource(R.string.workout_tab_routines)) },
                     icon = { Icon(Icons.Filled.Timer, contentDescription = null) },
+                )
+                Tab(
+                    selected = state.selectedTab == TrainTab.Cardio,
+                    onClick = { onTabSelected(TrainTab.Cardio) },
+                    text = { Text(stringResource(R.string.workout_tab_cardio)) },
+                    icon = { Icon(Icons.AutoMirrored.Filled.DirectionsRun, contentDescription = null) },
                 )
                 Tab(
                     selected = state.selectedTab == TrainTab.History,
@@ -206,6 +237,18 @@ fun TrainScreen(
                         onSelectRoutine = onSelectRoutine,
                         onArchiveRoutine = onArchiveRoutine,
                     )
+                    TrainTab.Cardio -> CardioContent(
+                        state = state,
+                        onNewCardioTypeNameChanged = onNewCardioTypeNameChanged,
+                        onNewCardioTypeHasGpsChanged = onNewCardioTypeHasGpsChanged,
+                        onCardioCountdownMinutesChanged = onCardioCountdownMinutesChanged,
+                        onCreateCustomCardioType = onCreateCustomCardioType,
+                        onEditCardioType = onEditCardioType,
+                        onCancelCardioTypeEditing = onCancelCardioTypeEditing,
+                        onArchiveCardioType = onArchiveCardioType,
+                        onStartCardio = onStartCardio,
+                        onSelectCardioSession = onSelectCardioSession,
+                    )
                     TrainTab.History -> WorkoutHistoryContent(
                         state = state,
                         onSelectWorkoutSession = onSelectWorkoutSession,
@@ -241,6 +284,308 @@ private fun WorkoutHistoryContent(
         }
         state.selectedWorkoutSession?.let { session ->
             item { WorkoutSessionDetailCard(session) }
+        }
+    }
+}
+
+@Composable
+private fun CardioContent(
+    state: TrainUiState,
+    onNewCardioTypeNameChanged: (String) -> Unit,
+    onNewCardioTypeHasGpsChanged: (Boolean) -> Unit,
+    onCardioCountdownMinutesChanged: (String) -> Unit,
+    onCreateCustomCardioType: () -> Unit,
+    onEditCardioType: (CardioType) -> Unit,
+    onCancelCardioTypeEditing: () -> Unit,
+    onArchiveCardioType: (String) -> Unit,
+    onStartCardio: (String, CardioMode) -> Unit,
+    onSelectCardioSession: (String) -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    LazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(spacing.screen),
+        verticalArrangement = Arrangement.spacedBy(spacing.cardGap),
+    ) {
+        item {
+            CardioTypeEditorCard(
+                state = state,
+                onNameChanged = onNewCardioTypeNameChanged,
+                onHasGpsChanged = onNewCardioTypeHasGpsChanged,
+                onSave = onCreateCustomCardioType,
+                onCancel = onCancelCardioTypeEditing,
+            )
+        }
+        item {
+            CardioCountdownCard(
+                value = state.cardioCountdownMinutes,
+                onValueChange = onCardioCountdownMinutesChanged,
+            )
+        }
+        item { SectionTitle(R.string.cardio_type_list_title) }
+        if (state.cardioTypes.isEmpty()) {
+            item { EmptyState(R.string.cardio_type_list_empty) }
+        } else {
+            items(state.cardioTypes, key = { it.id }) { type ->
+                CardioTypeCard(
+                    type = type,
+                    countdownSeconds = state.cardioCountdownSeconds,
+                    onStartTimer = { onStartCardio(type.id, CardioMode.Timer) },
+                    onStartCountdown = { onStartCardio(type.id, CardioMode.Countdown(state.cardioCountdownSeconds)) },
+                    onEdit = { onEditCardioType(type) },
+                    onArchive = { onArchiveCardioType(type.id) },
+                )
+            }
+        }
+        item { SectionTitle(R.string.cardio_history_title) }
+        if (state.cardioSessions.isEmpty()) {
+            item { EmptyState(R.string.cardio_history_empty) }
+        } else {
+            items(state.cardioSessions, key = { it.id }) { session ->
+                CardioSessionCard(
+                    session = session,
+                    selected = session.id == state.selectedCardioSessionId,
+                    onClick = { onSelectCardioSession(session.id) },
+                )
+            }
+        }
+        state.selectedCardioSession?.let { session ->
+            item { CardioSessionDetailCard(session) }
+        }
+    }
+}
+
+@Composable
+private fun CardioTypeEditorCard(
+    state: TrainUiState,
+    onNameChanged: (String) -> Unit,
+    onHasGpsChanged: (Boolean) -> Unit,
+    onSave: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    ElevatedCard {
+        Column(
+            modifier = Modifier.padding(spacing.card),
+            verticalArrangement = Arrangement.spacedBy(spacing.sm),
+        ) {
+            SectionTitle(
+                if (state.editingCardioTypeId == null) {
+                    R.string.cardio_create_type_title
+                } else {
+                    R.string.cardio_edit_type_title
+                },
+            )
+            OutlinedTextField(
+                modifier = Modifier.fillMaxWidth(),
+                value = state.newCardioTypeName,
+                onValueChange = onNameChanged,
+                label = { Text(stringResource(R.string.cardio_type_name_label)) },
+                singleLine = true,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+            ) {
+                Checkbox(
+                    checked = state.newCardioTypeHasGps,
+                    onCheckedChange = onHasGpsChanged,
+                )
+                Text(
+                    text = stringResource(R.string.cardio_type_gps_label),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+            Button(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = spacing.minTouchTarget),
+                onClick = onSave,
+                enabled = state.newCardioTypeName.isNotBlank(),
+            ) {
+                Icon(Icons.Filled.Add, contentDescription = null)
+                Text(
+                    modifier = Modifier.padding(start = spacing.xs),
+                    text = stringResource(R.string.cardio_save_type),
+                )
+            }
+            if (state.editingCardioTypeId != null) {
+                OutlinedButton(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = spacing.minTouchTarget),
+                    onClick = onCancel,
+                ) {
+                    Text(stringResource(R.string.action_cancel))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CardioCountdownCard(
+    value: String,
+    onValueChange: (String) -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    Card {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(spacing.card),
+            horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                modifier = Modifier.weight(1f),
+                text = stringResource(R.string.cardio_countdown_minutes_label),
+                style = MaterialTheme.typography.titleSmall,
+            )
+            OutlinedTextField(
+                modifier = Modifier.weight(0.6f),
+                value = value,
+                onValueChange = onValueChange,
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            )
+        }
+    }
+}
+
+@Composable
+private fun CardioTypeCard(
+    type: CardioType,
+    countdownSeconds: Int,
+    onStartTimer: () -> Unit,
+    onStartCountdown: () -> Unit,
+    onEdit: () -> Unit,
+    onArchive: () -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    Card {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(spacing.card),
+            verticalArrangement = Arrangement.spacedBy(spacing.sm),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+            ) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.DirectionsRun,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(spacing.xxs),
+                ) {
+                    Text(
+                        text = type.name,
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    Text(
+                        text = stringResource(if (type.hasGps) R.string.cardio_type_gps_enabled else R.string.cardio_type_manual),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (!type.isPreset) {
+                    IconButton(onClick = onEdit) {
+                        Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.cardio_edit_type_cd))
+                    }
+                    IconButton(onClick = onArchive) {
+                        Icon(Icons.Filled.Archive, contentDescription = stringResource(R.string.cardio_archive_type_cd))
+                    }
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                Button(
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = spacing.minTouchTarget),
+                    onClick = onStartTimer,
+                ) {
+                    Text(stringResource(R.string.cardio_start_timer))
+                }
+                OutlinedButton(
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(min = spacing.minTouchTarget),
+                    onClick = onStartCountdown,
+                    enabled = countdownSeconds > 0,
+                ) {
+                    Text(stringResource(R.string.cardio_start_countdown))
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CardioSessionCard(
+    session: CardioSession,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    Card(
+        onClick = onClick,
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+        ),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(spacing.card),
+            verticalArrangement = Arrangement.spacedBy(spacing.xs),
+        ) {
+            Text(
+                text = session.cardioTypeName,
+                style = MaterialTheme.typography.titleMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = stringResource(
+                    R.string.cardio_history_session_summary,
+                    session.durationSeconds ?: 0,
+                    session.distanceKm ?: 0.0,
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun CardioSessionDetailCard(session: CardioSession) {
+    val spacing = LocalSpacing.current
+    ElevatedCard {
+        Column(
+            modifier = Modifier.padding(spacing.card),
+            verticalArrangement = Arrangement.spacedBy(spacing.sm),
+        ) {
+            SectionTitle(R.string.cardio_history_detail_title)
+            Text(session.cardioTypeName, style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.cardio_complete_duration, session.durationSeconds ?: 0))
+            Text(stringResource(R.string.cardio_complete_distance, session.distanceKm ?: 0.0))
+            Text(stringResource(R.string.cardio_complete_avg_speed, session.avgSpeedKmh ?: 0.0))
+            Text(stringResource(R.string.cardio_complete_calories, session.caloriesBurned ?: 0))
+            Text(
+                text = stringResource(if (session.route.isNotEmpty()) R.string.cardio_route_saved else R.string.cardio_route_not_saved),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -994,10 +1339,14 @@ private fun MessageText(message: TrainUiMessage?) {
     val res = when (message) {
         TrainUiMessage.ExerciseSaved -> R.string.workout_exercise_saved
         TrainUiMessage.RoutineSaved -> R.string.workout_routine_saved
+        TrainUiMessage.CardioTypeSaved -> R.string.cardio_type_saved
         TrainUiMessage.InvalidExercise -> R.string.workout_invalid_exercise
         TrainUiMessage.InvalidRoutine -> R.string.workout_invalid_routine
+        TrainUiMessage.InvalidCardioType -> R.string.cardio_invalid_type
     }
-    val isError = message == TrainUiMessage.InvalidExercise || message == TrainUiMessage.InvalidRoutine
+    val isError = message == TrainUiMessage.InvalidExercise ||
+        message == TrainUiMessage.InvalidRoutine ||
+        message == TrainUiMessage.InvalidCardioType
     Text(
         text = stringResource(res),
         style = MaterialTheme.typography.bodyMedium,

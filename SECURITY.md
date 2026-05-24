@@ -67,6 +67,15 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
 - **Solución:** `ActiveWorkout` solicita `ACTIVITY_RECOGNITION` antes de arrancar el servicio. `ActiveWorkoutViewModel` y `WorkoutForegroundService` capturan `SecurityException`; la sesión activa no crashea y muestra un aviso si el cronómetro persistente no arranca.
 - **Prevención:** gate de Fase 5 incluye revisión de permisos FGS; Fase 13 debe validar flujo en dispositivo real Android 14/15.
 
+### SEC-014 - Cardio GPS no debe pedir ubicacion de fondo ni fingir ruta
+- **Estado:** Resuelto
+- **Fecha:** 2026-05-23
+- **Severidad:** Media
+- **Sintoma:** Fase 6 arranca un `CardioForegroundService`; si el usuario deniega ubicacion, la app no puede guardar una sesion como GPS real sin puntos.
+- **Causa raiz:** el permiso de ubicacion es runtime y el FGS de tipo `location` no puede asumirse concedido.
+- **Solucion:** `ActiveCardio` solicita `ACCESS_FINE_LOCATION` solo para tipos con GPS. Si se deniega o el tipo es manual, la sesion usa cronometro local y exige distancia/velocidad manuales antes de guardarse. `ACCESS_BACKGROUND_LOCATION` sigue ausente.
+- **Prevencion:** Fase 13 debe validar el flujo en Android 14/15 real: GPS concedido, GPS denegado y cardio manual.
+
 ### SEC-001 — Backup no restaurable: falta el salt en el archivo cifrado
 - **Estado:** 🟢 Resuelto (en diseño)
 - **Fecha:** 2026-05-23

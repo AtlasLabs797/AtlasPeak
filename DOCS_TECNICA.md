@@ -49,7 +49,8 @@ presentation/
   auth/          LoginScreen, AuthViewModel, BiometricPromptAuthenticator
   onboarding/    OnboardingScreen, OnboardingViewModel
   navigation/    Launch gate, NavHost, bottom navigation, secure route effect
-  workout/       TrainScreen, TrainViewModel (biblioteca de ejercicios y rutinas)
+  workout/       TrainScreen, TrainViewModel (biblioteca de ejercicios, rutinas y cardio)
+  cardio/        ActiveCardioScreen, CardioCompleteScreen y ViewModels
   screen/        home/ workout/ cardio/ progress/ body/ plan/ profile/
   component/     composables reutilizables (MetricCard, PeriodSelector, Chart, RestTimer…)
   viewmodel/     1 ViewModel por feature; expone StateFlow<UiState>
@@ -164,6 +165,26 @@ La duracion estimada se calcula en dominio con un minuto base por serie mas el d
 configurado por serie, acumulado y truncado a minutos enteros. No cambia schema Room en esta
 fase porque las tablas `exercises`, `routines` y `routine_exercises` ya estaban en v1.
 
+## 6.3 Cardio
+
+Fase 6 activa cardio dentro del tab `Train` y las pantallas fullscreen:
+
+- `domain.model.cardio` contiene `CardioType`, `CardioMode`, `LocationPoint` y
+  `CardioSession`.
+- `CardioUseCase` crea tipos custom, arranca sesiones timer/countdown y completa sesiones
+  calculando distancia Haversine, velocidad media/maxima, ruta y calorias estimadas.
+- `RoomCardioRepository` mapea `cardio_types`/`cardio_sessions` y usa `workout_sessions`
+  como cabecera comun de sesiones. El historial se ordena por `workout_sessions.start_time`,
+  no por UUID.
+- `TrainScreen` muestra tipos predefinidos/custom, edicion/archivado de custom, selector de
+  minutos para countdown e historial/detalle de cardio.
+- `ActiveCardioScreen` pide `ACCESS_FINE_LOCATION` solo si el tipo usa GPS; si no hay GPS o
+  se deniega ubicacion, permite introducir distancia y velocidad media manuales.
+- `CardioCompleteScreen` muestra resumen y, si hay ruta, un mapa con Google Maps Compose.
+
+La estimacion de calorias en Fase 6 usa fallback MET por tipo y peso fijo de 75 kg porque
+la integracion real con `body_composition` llega en Fase 8 y Health Connect en Fase 10.
+
 ---
 
 ## 7. Foreground Services
@@ -175,9 +196,12 @@ fase porque las tablas `exercises`, `routines` y `routine_exercises` ya estaban 
   `WorkoutTimerRegistry`, `ActiveWorkout` solicita `ACTIVITY_RECOGNITION` antes de arrancarlo,
   y el servicio se detiene al completar la sesion. Si `startForeground` falla por permisos
   runtime, la pantalla activa sigue funcionando y muestra un aviso.
-- **CardioForegroundService** (`foregroundServiceType=location`): recibe ubicaciones de
-  `LocationTracker`, mantiene cronómetro + notificación, expone `StateFlow<CardioSessionState>`.
-  **No** requiere `ACCESS_BACKGROUND_LOCATION` porque se inicia con la app visible.
+- **CardioForegroundService** (`foregroundServiceType=location`): mantiene cronometro GPS
+  + notificacion y expone `StateFlow<CardioTrackerState>`. Si la sesion usa GPS y hay
+  `ACCESS_FINE_LOCATION`, arranca como tipo `location` y recibe ubicaciones de
+  `LocationTracker`. Si el tipo es manual o el usuario deniega ubicacion, `ActiveCardio`
+  degrada a cronometro local y exige distancia/velocidad manuales antes de guardar. **No**
+  requiere `ACCESS_BACKGROUND_LOCATION` porque se inicia con la app visible.
 - Android 14/15: los `foregroundServiceType` se declaran en el `<service>` del manifest y se
   respetan las restricciones de lanzamiento de FGS desde background.
 

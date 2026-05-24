@@ -10,6 +10,49 @@
 
 ## [No publicado]
 
+### Fase 6 - Cardio + GPS
+
+#### 2026-05-23 - Cardio GPS, timer/countdown, entrada manual y resumen con mapa
+
+**Anadido**
+- Anadidos modelos de dominio `CardioType`, `CardioMode`, `LocationPoint` y `CardioSession`.
+- Anadido contrato `CardioRepository`, `RoomCardioRepository` y `CardioDao` sobre las tablas
+  v1 `cardio_types` y `cardio_sessions`; no cambia el schema Room.
+- Anadido `CardioUseCase` para crear/editar tipos custom, arrancar sesiones y completarlas
+  con distancia Haversine, velocidad media/maxima, ruta y calorias estimadas por MET fallback.
+- Implementado `LocationTracker` con `FusedLocationProvider` y `Flow` de ubicaciones.
+- Implementado `CardioForegroundService` de tipo `location` para GPS + cronometro +
+  notificacion persistente, con `CardioTrackerRegistry`.
+- Anadido tab `Cardio` dentro de Entrenar con tipos predefinidos/custom, edicion/archivado,
+  selector de countdown, inicio timer/countdown e historial/detalle.
+- Anadidas rutas fullscreen `ActiveCardio` y `CardioComplete`.
+- `ActiveCardio` solicita `ACCESS_FINE_LOCATION` solo para tipos GPS, muestra metricas en vivo
+  y permite finalizar o cancelar sin dejar el servicio corriendo.
+- `CardioComplete` muestra resumen y mapa de ruta con Google Maps Compose cuando hay puntos GPS.
+- Anadidos tests unitarios de dominio para creacion de tipos, inicio, distancia/velocidad,
+  entrada manual y rechazo de sesiones manuales incompletas.
+
+**Corregido**
+- El historial de cardio se ordena por `workout_sessions.start_time DESC`, no por UUID.
+- Los tipos manuales o GPS denegado ya no fuerzan un foreground service `health`; usan
+  cronometro local y exigen distancia/velocidad manuales antes de guardar.
+- Cancelar o pulsar back en cardio activo detiene el servicio/timer local y borra la sesion
+  incompleta.
+- `CardioForegroundService` conserva el estado `failed=true` si falla dentro de
+  `startForeground`, para que la UI pueda avisar.
+
+**Seguridad**
+- Registrado `SEC-014`: cardio GPS sin `ACCESS_BACKGROUND_LOCATION` y sin guardar sesiones GPS
+  falsas cuando falta permiso/ruta.
+- Revalidado: sin secretos nuevos, sin `google-services.json`, sin cleartext, sin logs
+  sensibles y sin textos hardcodeados nuevos en UI.
+
+**Verificado**
+- `./gradlew assembleDebug assembleRelease test lint compileDebugAndroidTestKotlin --no-daemon`
+  pasa.
+- `emulator -accel-check` falla con codigo 6 por Hyper-V/WHPX y `adb devices` no lista
+  dispositivos; no se pudieron capturar screenshots runtime de la UI de cardio.
+
 ### Fase 5 - Entrenamiento activo de fuerza
 
 #### 2026-05-23 - Sesion activa, timer persistente, rest timer e historial

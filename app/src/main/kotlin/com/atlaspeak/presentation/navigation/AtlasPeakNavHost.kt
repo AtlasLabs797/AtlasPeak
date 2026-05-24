@@ -11,6 +11,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.atlaspeak.R
 import com.atlaspeak.presentation.auth.LoginRoute
+import com.atlaspeak.presentation.cardio.ActiveCardioRoute
+import com.atlaspeak.presentation.cardio.CardioCompleteRoute
 import com.atlaspeak.presentation.onboarding.OnboardingRoute
 import com.atlaspeak.presentation.screen.PlaceholderScreen
 import com.atlaspeak.presentation.workout.ActiveWorkoutRoute
@@ -74,6 +76,9 @@ fun AtlasPeakNavHost(
                 onStartRoutine = { routineId ->
                     navController.navigate(AppRoute.ActiveWorkout.createRoute(routineId))
                 },
+                onStartCardio = { cardioTypeId, mode ->
+                    navController.navigate(AppRoute.ActiveCardio.createRoute(cardioTypeId, mode))
+                },
             )
         }
         composable(
@@ -93,6 +98,39 @@ fun AtlasPeakNavHost(
             arguments = listOf(navArgument(AppRoute.WorkoutComplete.SESSION_ID) { type = NavType.StringType }),
         ) {
             WorkoutCompleteRoute(
+                onDone = {
+                    navController.navigate(AppRoute.Train.route) {
+                        popUpTo(AppRoute.Train.route) { inclusive = true }
+                    }
+                },
+            )
+        }
+        composable(
+            route = AppRoute.ActiveCardio.route,
+            arguments = listOf(
+                navArgument(AppRoute.ActiveCardio.CARDIO_TYPE_ID) { type = NavType.StringType },
+                navArgument(AppRoute.ActiveCardio.MODE) { type = NavType.StringType },
+                navArgument(AppRoute.ActiveCardio.TARGET_SECONDS) { type = NavType.IntType },
+            ),
+        ) {
+            ActiveCardioRoute(
+                onCardioCompleted = { sessionId ->
+                    navController.navigate(AppRoute.CardioComplete.createRoute(sessionId)) {
+                        popUpTo(AppRoute.Train.route)
+                    }
+                },
+                onCardioCancelled = {
+                    navController.navigate(AppRoute.Train.route) {
+                        popUpTo(AppRoute.Train.route) { inclusive = true }
+                    }
+                },
+            )
+        }
+        composable(
+            route = AppRoute.CardioComplete.route,
+            arguments = listOf(navArgument(AppRoute.CardioComplete.SESSION_ID) { type = NavType.StringType }),
+        ) {
+            CardioCompleteRoute(
                 onDone = {
                     navController.navigate(AppRoute.Train.route) {
                         popUpTo(AppRoute.Train.route) { inclusive = true }

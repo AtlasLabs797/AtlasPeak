@@ -2,6 +2,9 @@ package com.atlaspeak.presentation.workout
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.atlaspeak.domain.model.cardio.CardioSession
+import com.atlaspeak.domain.model.cardio.CardioType
+import com.atlaspeak.domain.repository.CardioRepository
 import com.atlaspeak.domain.model.workout.Exercise
 import com.atlaspeak.domain.model.workout.MuscleGroup
 import com.atlaspeak.domain.model.workout.Routine
@@ -10,6 +13,7 @@ import com.atlaspeak.domain.model.workout.WorkoutSession
 import com.atlaspeak.domain.usecase.workout.ExerciseUseCase
 import com.atlaspeak.domain.usecase.workout.RoutineUseCase
 import com.atlaspeak.domain.repository.WorkoutRepository
+import com.atlaspeak.domain.usecase.cardio.CardioUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.util.UUID
 import javax.inject.Inject
@@ -24,6 +28,8 @@ class TrainViewModel @Inject constructor(
     private val exerciseUseCase: ExerciseUseCase,
     private val routineUseCase: RoutineUseCase,
     private val workoutRepository: WorkoutRepository,
+    private val cardioUseCase: CardioUseCase,
+    private val cardioRepository: CardioRepository,
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(TrainUiState())
     val state: StateFlow<TrainUiState> = mutableState.asStateFlow()
@@ -231,6 +237,73 @@ class TrainViewModel @Inject constructor(
         mutableState.update { it.copy(selectedWorkoutSessionId = id, selectedTab = TrainTab.History, message = null) }
     }
 
+    fun onNewCardioTypeNameChanged(name: String) {
+        mutableState.update { it.copy(newCardioTypeName = name, message = null) }
+    }
+
+    fun onNewCardioTypeHasGpsChanged(hasGps: Boolean) {
+        mutableState.update { it.copy(newCardioTypeHasGps = hasGps, message = null) }
+    }
+
+    fun onCardioCountdownMinutesChanged(value: String) {
+        mutableState.update { it.copy(cardioCountdownMinutes = value.onlyDigits().take(2), message = null) }
+    }
+
+    fun createCustomCardioType() {
+        val snapshot = mutableState.value
+        viewModelScope.launch {
+            val saved = cardioUseCase.createOrUpdateCustomType(
+                name = snapshot.newCardioTypeName,
+                hasGps = snapshot.newCardioTypeHasGps,
+                id = snapshot.editingCardioTypeId ?: UUID.randomUUID().toString(),
+            )
+            mutableState.update {
+                it.copy(
+                    newCardioTypeName = if (saved) "" else it.newCardioTypeName,
+                    newCardioTypeHasGps = if (saved) false else it.newCardioTypeHasGps,
+                    editingCardioTypeId = if (saved) null else it.editingCardioTypeId,
+                    message = if (saved) TrainUiMessage.CardioTypeSaved else TrainUiMessage.InvalidCardioType,
+                )
+            }
+            refreshAll()
+        }
+    }
+
+    fun startEditingCardioType(type: CardioType) {
+        if (type.isPreset) return
+        mutableState.update {
+            it.copy(
+                selectedTab = TrainTab.Cardio,
+                editingCardioTypeId = type.id,
+                newCardioTypeName = type.name,
+                newCardioTypeHasGps = type.hasGps,
+                message = null,
+            )
+        }
+    }
+
+    fun cancelCardioTypeEditing() {
+        mutableState.update {
+            it.copy(
+                editingCardioTypeId = null,
+                newCardioTypeName = "",
+                newCardioTypeHasGps = false,
+                message = null,
+            )
+        }
+    }
+
+    fun archiveCardioType(id: String) {
+        viewModelScope.launch {
+            cardioUseCase.archiveType(id)
+            refreshAll()
+        }
+    }
+
+    fun selectCardioSession(id: String) {
+        mutableState.update { it.copy(selectedCardioSessionId = id, selectedTab = TrainTab.Cardio, message = null) }
+    }
+
     fun archiveRoutine(id: String) {
         viewModelScope.launch {
             routineUseCase.archiveRoutine(id)
@@ -261,12 +334,17 @@ class TrainViewModel @Inject constructor(
             val exercises = exerciseUseCase.library(snapshot.searchQuery, snapshot.selectedMuscleGroupId)
             val routines = routineUseCase.routines()
             val workoutSessions = workoutRepository.sessions().filter { it.completed }
+            val cardioTypes = cardioUseCase.cardioTypes()
+            val cardioSessions = cardioRepository.sessions().filter { it.completed }
             val selectedRoutineId = snapshot.selectedRoutineId
                 ?.takeIf { id -> routines.any { it.id == id } }
                 ?: routines.firstOrNull()?.id
             val selectedWorkoutSessionId = snapshot.selectedWorkoutSessionId
                 ?.takeIf { id -> workoutSessions.any { it.id == id } }
                 ?: workoutSessions.firstOrNull()?.id
+            val selectedCardioSessionId = snapshot.selectedCardioSessionId
+                ?.takeIf { id -> cardioSessions.any { it.id == id } }
+                ?: cardioSessions.firstOrNull()?.id
             mutableState.update {
                 it.copy(
                     isLoading = false,
@@ -274,8 +352,11 @@ class TrainViewModel @Inject constructor(
                     exercises = exercises,
                     routines = routines,
                     workoutSessions = workoutSessions,
+                    cardioTypes = cardioTypes,
+                    cardioSessions = cardioSessions,
                     selectedRoutineId = selectedRoutineId,
                     selectedWorkoutSessionId = selectedWorkoutSessionId,
+                    selectedCardioSessionId = selectedCardioSessionId,
                     newExerciseGroupId = it.newExerciseGroupId ?: groups.firstOrNull()?.id,
                 )
             }
@@ -298,8 +379,11 @@ data class TrainUiState(
     val exercises: List<Exercise> = emptyList(),
     val routines: List<Routine> = emptyList(),
     val workoutSessions: List<WorkoutSession> = emptyList(),
+    val cardioTypes: List<CardioType> = emptyList(),
+    val cardioSessions: List<CardioSession> = emptyList(),
     val selectedRoutineId: String? = null,
     val selectedWorkoutSessionId: String? = null,
+    val selectedCardioSessionId: String? = null,
     val searchQuery: String = "",
     val selectedMuscleGroupId: Int? = null,
     val editingExerciseId: String? = null,
@@ -309,11 +393,17 @@ data class TrainUiState(
     val routineName: String = "",
     val routineColorTag: String = DEFAULT_ROUTINE_COLOR_TAG,
     val draftItems: List<RoutineDraftItem> = emptyList(),
+    val editingCardioTypeId: String? = null,
+    val newCardioTypeName: String = "",
+    val newCardioTypeHasGps: Boolean = false,
+    val cardioCountdownMinutes: String = "30",
     val message: TrainUiMessage? = null,
 ) {
     val selectedRoutine: Routine? = routines.firstOrNull { it.id == selectedRoutineId }
     val selectedWorkoutSession: WorkoutSession? = workoutSessions.firstOrNull { it.id == selectedWorkoutSessionId }
+    val selectedCardioSession: CardioSession? = cardioSessions.firstOrNull { it.id == selectedCardioSessionId }
     val draftDurationMinutes: Int = RoutineUseCase.estimatedDurationMinutes(draftInputs())
+    val cardioCountdownSeconds: Int = ((cardioCountdownMinutes.toIntOrNull() ?: 30).coerceIn(1, 99)) * 60
 
     fun draftInputs(): List<RoutineExerciseInput> = draftItems.map { it.toInput() }
 }
@@ -339,14 +429,17 @@ data class RoutineDraftItem(
 enum class TrainTab {
     Exercises,
     Routines,
+    Cardio,
     History,
 }
 
 enum class TrainUiMessage {
     ExerciseSaved,
     RoutineSaved,
+    CardioTypeSaved,
     InvalidExercise,
     InvalidRoutine,
+    InvalidCardioType,
 }
 
 const val DEFAULT_ROUTINE_COLOR_TAG = "#E53935"
