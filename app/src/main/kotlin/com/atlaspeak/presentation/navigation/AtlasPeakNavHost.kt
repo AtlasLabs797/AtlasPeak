@@ -11,6 +11,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.atlaspeak.R
 import com.atlaspeak.presentation.auth.LoginRoute
+import com.atlaspeak.presentation.body.BodyCompositionRoute
 import com.atlaspeak.presentation.cardio.ActiveCardioRoute
 import com.atlaspeak.presentation.cardio.CardioCompleteRoute
 import com.atlaspeak.presentation.home.HomeRoute
@@ -144,7 +145,7 @@ fun AtlasPeakNavHost(
             ProgressRoute()
         }
         composable(AppRoute.Body.route) {
-            PlaceholderScreen(titleRes = R.string.screen_body_title)
+            BodyCompositionRoute()
         }
         composable(AppRoute.Profile.route) {
             PlaceholderScreen(titleRes = R.string.screen_profile_title)

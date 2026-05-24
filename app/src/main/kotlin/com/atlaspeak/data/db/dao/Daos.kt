@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import com.atlaspeak.data.db.entity.AppSettingsEntity
 import com.atlaspeak.data.db.entity.AuthSecurityEntity
+import com.atlaspeak.data.db.entity.BodyCompositionEntity
 import com.atlaspeak.data.db.entity.CardioTypeEntity
 import com.atlaspeak.data.db.entity.CardioSessionEntity
 import com.atlaspeak.data.db.entity.ExerciseEntity
@@ -226,6 +227,15 @@ interface AuthSecurityDao {
 
     @Query("SELECT * FROM auth_security WHERE id = 1")
     suspend fun getAuthSecurity(): AuthSecurityEntity?
+}
+
+@Dao
+interface BodyCompositionDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(entry: BodyCompositionEntity)
+
+    @Query("SELECT * FROM body_composition ORDER BY measured_at DESC")
+    suspend fun getEntries(): List<BodyCompositionEntity>
 }
 
 @Dao

@@ -10,6 +10,39 @@
 
 ## [No publicado]
 
+### Fase 9 - Composición corporal
+
+#### 2026-05-24 - Cuerpo, entrada manual y evolución por métrica
+
+**Añadido**
+- Añadidos modelos de dominio para composición corporal, métricas, periodos, fuentes de datos,
+  valores actuales y puntos de evolución.
+- Añadido `BodyCompositionUseCase` con validación de entrada manual, cálculo de último valor
+  por métrica y series filtradas por periodo.
+- Añadido contrato `BodyCompositionRepository`, `BodyCompositionDao` y
+  `RoomBodyCompositionRepository` sobre la tabla v1 `body_composition`.
+- Reemplazado el placeholder de `Body` por `BodyCompositionScreen`, con tabla de valores
+  actuales, selector de periodo, selector de métrica, gráfico Vico y entrada manual de todos
+  los campos del spec.
+- La UI diferencia métricas preparadas para Health Connect (peso, grasa, masa muscular, agua)
+  de métricas solo manuales (visceral, proteína, masa ósea, edad corporal).
+- Añadidos strings ES/EN y tests unitarios de dominio para validación, guardado manual,
+  últimos valores por métrica y series por periodo.
+
+**Seguridad**
+- `Body` entra en rutas con `FLAG_SECURE` porque muestra datos de salud. Sin nuevos permisos,
+  red, Health Connect runtime, backup ni schema Room.
+- Revalidado: sin secretos nuevos, sin `ACCESS_BACKGROUND_LOCATION`, sin cleartext/fallback
+  destructivo y sin textos hardcodeados nuevos en UI.
+
+**Verificado**
+- `./gradlew testDebugUnitTest --tests com.atlaspeak.domain.usecase.body.BodyCompositionUseCaseTest --no-daemon`
+  pasa.
+- `./gradlew assembleDebug assembleRelease test lint compileDebugAndroidTestKotlin --no-daemon`
+  pasa.
+- QA visual runtime bloqueada: `adb devices` no lista dispositivos, `emulator -list-avds` no
+  devuelve AVDs y `emulator -accel-check` falla con código 6 por Hyper-V/WHPX.
+
 ### Fase 8 - Dashboard / Home
 
 #### 2026-05-24 - Dashboard local con métricas de entrenamiento y salud

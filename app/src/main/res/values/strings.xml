@@ -257,6 +257,30 @@
     <string name="home_value_empty">--</string>
     <string name="home_chart_empty">Sin datos en este periodo.</string>
 
+    <!-- Cuerpo / composición corporal -->
+    <string name="body_screen_subtitle">Valores actuales y evolución de composición corporal</string>
+    <string name="body_add_entry">Añadir medición</string>
+    <string name="body_empty_title">Sin mediciones corporales</string>
+    <string name="body_empty_body">Añade una medición manual para empezar a ver evolución y valores actuales.</string>
+    <string name="body_latest_values_title">Valores actuales</string>
+    <string name="body_manual_entry_title">Entrada manual</string>
+    <string name="body_entry_saved">Medición guardada.</string>
+    <string name="body_entry_invalid">Introduce al menos una métrica válida.</string>
+    <string name="body_chart_empty">Sin datos para esta métrica en el periodo.</string>
+    <string name="body_badge_hc_ready">Health Connect</string>
+    <string name="body_badge_manual_only">Solo manual</string>
+    <string name="body_metric_weight">Peso corporal</string>
+    <string name="body_metric_body_fat" formatted="false">% grasa corporal</string>
+    <string name="body_metric_muscle_mass">Masa muscular</string>
+    <string name="body_metric_water" formatted="false">% agua corporal</string>
+    <string name="body_metric_visceral_fat">Grasa visceral</string>
+    <string name="body_metric_protein" formatted="false">% proteína</string>
+    <string name="body_metric_bone_mass">Masa ósea</string>
+    <string name="body_metric_body_age">Edad corporal</string>
+    <string name="body_value_kg">%1$.1f kg</string>
+    <string name="body_value_percent">%1$.1f%%</string>
+    <string name="body_value_integer">%1$d</string>
+
     <string name="error_generic">Algo salió mal. Inténtalo de nuevo.</string>
     <string name="error_no_connection">Sin conexión a internet.</string>
     <!-- Pantallas base -->

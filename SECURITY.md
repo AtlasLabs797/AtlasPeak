@@ -76,6 +76,15 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
 - **Solucion:** `ActiveCardio` solicita `ACCESS_FINE_LOCATION` solo para tipos con GPS. Si se deniega o el tipo es manual, la sesion usa cronometro local y exige distancia/velocidad manuales antes de guardarse. `ACCESS_BACKGROUND_LOCATION` sigue ausente.
 - **Prevencion:** Fase 13 debe validar el flujo en Android 14/15 real: GPS concedido, GPS denegado y cardio manual.
 
+### SEC-015 - Composicion corporal muestra datos de salud sensibles
+- **Estado:** Resuelto
+- **Fecha:** 2026-05-24
+- **Severidad:** Media
+- **Sintoma:** Fase 9 activa la pantalla `Body` con peso, grasa, masa muscular y edad corporal; sin proteccion, esos datos podrian aparecer en screenshots o vista de recientes.
+- **Causa raiz:** `Body` era placeholder y no estaba incluido en las rutas sensibles con `FLAG_SECURE`.
+- **Solucion:** `AppRoute.Body.route` se anade a `secureRoutes`; no se introducen nuevos permisos, red ni logs de valores corporales.
+- **Prevencion:** toda pantalla que muestre salud, backup, perfil, auth o permisos sensibles debe revisarse contra `SecureScreenEffect`.
+
 ### SEC-001 — Backup no restaurable: falta el salt en el archivo cifrado
 - **Estado:** 🟢 Resuelto (en diseño)
 - **Fecha:** 2026-05-23

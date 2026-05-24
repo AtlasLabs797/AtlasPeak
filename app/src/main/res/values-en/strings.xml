@@ -246,6 +246,30 @@
     <string name="home_value_empty">--</string>
     <string name="home_chart_empty">No data in this period.</string>
 
+    <!-- Body composition -->
+    <string name="body_screen_subtitle">Current values and body composition trends</string>
+    <string name="body_add_entry">Add measurement</string>
+    <string name="body_empty_title">No body measurements</string>
+    <string name="body_empty_body">Add a manual measurement to start seeing trends and current values.</string>
+    <string name="body_latest_values_title">Current values</string>
+    <string name="body_manual_entry_title">Manual entry</string>
+    <string name="body_entry_saved">Measurement saved.</string>
+    <string name="body_entry_invalid">Enter at least one valid metric.</string>
+    <string name="body_chart_empty">No data for this metric in the period.</string>
+    <string name="body_badge_hc_ready">Health Connect</string>
+    <string name="body_badge_manual_only">Manual only</string>
+    <string name="body_metric_weight">Body weight</string>
+    <string name="body_metric_body_fat" formatted="false">Body fat %</string>
+    <string name="body_metric_muscle_mass">Muscle mass</string>
+    <string name="body_metric_water" formatted="false">Body water %</string>
+    <string name="body_metric_visceral_fat">Visceral fat</string>
+    <string name="body_metric_protein" formatted="false">Protein %</string>
+    <string name="body_metric_bone_mass">Bone mass</string>
+    <string name="body_metric_body_age">Body age</string>
+    <string name="body_value_kg">%1$.1f kg</string>
+    <string name="body_value_percent">%1$.1f%%</string>
+    <string name="body_value_integer">%1$d</string>
+
     <string name="error_generic">Something went wrong. Please try again.</string>
     <string name="error_no_connection">No internet connection.</string>
     <string name="screen_home_title">Home</string>

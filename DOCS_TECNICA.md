@@ -233,6 +233,27 @@ El widget de frecuencia cardiaca muestra el minimo diario de las muestras import
 cache dedicada para `RestingHeartRateRecord`. Los pasos se parten proporcionalmente por dia
 local cuando un intervalo cruza medianoche o el inicio del periodo.
 
+## 6.6 Composicion corporal
+
+Fase 9 reemplaza el placeholder de `Body` por una pantalla real sobre la tabla v1
+`body_composition`:
+
+- `domain.model.body` contiene entradas, metricas, fuentes (`Manual`, `HealthConnect`,
+  `ScaleApp`), periodos, ultimos valores y puntos de evolucion.
+- `BodyCompositionUseCase` valida entrada manual, guarda con `source = Manual` y
+  `syncedToHealthConnect = false`, calcula el ultimo valor por metrica y genera series por
+  periodo.
+- `BodyCompositionRepository` abstrae Room; `RoomBodyCompositionRepository` mapea
+  `BodyCompositionEntity` sin exponer entities a presentation.
+- `BodyCompositionScreen` muestra tabla de valores actuales, selector de periodo, selector de
+  metrica, grafica Vico y formulario manual con todos los campos del spec.
+- Las metricas preparadas para Health Connect son peso, grasa corporal, masa muscular y agua.
+  Grasa visceral, proteina, masa osea y edad corporal son solo manuales hasta nueva decision
+  de producto.
+
+La integracion real con Health Connect no se implementa en esta fase. La pantalla esta bajo
+`FLAG_SECURE` porque muestra datos de salud.
+
 ---
 
 ## 7. Foreground Services

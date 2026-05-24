@@ -3,6 +3,7 @@ package com.atlaspeak.data.db
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import com.atlaspeak.data.db.dao.AuthSecurityDao
+import com.atlaspeak.data.db.dao.BodyCompositionDao
 import com.atlaspeak.data.db.dao.CardioDao
 import com.atlaspeak.data.db.dao.DashboardDao
 import com.atlaspeak.data.db.dao.ExerciseDao
@@ -70,6 +71,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun cardioDao(): CardioDao
     abstract fun settingsDao(): SettingsDao
     abstract fun authSecurityDao(): AuthSecurityDao
+    abstract fun bodyCompositionDao(): BodyCompositionDao
     abstract fun healthConnectDao(): HealthConnectDao
     abstract fun dashboardDao(): DashboardDao
 
