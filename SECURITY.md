@@ -112,6 +112,24 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
 - **Solucion:** Drive usa `AuthorizationClient` con scope minimo `drive.appdata`; los tokens de acceso se tratan como efimeros y el worker no lanza UI de consentimiento. El backup automatico solo se activa si el usuario introduce la contrasena y acepta guardarla en `EncryptedSharedPreferences` protegido por Android Keystore. Los exports manuales sin cifrar excluyen `users` y `auth_security`.
 - **Prevencion:** tests de manager/HTTP prueban que se sube binario cifrado, no JSON, con `multipart/related` para Drive; revision permanente: ID tokens nunca son bearer tokens de Drive; cualquier export no cifrado debe excluir credenciales, hashes y estado de bloqueo.
 
+### SEC-019 - Rutas autenticadas con salud sin FLAG_SECURE
+- **Estado:** Resuelto
+- **Fecha:** 2026-05-24
+- **Severidad:** Media
+- **Sintoma:** `Home`, `Train`, `Progress`, `ActiveWorkout`, `ActiveCardio` y pantallas de resumen mostraban datos de salud, ubicacion o entrenamiento sin bloqueo de screenshots/vista de recientes.
+- **Causa raiz:** el allowlist de `SecureScreenEffect` se quedo en auth/perfil/backup/cuerpo, pero fases posteriores movieron datos sensibles a casi toda la zona autenticada.
+- **Solucion:** se extrae `SensitiveRoutePolicy` y todas las rutas autenticadas con salud/entrenamiento pasan a `FLAG_SECURE`; `Launch` queda fuera para evitar churn durante splash.
+- **Prevencion:** test unitario `all authenticated health and workout routes are protected from screenshots`; cualquier ruta nueva post-login debe entrar en la politica o justificarlo en `SECURITY.md`.
+
+### SEC-020 - Notificaciones foreground filtraban actividad en lockscreen
+- **Estado:** Resuelto
+- **Fecha:** 2026-05-24
+- **Severidad:** Media
+- **Sintoma:** las notificaciones persistentes de fuerza/cardio mostraban tiempo y distancia sin `VISIBILITY_PRIVATE`; en lockscreen podian exponer actividad fisica y ruta inferida.
+- **Causa raiz:** Fase 11 hizo privados recordatorios/resumenes, pero los foreground services de Fase 5/6 tenian builders/canales propios sin la misma politica.
+- **Solucion:** `WorkoutForegroundService` y `CardioForegroundService` usan `setVisibility(NotificationCompat.VISIBILITY_PRIVATE)` y canales con `lockscreenVisibility = Notification.VISIBILITY_PRIVATE`; los canales generales tambien fijan visibilidad privada.
+- **Prevencion:** test estatico `all notification builders and channels are private on lockscreen`.
+
 ### SEC-001 — Backup no restaurable: falta el salt en el archivo cifrado
 - **Estado:** 🟢 Resuelto (en diseño)
 - **Fecha:** 2026-05-23
@@ -230,7 +248,7 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
       `google-services.json` siguen en `.gitignore`.
 - [ ] OkHttp logging interceptor desactivado en release (`BuildConfig.DEBUG`).
 - [ ] Sin `Log.*` con datos sensibles en builds release (ProGuard/R8 los retira; verificar).
-- [ ] `FLAG_SECURE` activo en Login, Biometría, Perfil, Backup.
+- [ ] `FLAG_SECURE` activo en rutas autenticadas con salud/entrenamiento, perfil y backup.
 - [ ] `network_security_config.xml`: `cleartextTrafficPermitted="false"` en producción.
 - [ ] Maps API key restringida (SHA-1 + package) en Cloud Console.
 - [ ] Permisos del manifest = solo los usados (sin `ACCESS_BACKGROUND_LOCATION`).
@@ -247,7 +265,6 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
 | SEC-002 | Cambiar contraseña invalida backups previos | Es el coste de la portabilidad sin backend; mitigado con aviso UX |
 | RA-01 | Rate-limit reseteable borrando datos de la app | La defensa real es el hash fuerte; sin servidor no hay alternativa |
 | RA-02 | Pérdida de contraseña **y** cuenta Google → datos irrecuperables | Documentado y advertido en onboarding; no hay solución sin comprometer el cifrado |
-| RA-03 | `FLAG_SECURE` solo en pantallas críticas, no en todas | Coste/beneficio; el resto no muestra datos sensibles |
 | RA-04 | Backup automatico guarda la contrasena cifrada en el dispositivo | Es el coste de cifrar backups diarios sin servidor ni pedir contrasena cada dia; opt-in explicito y protegido por Keystore |
 
 ---

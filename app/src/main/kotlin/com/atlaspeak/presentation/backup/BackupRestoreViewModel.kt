@@ -65,11 +65,13 @@ class BackupRestoreViewModel @Inject constructor(
                 _state.update { it.copy(messageRes = R.string.backup_password_required) }
                 return@launch
             }
-            if (enabled) {
-                credentialStore.saveAutoBackupPassword(password)
-                password.fill('\u0000')
-            } else {
-                credentialStore.clearAutoBackupPassword()
+            try {
+                if (enabled) {
+                    credentialStore.saveAutoBackupPassword(password)
+                } else {
+                    credentialStore.clearAutoBackupPassword()
+                }
+            } finally {
                 password.fill('\u0000')
             }
             snapshotStore.setAutoBackupEnabled(enabled)

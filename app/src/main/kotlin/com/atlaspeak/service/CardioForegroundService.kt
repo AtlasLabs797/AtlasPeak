@@ -184,6 +184,7 @@ class CardioForegroundService : LifecycleService() {
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setCategory(NotificationCompat.CATEGORY_WORKOUT)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .build()
     }
@@ -193,7 +194,13 @@ class CardioForegroundService : LifecycleService() {
         val manager = getSystemService(NotificationManager::class.java)
         if (manager.getNotificationChannel(CHANNEL_ID) != null) return
         manager.createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, getString(R.string.cardio_notification_channel), NotificationManager.IMPORTANCE_LOW),
+            NotificationChannel(
+                CHANNEL_ID,
+                getString(R.string.cardio_notification_channel),
+                NotificationManager.IMPORTANCE_LOW,
+            ).apply {
+                lockscreenVisibility = Notification.VISIBILITY_PRIVATE
+            },
         )
     }
 

@@ -58,7 +58,7 @@
 | 21 | **Clave backup ligada al dispositivo (Keystore)** | Clave de backup derivada de contraseña local — restaurable en nuevo dispositivo |
 | 22 | **Sin network_security_config.xml** | Añadida configuración: solo HTTPS, sin cleartext |
 | 23 | **i18n en Fase 16 (demasiado tarde)** | Movida a Fase 1 — strings.xml desde el inicio |
-| 24 | **Sin FLAG_SECURE en pantallas sensibles** | Añadido en pantallas de auth, perfil, backup |
+| 24 | **Sin FLAG_SECURE en pantallas sensibles** | Añadido en rutas autenticadas con salud/entrenamiento, auth, perfil y backup |
 | 25 | **Biometría sin especificar nivel** | Definido: `BIOMETRIC_STRONG` (Clase 3) obligatorio |
 | 26 | **Sin WearableListenerService en manifest** | Conservado en el diseño v2; no se declara en v1 |
 | 27 | **Export a almacenamiento público** | Corregido: export a almacenamiento privado + share via ShareSheet |
@@ -300,7 +300,7 @@ Reloj → Teléfono (MessageClient — eventos puntuales):
 - Biometría se solicita al volver al foreground después del timeout configurado (1 / 5 / 15 minutos / nunca)
 - **Rate limiting:** exclusivamente sobre contraseña local — 5 intentos fallidos → bloqueo 15 minutos. El contador se almacena en la tabla `auth_security` (DB cifrada con SQLCipher). *(v2.2: unificado — antes el spec mencionaba también `EncryptedSharedPreferences`, lo que contradecía la tabla.)*
 - **DB local:** encriptada con SQLCipher. La clave de cifrado se genera aleatoriamente, se almacena cifrada en Android Keystore (nunca en texto plano)
-- `FLAG_SECURE` activo en: `LoginActivity`, `BiometricPromptScreen`, `BackupRestoreScreen`, `ProfileScreen`
+- `FLAG_SECURE` activo en rutas autenticadas con salud/entrenamiento, auth, perfil y backup.
 
 **Escenario de pérdida total de acceso:**
 Si el usuario pierde acceso a Google **y** olvida la contraseña local → los datos del dispositivo son inaccesibles. El backup en Drive está cifrado con una clave derivada de la contraseña local (no ligada al dispositivo) — si el usuario recuerda la contraseña puede restaurar en un dispositivo nuevo. Este escenario debe advertirse al usuario durante la configuración de contraseña.
@@ -1116,7 +1116,7 @@ Flujo Auth (fuera del NavHost principal):
 | Almacenamiento hash/salt | Tabla `users` en DB SQLCipher | La clave de DB vive protegida por Android Keystore |
 | Biometría | `BiometricPrompt` clase `BIOMETRIC_STRONG` | Solo desbloqueo, no auth nueva |
 | Rate limiting | 5 intentos → lock 15 min | Solo contraseña local |
-| Pantallas sensibles | `FLAG_SECURE` | Login, Perfil, Backup, Biometría |
+| Pantallas sensibles | `FLAG_SECURE` | Rutas autenticadas con salud/entrenamiento, Login, Perfil, Backup, Biometría |
 
 ### 7.2 Cifrado Local
 
@@ -1188,7 +1188,7 @@ la propia marca de exito del backup anterior.
 |------------|-------------------|
 | Rate limiting reseteable borrando datos de app | La protección real es el hash fuerte de contraseña |
 | Backup no restaurable si se olvida contraseña Y pierde cuenta Google | Documentado y advertido en UI. No hay solución sin comprometer seguridad |
-| FLAG_SECURE impide screenshots en pantallas sensibles pero no en todas | Solo pantallas con datos personales críticos |
+| FLAG_SECURE impide screenshots en rutas sensibles | Aplicado a la zona autenticada con salud/entrenamiento; `Launch` queda fuera |
 
 ---
 

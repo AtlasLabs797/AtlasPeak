@@ -10,6 +10,43 @@
 
 ## [No publicado]
 
+### Fase 14 - Seguridad + hardening
+
+#### 2026-05-24 - Rutas sensibles, red y notificaciones privadas
+
+**Anadido**
+- `SensitiveRoutePolicy` centraliza las rutas bajo `FLAG_SECURE` y cubre toda la zona
+  autenticada con salud/entrenamiento, no solo auth/perfil/backup.
+- Tests de hardening para politica de rutas sensibles, timeouts OkHttp y reglas estaticas de
+  permisos/logging/notificaciones privadas.
+
+**Cambiado**
+- `NetworkModule` fija timeouts explicitos para Drive: connect 20s, read/write 60s, call 120s.
+- `file_paths.xml` limita FileProvider al directorio privado de exports.
+- `BackupRestoreViewModel` borra el `CharArray` de auto-backup tambien si falla el guardado.
+- Canales y builders de notificaciones de fuerza/cardio/resumenes usan visibilidad privada en
+  lockscreen.
+- `SPEC.md`, `DOCS_TECNICA.md` y `SECURITY.md` reflejan que `FLAG_SECURE` protege rutas
+  autenticadas con salud/entrenamiento.
+
+**Corregido**
+- Registrado `SEC-019`: rutas de entrenamiento/progreso/cardio sin `FLAG_SECURE`.
+- Registrado `SEC-020` y `BUG-021`: notificaciones foreground filtraban tiempo/distancia en
+  lockscreen.
+
+**Verificado**
+- `./gradlew compileDebugKotlin testDebugUnitTest --tests com.atlaspeak.presentation.navigation.SensitiveRoutePolicyTest --tests com.atlaspeak.di.NetworkModuleTest --no-daemon`
+  pasa.
+- `./gradlew testDebugUnitTest --tests com.atlaspeak.security.StaticSecurityPolicyTest --tests com.atlaspeak.presentation.navigation.SensitiveRoutePolicyTest --tests com.atlaspeak.di.NetworkModuleTest --no-daemon`
+  pasa tras corregir el test estatico.
+- `./gradlew assembleDebug assembleRelease test lint compileDebugAndroidTestKotlin --no-daemon`
+  pasa como gate completo de cierre.
+- `python Skills/05_Security/cyber-neo/scripts/scan_secrets.py app` no encuentra secretos.
+- `python Skills/05_Security/cyber-neo/scripts/check_lockfiles.py .` no encuentra hallazgos.
+- `git diff --check` pasa.
+- Review lateral de seguridad reviso permisos, red, crypto/auth, secrets y detecto el leak de
+  notificaciones foreground; el hallazgo quedo corregido.
+
 ### Fase 13 - Wear OS diferido a v2
 
 #### 2026-05-24 - Cierre documental de aplazamiento Wear

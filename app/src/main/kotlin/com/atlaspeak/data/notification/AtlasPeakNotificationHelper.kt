@@ -32,6 +32,7 @@ class AtlasPeakNotificationHelper @Inject constructor(
                 NotificationManager.IMPORTANCE_DEFAULT,
             ).apply {
                 description = context.getString(R.string.notification_channel_training_reminders_desc)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PRIVATE
             },
             NotificationChannel(
                 MOTIVATION_CHANNEL_ID,
@@ -39,6 +40,7 @@ class AtlasPeakNotificationHelper @Inject constructor(
                 NotificationManager.IMPORTANCE_DEFAULT,
             ).apply {
                 description = context.getString(R.string.notification_channel_motivation_desc)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PRIVATE
             },
             NotificationChannel(
                 SUMMARIES_CHANNEL_ID,
@@ -46,6 +48,7 @@ class AtlasPeakNotificationHelper @Inject constructor(
                 NotificationManager.IMPORTANCE_DEFAULT,
             ).apply {
                 description = context.getString(R.string.notification_channel_summaries_desc)
+                lockscreenVisibility = android.app.Notification.VISIBILITY_PRIVATE
             },
         )
         manager.createNotificationChannels(channels)

@@ -118,6 +118,7 @@ class WorkoutForegroundService : LifecycleService() {
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setCategory(NotificationCompat.CATEGORY_WORKOUT)
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .build()
     }
@@ -131,7 +132,9 @@ class WorkoutForegroundService : LifecycleService() {
                 CHANNEL_ID,
                 getString(R.string.workout_notification_channel),
                 NotificationManager.IMPORTANCE_LOW,
-            ),
+            ).apply {
+                lockscreenVisibility = Notification.VISIBILITY_PRIVATE
+            },
         )
     }
 

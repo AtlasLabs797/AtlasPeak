@@ -24,6 +24,19 @@
 
 ## Entradas
 
+### BUG-021 - Notificaciones foreground exponian actividad en lockscreen
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-24
+- **Fase:** 14
+- **Severidad:** Media
+- **Sintoma:** las notificaciones de entrenamiento/cardio podian mostrar tiempo/distancia en pantalla bloqueada.
+- **Causa raiz:** los servicios foreground tenian builders y canales propios sin `VISIBILITY_PRIVATE`.
+- **Solucion:** visibilidad privada en builders/canales de fuerza, cardio y canales generales de notificacion.
+- **Prevencion:** test estatico de builders/canales privados en `StaticSecurityPolicyTest`.
+- **Fecha resolucion:** 2026-05-24
+
+---
+
 ### BUG-020 - Spec seguia pidiendo Wear OS dentro de v1
 - **Estado:** Resuelto
 - **Fecha deteccion:** 2026-05-24

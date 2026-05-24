@@ -111,7 +111,7 @@ Notas de integridad:
 - **Biometría:** `BiometricPrompt` clase `BIOMETRIC_STRONG`. Solo desbloqueo, no auth nueva.
   Timeout configurable (1/5/15/nunca). Re-pide al volver a foreground tras el timeout.
 - **Rate limiting:** 5 intentos → bloqueo 15 min. Contador en tabla `auth_security` (DB cifrada).
-- **`FLAG_SECURE`** en Login, Biometría, Perfil, Backup.
+- **`FLAG_SECURE`** en rutas autenticadas con salud/entrenamiento, Biometria, Perfil y Backup.
 - **Red:** solo HTTPS (`network_security_config.xml`, sin cleartext). Drive REST usa
   `Authorization: Bearer {access_token}` obtenido por `AuthorizationClient`; Atlas Peak no
   reutiliza ID tokens como credenciales Drive.
@@ -313,8 +313,8 @@ Health Connect permite sincronizar y volver a pedir permisos si fueron revocados
 ## 9. Plan semanal y notificaciones
 
 - `ProfileScreen` reemplaza el placeholder y enlaza a `WeeklyPlanScreen`, `SettingsScreen`
-  de notificaciones y backup. `Profile`, `WeeklyPlan`, `Settings` y `Backup` estan bajo
-  `FLAG_SECURE`.
+  de notificaciones y backup. Toda la zona autenticada con datos de salud/entrenamiento esta
+  bajo `FLAG_SECURE`.
 - `WeeklyPlanUseCase` normaliza siete dias ISO (`1=Lunes ... 7=Domingo`), valida `HH:mm`,
   convierte dias de descanso en filas sin rutina/recordatorio y reprograma notificaciones al
   guardar cada dia.

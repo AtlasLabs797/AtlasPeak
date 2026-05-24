@@ -11,7 +11,7 @@ import androidx.compose.ui.platform.LocalContext
 @Composable
 fun SecureScreenEffect(route: String?) {
     val activity = LocalContext.current.findActivity() ?: return
-    val secure = route in secureRoutes
+    val secure = isSensitiveRoute(route)
     DisposableEffect(activity, secure) {
         if (secure) {
             activity.window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
@@ -25,17 +25,6 @@ fun SecureScreenEffect(route: String?) {
         }
     }
 }
-
-private val secureRoutes = setOf(
-    AppRoute.Login.route,
-    AppRoute.Biometric.route,
-    AppRoute.Onboarding.route,
-    AppRoute.Body.route,
-    AppRoute.Profile.route,
-    AppRoute.WeeklyPlan.route,
-    AppRoute.Settings.route,
-    AppRoute.BackupRestore.route,
-)
 
 private tailrec fun Context.findActivity(): Activity? = when (this) {
     is Activity -> this
