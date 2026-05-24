@@ -1,4 +1,4 @@
-# ── Atlas Peak — reglas R8/ProGuard (release). SPEC.md §9 Fase 13 ──────────────
+# ── Atlas Peak — reglas R8/ProGuard (release). SPEC.md §9 Fase 14 ──────────────
 
 # Kotlinx Serialization: conservar serializadores generados
 -keepattributes *Annotation*, InnerClasses

@@ -37,7 +37,7 @@
 |---|-------------------|---------------------|
 | 1 | `play-services-drive` deprecado desde 2019 | Reemplazado por Google Drive REST API v3 via Retrofit directo |
 | 2 | Google API Client library (pesada, conflictos OkHttp) | Eliminada — Drive se consume con Retrofit+OkHttp directamente |
-| 3 | Wear OS dependency incorrecta (`androidx.wear:wear`) | Reemplazada por `play-services-wearable` + `wear.compose` |
+| 3 | Wear OS dependency incorrecta (`androidx.wear:wear`) | Diferida a v2; si se reactiva, usar `play-services-wearable` + `wear.compose` |
 | 4 | Mockito en proyecto 100% Kotlin | Reemplazado por MockK |
 | 5 | "E2E encryption con Keystore" en Health Connect | Corregido: Keystore es para almacenamiento local, no tránsito a HC |
 | 6 | Rate limiting aplicado a Google Sign-In | Aclarado: solo aplica a contraseña local |
@@ -60,7 +60,7 @@
 | 23 | **i18n en Fase 16 (demasiado tarde)** | Movida a Fase 1 — strings.xml desde el inicio |
 | 24 | **Sin FLAG_SECURE en pantallas sensibles** | Añadido en pantallas de auth, perfil, backup |
 | 25 | **Biometría sin especificar nivel** | Definido: `BIOMETRIC_STRONG` (Clase 3) obligatorio |
-| 26 | **Sin WearableListenerService en manifest** | Añadido para recibir mensajes del reloj |
+| 26 | **Sin WearableListenerService en manifest** | Conservado en el diseño v2; no se declara en v1 |
 | 27 | **Export a almacenamiento público** | Corregido: export a almacenamiento privado + share via ShareSheet |
 | 28 | **Sin estrategia de Room migrations** | Añadida — `fallbackToDestructiveMigration()` prohibido en producción |
 | 29 | **Permisos Health Connect no listados** | Listados explícitamente (lectura y escritura) |
@@ -73,7 +73,7 @@
 
 **Atlas Peak** es una aplicación nativa Android de gestión de entrenamientos personales. Filosofía **local-first**: todos los datos residen en el dispositivo, sin backend propio ni servidor de Atlas Peak. El único cloud involucrado es Google Drive para backup cifrado, controlado completamente por el usuario.
 
-La app cubre el ciclo completo del entrenamiento: planificar rutinas, ejecutar sesiones de fuerza o cardio, monitorear composición corporal, visualizar progreso mediante gráficos y sincronizar con el ecosistema de salud del dispositivo (Health Connect, Wear OS).
+La app cubre el ciclo completo del entrenamiento: planificar rutinas, ejecutar sesiones de fuerza o cardio, monitorear composición corporal, visualizar progreso mediante gráficos y sincronizar con el ecosistema de salud del dispositivo (Health Connect en v1; Wear OS diferido a v2).
 
 **Distribución:** APK de desarrollo personal → publicación en Google Play Store cuando esté completa.  
 **Monetización:** v1 completamente gratuita. Arquitectura preparada para features premium en versiones futuras mediante feature flags, sin billing library todavía.  
@@ -109,7 +109,7 @@ La app cubre el ciclo completo del entrenamiento: planificar rutinas, ejecutar s
   - Anillo de progreso circular con cuenta regresiva
   - Botón "Skip" para saltarse el descanso
   - Sonido + vibración o solo vibración (configurable en ajustes)
-  - Timer enviado al reloj Wear OS simultáneamente
+  - Timer enviado al reloj Wear OS simultáneamente (v2; fuera de v1)
 - `BottomSheet` colapsable y draggable: lista de todos los ejercicios de la rutina + drag-and-drop para reordenar en tiempo real durante el entrenamiento
 - Al finalizar el último set del último ejercicio: pantalla de resumen (volumen total, duración, sets completados, nuevo récord detectado si aplica)
 - Las sesiones son de tipo **FUERZA** exclusivamente — no hay modo mixto fuerza+cardio
@@ -237,7 +237,12 @@ WRITE_BODY_WATER_MASS
 - `HcSyncLog`: tabla que registra el último timestamp de lectura y escritura por tipo de dato
 - **Política de conflicto:** dato con timestamp más reciente gana — Atlas Peak no sobreescribe si el dato local es más reciente
 
-### 2.10 SMARTWATCH (WEAR OS)
+### 2.10 SMARTWATCH (WEAR OS) - DIFERIDO A V2
+
+> Fuera del alcance de v1. Esta seccion conserva el diseno del protocolo para reactivarlo en
+> v2 sin redisenar la app de telefono. En v1 no existe modulo `wear/`, no hay dependencia
+> `play-services-wearable`, no se declara `WearableListenerService` y Fase 13 solo verifica
+> que el aplazamiento sigue limpio.
 
 - Módulo `wear/` como APK separado empaquetado dentro del APK principal
 - Comunicación bidireccional via **Wearable Data Layer API**
@@ -271,7 +276,7 @@ Reloj → Teléfono (MessageClient — eventos puntuales):
   { "action": "pause_workout" }
 ```
 
-- `WearableListenerService` registrado en el manifest del teléfono para recibir mensajes del reloj
+- `WearableListenerService` se registrara en v2; no se declara en el manifest v1.
 
 ### 2.11 PERFIL DE USUARIO
 
@@ -379,8 +384,8 @@ Location:                   Google Play Services Location (FusedLocationProvider
 Maps:                       Google Maps Compose
 Background jobs:            WorkManager
 Foreground Services:        WorkoutForegroundService, CardioForegroundService
-Wear OS comunicación:       Wearable Data Layer API (DataClient + MessageClient)
-Wear OS UI:                 Wear Compose Material 3
+Wear OS comunicación:       Diferido a v2 (DataClient + MessageClient)
+Wear OS UI:                 Diferido a v2 (Wear Compose)
 Versioning:                 Git + GitHub
 CI/CD:                      GitHub Actions
 Testing:                    JUnit5 + MockK + Compose Testing + Room in-memory
@@ -470,8 +475,7 @@ dependencies {
     implementation("com.google.maps.android:maps-compose:6.1.2")
     implementation("com.google.android.gms:play-services-maps:19.0.0")
 
-    // ── Wear OS Data Layer ────────────────────────────────────────────────────
-    implementation("com.google.android.gms:play-services-wearable:18.2.0")
+    // Wear OS queda diferido a v2: no incluir play-services-wearable en v1.
 
     // ── Splash Screen API ────────────────────────────────────────────────────
     implementation("androidx.core:core-splashscreen:1.0.1")
@@ -496,7 +500,10 @@ dependencies {
 }
 ```
 
-### 3.3 DEPENDENCIAS MÓDULO WEAR (wear/build.gradle.kts)
+### 3.3 DEPENDENCIAS MÓDULO WEAR (v2, diferido)
+
+No se incluyen en v1. Mantener este bloque solo como referencia cuando se reactive el modulo
+`wear/` en v2.
 
 ```kotlin
 dependencies {
@@ -893,7 +900,7 @@ atlas-peak/
 │       │   │   └── DriveBackupManager.kt    ← serializar, cifrar, upload/download
 │       │   ├── location/
 │       │   │   └── LocationTracker.kt       ← FusedLocationProvider, Flow de ubicaciones
-│       │   ├── wear/
+│       │   ├── wear/                        ← v2, no existe en v1
 │       │   │   └── WearableDataManager.kt   ← DataClient + MessageClient
 │       │   └── security/
 │       │       └── EncryptionManager.kt     ← Keystore, AES-256-GCM, PBKDF2
@@ -962,7 +969,7 @@ atlas-peak/
 │       ├── util/                    ← extensiones, formatters, constantes
 │       └── MainActivity.kt
 │
-├── wear/                                    ← módulo Wear OS (APK separado)
+├── wear/                                    ← v2, módulo Wear OS (APK separado; no existe en v1)
 │   └── src/main/kotlin/com/atlaspeak/wear/
 │       ├── screen/
 │       │   ├── WearRestTimerScreen.kt
@@ -986,7 +993,7 @@ Presentation ←→ Domain ←→ Data
   ViewModels     Repository   Health Connect
   Navigation     Interfaces   Drive REST API
                               Location
-                              Wear Data Layer
+                              Wear Data Layer (v2)
 ```
 
 **Regla de oro:** las capas solo dependen hacia adentro. La capa `presentation` nunca importa Room entities directamente — trabaja con domain models.
@@ -1389,7 +1396,7 @@ jobs:
 - Seed data: grupos musculares, ejercicios preset, tipos de cardio preset
 - `SplashScreen` con `core-splashscreen`
 - `FeatureFlags.kt`
-- Módulo Wear OS: estructura básica del proyecto
+- Wear OS queda fuera de v1; se conserva solo el diseño en `SPEC.md §2.10`.
 
 **FASE 2 — Autenticación completa (2 semanas)**
 - Google Identity Services Sign-In opcional (Credential Manager API)
@@ -1480,11 +1487,11 @@ jobs:
 - Export JSON completo sin auth secrets + CSV ZIP por tipo
 - `BackupRestoreScreen` incluye opciones de export y Share Sheet
 
-**FASE 13 — Wear OS (4 semanas)**
-- Semana 1: `WearableDataManager.kt` en módulo phone — DataClient + MessageClient
-- Semana 2: `WearMainActivity` + navegación Wear Compose
-- Semana 3: `WearRestTimerScreen` + `WearMessageListenerService` (phone recibe mensajes del reloj)
-- Semana 4: integración completa con ActiveWorkout — phone → watch sync, watch → phone actions
+**FASE 13 — Wear OS diferido a v2**
+- No implementar modulo `wear/` en v1.
+- No añadir `play-services-wearable` ni clases `WearableDataManager`/`WearableListenerService`.
+- Cierre de fase v1: verificar que `settings.gradle.kts` solo incluye `:app`, que no hay
+  dependencias/codigo Wear activo y que la documentacion no contradice el aplazamiento.
 
 **FASE 14 — Seguridad + Hardening (1 semana)**
 - Revisar ProGuard/R8 rules (Room, Hilt, Retrofit, Kotlinx Serialization, SQLCipher)
@@ -1511,7 +1518,7 @@ jobs:
 
 **FASE 17 — Play Store + Release (1.5 semanas)**
 - Redactar Privacy Policy completa y publicarla en URL accesible
-- Completar `store listing`: descripción, screenshots (teléfono + tablet + Wear), icon
+- Completar `store listing`: descripción, screenshots (teléfono + tablet; Wear solo si v2 se reactiva), icon
 - Enviar solicitud de verificación a Google para uso de Health Connect (proceso puede tomar 1-4 semanas — iniciar al principio de esta fase)
 - Generar AAB firmado con release keystore
 - Subir a Play Store Internal Testing → revisar → Producción

@@ -10,6 +10,31 @@
 
 ## [No publicado]
 
+### Fase 13 - Wear OS diferido a v2
+
+#### 2026-05-24 - Cierre documental de aplazamiento Wear
+
+**Cambiado**
+- `SPEC.md` alinea la Fase 13 con la tabla v2.2: v1 no implementa modulo `wear/`, no anade
+  `play-services-wearable`, no declara `WearableListenerService` y conserva el protocolo solo
+  como diseno para v2.
+- Eliminada del plan de Fase 1 la instruccion residual de crear estructura Wear.
+- La matriz de dependencias marca Wear como referencia v2 y no como dependencia de `app`.
+- `app/proguard-rules.pro` corrige el comentario de fase de hardening R8/ProGuard a Fase 14.
+
+**Corregido**
+- Registrado y resuelto `BUG-020`: el spec decia "Wear diferido" y a la vez mantenia tareas
+  activas de Wear. Eso era una contradiccion operativa, no una decision de producto.
+
+**Verificado**
+- `settings.gradle.kts` solo incluye `:app`; no existe directorio `wear/`.
+- `app/build.gradle.kts` y `gradle/libs.versions.toml` no contienen dependencias Wear activas.
+- `app/src/main/AndroidManifest.xml` no declara servicios Wear.
+- `./gradlew assembleDebug assembleRelease test lint compileDebugAndroidTestKotlin --no-daemon`
+  pasa como gate completo de cierre.
+- `python Skills/05_Security/cyber-neo/scripts/scan_secrets.py app` no encuentra secretos.
+- `git diff --check` pasa.
+
 ### Fase 12 - Backup Google Drive + export
 
 #### 2026-05-24 - Backup cifrado, Drive appData y exports manuales

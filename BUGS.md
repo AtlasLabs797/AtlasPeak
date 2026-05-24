@@ -24,6 +24,19 @@
 
 ## Entradas
 
+### BUG-020 - Spec seguia pidiendo Wear OS dentro de v1
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-24
+- **Fase:** 13
+- **Severidad:** Media
+- **Sintoma:** aunque la tabla de fases marcaba Wear OS como diferido a v2, secciones antiguas seguian listando dependencias, modulo y tareas de Wear como si fueran parte de v1.
+- **Causa raiz:** se aplazo Wear en v2.2, pero no se limpio todo el texto operativo del spec.
+- **Solucion:** `SPEC.md` deja Fase 13 como verificacion de aplazamiento, marca dependencias/protocolo Wear como v2 y elimina la instruccion de crear estructura Wear en Fase 1.
+- **Prevencion:** cuando una fase se difiere, limpiar tabla, detalle de fase, dependencias y arbol de modulos en la misma sesion.
+- **Fecha resolucion:** 2026-05-24
+
+---
+
 ### BUG-019 - Drive upload usaba multipart form-data
 - **Estado:** Resuelto
 - **Fecha deteccion:** 2026-05-24
