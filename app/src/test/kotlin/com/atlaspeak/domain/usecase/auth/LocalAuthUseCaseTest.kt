@@ -82,6 +82,26 @@ class LocalAuthUseCaseTest {
     }
 
     @Test
+    fun `session unlock is required when timeout has elapsed`() = runTest {
+        useCase.setPassword("correct horse".toCharArray())
+        useCase.authenticate("correct horse".toCharArray())
+
+        nowMillis += 5 * 60_000L
+
+        assertTrue(useCase.shouldRequireSessionUnlock())
+    }
+
+    @Test
+    fun `session unlock is skipped before timeout`() = runTest {
+        useCase.setPassword("correct horse".toCharArray())
+        useCase.authenticate("correct horse".toCharArray())
+
+        nowMillis += 5 * 60_000L - 1
+
+        assertFalse(useCase.shouldRequireSessionUnlock())
+    }
+
+    @Test
     fun `short passwords are rejected before hashing`() = runTest {
         val result = useCase.setPassword("short".toCharArray())
 
@@ -126,6 +146,8 @@ class LocalAuthUseCaseTest {
         }
 
         override suspend fun isBiometricUnlockEnabled(): Boolean = biometricsEnabled
+
+        override suspend fun getUnlockTimeoutMinutes(): Int = 5
 
         override suspend fun setBiometricUnlockEnabled(enabled: Boolean) {
             biometricsEnabled = enabled

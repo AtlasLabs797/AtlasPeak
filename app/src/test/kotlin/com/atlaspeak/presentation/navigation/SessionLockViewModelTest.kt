@@ -1,7 +1,6 @@
-package com.atlaspeak.presentation.auth
+package com.atlaspeak.presentation.navigation
 
 import com.atlaspeak.domain.model.auth.AuthSecurityState
-import com.atlaspeak.domain.model.auth.GoogleSignInResult
 import com.atlaspeak.domain.model.auth.LocalUser
 import com.atlaspeak.domain.repository.AuthRepository
 import com.atlaspeak.domain.security.PasswordHash
@@ -14,14 +13,15 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
-import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
-class AuthViewModelTest {
+class SessionLockViewModelTest {
     private val dispatcher = StandardTestDispatcher()
+    private var nowMillis = 1_000_000L
 
     @BeforeEach
     fun setUp() {
@@ -34,59 +34,57 @@ class AuthViewModelTest {
     }
 
     @Test
-    fun `google sign in success never authenticates local data`() = runTest {
-        val viewModel = AuthViewModel(
-            localAuthUseCase = LocalAuthUseCase(FakeAuthRepository(passwordConfigured = true), FakePasswordHasher()),
+    fun `sensitive route locks after configured timeout`() = runTest {
+        val repository = FakeAuthRepository(lastLoginAt = 1_000_000L)
+        val viewModel = SessionLockViewModel(
+            LocalAuthUseCase(repository, NoopPasswordHasher(), { nowMillis }),
         )
+
+        nowMillis += 5 * 60_000L
+        viewModel.evaluate(AppRoute.Home.route)
         dispatcher.scheduler.advanceUntilIdle()
 
-        viewModel.onGoogleSignInResult(
-            GoogleSignInResult.Success(
-                idToken = "id-token",
-                googleId = "google-id",
-                email = "user@example.com",
-                displayName = "Atlas User",
-            ),
-        )
-
-        assertFalse(viewModel.state.value.isAuthenticated)
-        assertEquals(AuthUiMessage.GoogleRequiresLocalPassword, viewModel.state.value.message)
+        assertTrue(viewModel.state.value.lockRequired)
     }
 
-    private class FakePasswordHasher : PasswordHasher {
-        override suspend fun hashPassword(password: CharArray): PasswordHash {
-            return PasswordHash(hashBase64 = "hash", saltBase64 = "salt")
-        }
+    @Test
+    fun `login and launch routes never trigger session lock`() = runTest {
+        val repository = FakeAuthRepository(lastLoginAt = 1L)
+        val viewModel = SessionLockViewModel(
+            LocalAuthUseCase(repository, NoopPasswordHasher(), { Long.MAX_VALUE }),
+        )
+
+        viewModel.evaluate(AppRoute.Login.route)
+        assertFalse(viewModel.state.value.lockRequired)
+        viewModel.evaluate(AppRoute.Launch.route)
+        assertFalse(viewModel.state.value.lockRequired)
+    }
+
+    private class NoopPasswordHasher : PasswordHasher {
+        override suspend fun hashPassword(password: CharArray): PasswordHash =
+            PasswordHash(hashBase64 = "", saltBase64 = "")
 
         override suspend fun verifyPassword(password: CharArray, storedHash: PasswordHash): Boolean = true
     }
 
     private class FakeAuthRepository(
-        passwordConfigured: Boolean,
+        private val lastLoginAt: Long?,
     ) : AuthRepository {
-        private var user = if (passwordConfigured) {
-            LocalUser(
-                id = "local-user",
-                googleId = null,
-                email = null,
-                passwordHash = "hash",
-                passwordSalt = "salt",
-                createdAt = 1L,
-                lastLoginAt = null,
-            )
-        } else {
-            null
-        }
-
-        override suspend fun getLocalUser(): LocalUser? = user
+        override suspend fun getLocalUser(): LocalUser = LocalUser(
+            id = "local-user",
+            googleId = null,
+            email = null,
+            passwordHash = "hash",
+            passwordSalt = "salt",
+            createdAt = 1L,
+            lastLoginAt = lastLoginAt,
+        )
 
         override suspend fun createOrUpdateLocalPassword(passwordHash: PasswordHash, nowMillis: Long) = Unit
 
-        override suspend fun markLogin(nowMillis: Long) {
-            user = user?.copy(lastLoginAt = nowMillis)
-        }
+        override suspend fun markLogin(nowMillis: Long) = Unit
 
-        override suspend fun isBiometricUnlockEnabled(): Boolean = false
+        override suspend fun isBiometricUnlockEnabled(): Boolean = true
 
         override suspend fun getUnlockTimeoutMinutes(): Int = 5
 

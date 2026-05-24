@@ -2,7 +2,7 @@ package com.atlaspeak.presentation.backup
 
 import android.content.Intent
 import androidx.fragment.app.FragmentActivity
-import com.atlaspeak.data.drive.awaitResult
+import com.atlaspeak.core.google.awaitResult
 import com.google.android.gms.auth.api.identity.AuthorizationRequest
 import com.google.android.gms.auth.api.identity.Identity
 import com.google.android.gms.common.Scopes

@@ -330,6 +330,7 @@ Si el usuario pierde acceso a Google **y** olvida la contraseña local → los d
 - **Export manual:** JSON (estructura completa exportable) o CSV (un archivo por tipo: sesiones, sets, cardio, composición corporal)
 - Export guarda en almacenamiento privado de la app, luego comparte via Android `ShareSheet` — el usuario elige dónde enviarlo (Drive, email, etc.)
 - Export incluye: rutinas, ejercicios, sesiones, sets, cardio, composición corporal, plan semanal
+- Export JSON/CSV en claro exige step-up auth con contraseña local antes de escribir el archivo.
 
 ### 2.14 ONBOARDING (PRIMER LANZAMIENTO)
 
@@ -1181,6 +1182,7 @@ la propia marca de exito del backup anterior.
 - El backup cifrado contiene las tablas necesarias para restaurar (`users` incluido). El
   export manual JSON/CSV, al no estar cifrado, excluye hashes/salts de contraseña y
   `auth_security`.
+- El export manual en claro exige reautenticacion local justo antes de generar el archivo.
 
 ### 7.6 Puntos Débiles Conocidos y Aceptados
 
@@ -1484,7 +1486,7 @@ jobs:
 - `DriveBackupManager.kt`: serialize → encrypt (AES-256-GCM, clave derivada de password) → upload
 - `BackupRestoreScreen`: listar backups, crear manual, restaurar
 - `BackupWorker`: backup automático diario si hay cambios
-- Export JSON completo sin auth secrets + CSV ZIP por tipo
+- Export JSON completo sin auth secrets + CSV ZIP por tipo, con step-up auth local
 - `BackupRestoreScreen` incluye opciones de export y Share Sheet
 
 **FASE 13 — Wear OS diferido a v2**

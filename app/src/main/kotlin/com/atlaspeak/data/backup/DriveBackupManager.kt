@@ -23,7 +23,11 @@ class DriveBackupManager(
         return runCatching {
             val now = clock()
             val payload = backupJsonCodec.encode(snapshotStore.snapshot()).encodeToByteArray()
-            val encrypted = backupFileCodec.encrypt(payload, password)
+            val encrypted = try {
+                backupFileCodec.encrypt(payload, password)
+            } finally {
+                payload.fill(0)
+            }
             val uploaded = driveBackupService.uploadBackup(
                 accessToken = accessToken,
                 fileName = backupFileName(now),
@@ -47,7 +51,12 @@ class DriveBackupManager(
 
         return runCatching {
             val encrypted = driveBackupService.downloadBackup(accessToken, fileId)
-            val json = backupFileCodec.decrypt(encrypted, password).decodeToString()
+            val plaintext = backupFileCodec.decrypt(encrypted, password)
+            val json = try {
+                plaintext.decodeToString()
+            } finally {
+                plaintext.fill(0)
+            }
             val snapshot = backupJsonCodec.decode(json)
             snapshotStore.restore(snapshot)
             BackupOperationResult.Success()

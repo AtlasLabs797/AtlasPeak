@@ -152,6 +152,8 @@ class OnboardingViewModelTest {
 
         override suspend fun isBiometricUnlockEnabled(): Boolean = biometricsEnabled
 
+        override suspend fun getUnlockTimeoutMinutes(): Int = 5
+
         override suspend fun setBiometricUnlockEnabled(enabled: Boolean) {
             biometricsEnabled = enabled
         }

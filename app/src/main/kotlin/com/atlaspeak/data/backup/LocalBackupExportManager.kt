@@ -27,7 +27,12 @@ class LocalBackupExportManager @Inject constructor(
     suspend fun writeEncryptedBackup(password: CharArray): SharedExportFile = withContext(Dispatchers.IO) {
         require(password.isNotEmpty()) { "Password required" }
         val snapshot = snapshotStore.snapshot()
-        val encrypted = backupFileCodec.encrypt(backupJsonCodec.encode(snapshot).encodeToByteArray(), password)
+        val payload = backupJsonCodec.encode(snapshot).encodeToByteArray()
+        val encrypted = try {
+            backupFileCodec.encrypt(payload, password)
+        } finally {
+            payload.fill(0)
+        }
         val file = exportFile("atlas_peak_backup_${timestamp()}.enc")
         file.writeBytes(encrypted)
         file.toSharedFile("application/octet-stream")

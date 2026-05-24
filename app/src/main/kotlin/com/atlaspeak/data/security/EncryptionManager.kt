@@ -24,10 +24,16 @@ class EncryptionManager @Inject constructor() : PasswordHasher {
 
     override suspend fun hashPassword(password: CharArray): PasswordHash = withContext(Dispatchers.IO) {
         val salt = ByteArray(PASSWORD_SALT_BYTES).also(secureRandom::nextBytes)
-        PasswordHash(
-            hashBase64 = base64Encoder.encodeToString(derivePasswordKey(password, salt)),
-            saltBase64 = base64Encoder.encodeToString(salt),
-        )
+        val derivedKey = derivePasswordKey(password, salt)
+        try {
+            PasswordHash(
+                hashBase64 = base64Encoder.encodeToString(derivedKey),
+                saltBase64 = base64Encoder.encodeToString(salt),
+            )
+        } finally {
+            derivedKey.fill(0)
+            salt.fill(0)
+        }
     }
 
     override suspend fun verifyPassword(
@@ -38,7 +44,13 @@ class EncryptionManager @Inject constructor() : PasswordHasher {
             val salt = base64Decoder.decode(storedHash.saltBase64)
             val expected = base64Decoder.decode(storedHash.hashBase64)
             val actual = derivePasswordKey(password, salt)
-            MessageDigest.isEqual(expected, actual)
+            try {
+                MessageDigest.isEqual(expected, actual)
+            } finally {
+                actual.fill(0)
+                expected.fill(0)
+                salt.fill(0)
+            }
         } catch (_: IllegalArgumentException) {
             false
         } catch (_: InvalidKeySpecException) {

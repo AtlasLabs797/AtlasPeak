@@ -11,20 +11,36 @@ import kotlin.math.max
 class LocalAuthUseCase @Inject constructor(
     private val authRepository: AuthRepository,
     private val passwordHasher: PasswordHasher,
+    private val biometricAuthPolicy: BiometricAuthPolicy,
 ) {
     private var nowMillis: () -> Long = { System.currentTimeMillis() }
 
     constructor(
         authRepository: AuthRepository,
         passwordHasher: PasswordHasher,
+    ) : this(authRepository, passwordHasher, BiometricAuthPolicy())
+
+    constructor(
+        authRepository: AuthRepository,
+        passwordHasher: PasswordHasher,
         nowMillis: () -> Long,
-    ) : this(authRepository, passwordHasher) {
+    ) : this(authRepository, passwordHasher, BiometricAuthPolicy()) {
         this.nowMillis = nowMillis
     }
 
     suspend fun isPasswordConfigured(): Boolean = authRepository.getLocalUser() != null
 
     suspend fun isBiometricUnlockEnabled(): Boolean = authRepository.isBiometricUnlockEnabled()
+
+    suspend fun shouldRequireSessionUnlock(): Boolean {
+        val user = authRepository.getLocalUser() ?: return false
+        return biometricAuthPolicy.shouldRequireUnlock(
+            passwordConfigured = true,
+            timeoutMinutes = authRepository.getUnlockTimeoutMinutes(),
+            lastUnlockAtMillis = user.lastLoginAt,
+            nowMillis = nowMillis(),
+        )
+    }
 
     suspend fun setBiometricUnlockEnabled(enabled: Boolean) {
         authRepository.setBiometricUnlockEnabled(enabled)

@@ -10,6 +10,47 @@
 
 ## [No publicado]
 
+### Auditoria final v1
+
+#### 2026-05-24 - Seguridad, arquitectura y backup hardening
+
+**Anadido**
+- `SessionLockViewModel` revalida rutas sensibles en `ON_RESUME` y vuelve a `Login` si expira
+  el timeout local.
+- Contrato de backup en dominio: `BackupRepository`, `BackupUseCase` y modelos `DriveBackup`,
+  `BackupResult`, `SharedBackupExport`.
+- `DataBackupRepository` mapea la implementacion Room/Drive/export a modelos de dominio.
+- `StaticArchitecturePolicyTest` bloquea imports `presentation -> data` y dependencias UI/data
+  dentro de `domain`.
+- Tests de regresion para timeout de sesion, step-up auth de export plaintext y columnas
+  desconocidas en restore de backup.
+
+**Cambiado**
+- `BackupRestoreViewModel` ya no depende de managers de `data`; consume `BackupUseCase`.
+- Export JSON/CSV en claro exige contrasena local antes de escribir el archivo y limpia
+  `BackupRestoreUiState.password` tras operaciones sensibles.
+- `GoogleTaskAwait` se mueve a `core/google` para evitar que presentation importe helpers de data.
+- `BackupFileCodec`, `DriveBackupManager`, `LocalBackupExportManager` y `EncryptionManager`
+  limpian buffers derivados/temporales cuando ya no se necesitan.
+- Restore de backup valida columnas por tabla antes de insertar filas restauradas.
+
+**Corregido**
+- Registrado `SEC-021` / `BUG-030`: timeout de desbloqueo local no estaba conectado a lifecycle.
+- Registrado `SEC-022` / `BUG-029`: export plaintext no exigia step-up auth y retenia password UI.
+- Registrado `SEC-023`: restore aceptaba columnas desconocidas hasta SQLite.
+- Registrado `BUG-028`: presentation de backup importaba data layer.
+
+**Verificado**
+- `./gradlew compileDebugKotlin testDebugUnitTest --tests com.atlaspeak.domain.usecase.auth.LocalAuthUseCaseTest --tests com.atlaspeak.domain.usecase.auth.BiometricAuthPolicyTest --tests com.atlaspeak.presentation.navigation.SessionLockViewModelTest --tests com.atlaspeak.presentation.backup.BackupRestoreViewModelTest --tests com.atlaspeak.architecture.StaticArchitecturePolicyTest --no-daemon`
+  pasa.
+- `./gradlew assembleDebug assembleRelease test lint compileDebugAndroidTestKotlin jacocoDebugDomainDataCoverageVerification --no-daemon`
+  pasa como gate final.
+- `python Skills/05_Security/cyber-neo/scripts/scan_secrets.py app` no encuentra secretos.
+- `python Skills/05_Security/cyber-neo/scripts/check_lockfiles.py .` no encuentra hallazgos.
+- `git diff --check` pasa.
+- QA visual/performance runtime sigue bloqueada: `adb devices` no lista dispositivos, no hay AVDs,
+  y `emulator -accel-check` devuelve codigo 6.
+
 ### Fase 16 - Polish + performance + accesibilidad
 
 #### 2026-05-24 - Tipografia, contraste AA y QA estatica de UI

@@ -130,6 +130,33 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
 - **Solucion:** `WorkoutForegroundService` y `CardioForegroundService` usan `setVisibility(NotificationCompat.VISIBILITY_PRIVATE)` y canales con `lockscreenVisibility = Notification.VISIBILITY_PRIVATE`; los canales generales tambien fijan visibilidad privada.
 - **Prevencion:** test estatico `all notification builders and channels are private on lockscreen`.
 
+### SEC-021 - Timeout de desbloqueo local no se ejecutaba al volver a foreground
+- **Estado:** Resuelto
+- **Fecha:** 2026-05-24
+- **Severidad:** Alta
+- **Sintoma:** `biometric_timeout_min` y la politica de timeout existian, pero ninguna ruta sensible revalidaba el desbloqueo al volver de background.
+- **Causa raiz:** el gate de auth solo se ejecutaba en `Launch`; `FLAG_SECURE` bloquea capturas, pero no bloquea a una persona con el dispositivo desbloqueado.
+- **Solucion:** `SessionLockViewModel` evalua rutas sensibles en `ON_RESUME` y fuerza vuelta a `Login` si `last_login_at` supera el timeout configurado. `LocalAuthUseCase` expone `shouldRequireSessionUnlock()` y `AuthRepository` lee el timeout persistido.
+- **Prevencion:** `SessionLockViewModelTest` y nuevos tests de `LocalAuthUseCase` cubren timeout expirado/no expirado.
+
+### SEC-022 - Export JSON/CSV en claro sin step-up auth
+- **Estado:** Resuelto
+- **Fecha:** 2026-05-24
+- **Severidad:** Media
+- **Sintoma:** una sesion ya abierta podia exportar datos de salud/entrenamiento en claro por ShareSheet sin volver a pedir contrasena.
+- **Causa raiz:** el flujo de export manual excluia hashes y lockout, pero no distinguia entre sesion autenticada y accion sensible de exfiltracion.
+- **Solucion:** `BackupRestoreViewModel.exportJson()` y `exportCsv()` verifican la contrasena local con `LocalAuthUseCase.authenticate()` antes de escribir el archivo; despues limpian el estado de password de UI. Los backups cifrados siguen usando la password para cifrar.
+- **Prevencion:** `BackupRestoreViewModelTest` prueba rechazo con password incorrecta, ejecucion con password correcta y limpieza del estado.
+
+### SEC-023 - Restore de backup aceptaba columnas desconocidas hasta SQLite
+- **Estado:** Resuelto
+- **Fecha:** 2026-05-24
+- **Severidad:** Media
+- **Sintoma:** el restore validaba el set de tablas, pero no el set de columnas por fila antes de insertar el JSON restaurado.
+- **Causa raiz:** se confiaba en SQLite para fallar ante columnas invalidas en vez de rechazar el backup en la frontera de validacion.
+- **Solucion:** `RoomBackupSnapshotStore.restore()` obtiene `PRAGMA table_info` por tabla y rechaza filas con columnas desconocidas antes de borrar/insertar datos.
+- **Prevencion:** `RoomBackupSnapshotStoreInstrumentedTest.restoreRejectsUnknownColumnsBeforeWriting`.
+
 ### SEC-001 — Backup no restaurable: falta el salt en el archivo cifrado
 - **Estado:** 🟢 Resuelto (en diseño)
 - **Fecha:** 2026-05-23

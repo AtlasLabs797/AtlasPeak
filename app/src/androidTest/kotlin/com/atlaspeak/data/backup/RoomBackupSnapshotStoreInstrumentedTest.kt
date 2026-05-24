@@ -15,9 +15,11 @@ import com.atlaspeak.data.db.entity.UserProfileEntity
 import com.atlaspeak.data.db.entity.WorkoutSessionEntity
 import com.atlaspeak.data.db.entity.WorkoutSetEntity
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.JsonPrimitive
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -59,6 +61,21 @@ class RoomBackupSnapshotStoreInstrumentedTest {
         assertEquals(1, database.workoutDao().getSets("session-1").size)
         assertEquals(1, database.healthConnectDao().countSleepStages())
         assertEquals(1_700_000_000_000, database.settingsDao().getSettings()?.lastBackupAt)
+    }
+
+    @Test
+    fun restoreRejectsUnknownColumnsBeforeWriting() = runTest {
+        insertConnectedRows()
+        val snapshot = store.snapshot()
+        val poisonedUsers = snapshot.tables.getValue("users").map { row ->
+            row + ("unexpected_column" to JsonPrimitive("boom"))
+        }
+        val poisoned = snapshot.copy(tables = snapshot.tables + ("users" to poisonedUsers))
+
+        val result = runCatching { store.restore(poisoned) }
+
+        assertTrue(result.exceptionOrNull() is IllegalArgumentException)
+        assertEquals("Athlete", database.userProfileDao().getProfile()?.displayName)
     }
 
     private suspend fun insertConnectedRows() {

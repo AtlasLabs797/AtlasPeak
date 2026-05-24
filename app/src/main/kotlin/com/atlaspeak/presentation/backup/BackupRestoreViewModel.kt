@@ -4,13 +4,12 @@ import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.atlaspeak.R
-import com.atlaspeak.data.backup.BackupCredentialStore
-import com.atlaspeak.data.backup.BackupOperationResult
-import com.atlaspeak.data.backup.BackupSnapshotStore
-import com.atlaspeak.data.backup.DriveBackupFile
-import com.atlaspeak.data.backup.DriveBackupManager
-import com.atlaspeak.data.backup.LocalBackupExportManager
-import com.atlaspeak.data.backup.SharedExportFile
+import com.atlaspeak.domain.model.backup.BackupResult
+import com.atlaspeak.domain.model.backup.DriveBackup
+import com.atlaspeak.domain.model.backup.SharedBackupExport
+import com.atlaspeak.domain.model.auth.LocalAuthResult
+import com.atlaspeak.domain.usecase.auth.LocalAuthUseCase
+import com.atlaspeak.domain.usecase.backup.BackupUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -24,10 +23,8 @@ import kotlinx.coroutines.launch
 
 @HiltViewModel
 class BackupRestoreViewModel @Inject constructor(
-    private val driveBackupManager: DriveBackupManager,
-    private val localBackupExportManager: LocalBackupExportManager,
-    private val snapshotStore: BackupSnapshotStore,
-    private val credentialStore: BackupCredentialStore,
+    private val backupUseCase: BackupUseCase,
+    private val localAuthUseCase: LocalAuthUseCase,
 ) : ViewModel() {
     private val _state = MutableStateFlow(BackupRestoreUiState())
     val state: StateFlow<BackupRestoreUiState> = _state.asStateFlow()
@@ -37,10 +34,11 @@ class BackupRestoreViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
+            val status = backupUseCase.status()
             _state.update {
                 it.copy(
-                    autoBackupEnabled = snapshotStore.autoBackupEnabled(),
-                    lastBackupAt = snapshotStore.lastBackupAt(),
+                    autoBackupEnabled = status.autoBackupEnabled,
+                    lastBackupAt = status.lastBackupAt,
                 )
             }
         }
@@ -67,14 +65,15 @@ class BackupRestoreViewModel @Inject constructor(
             }
             try {
                 if (enabled) {
-                    credentialStore.saveAutoBackupPassword(password)
+                    backupUseCase.saveAutoBackupPassword(password)
                 } else {
-                    credentialStore.clearAutoBackupPassword()
+                    backupUseCase.clearAutoBackupPassword()
                 }
             } finally {
                 password.fill('\u0000')
+                clearPassword()
             }
-            snapshotStore.setAutoBackupEnabled(enabled)
+            backupUseCase.setAutoBackupEnabled(enabled)
             _state.update {
                 it.copy(
                     autoBackupEnabled = enabled,
@@ -87,7 +86,7 @@ class BackupRestoreViewModel @Inject constructor(
     fun loadDriveBackups(accessToken: String) {
         viewModelScope.launch {
             setLoading(true)
-            runCatching { driveBackupManager.listBackups(accessToken) }
+            runCatching { backupUseCase.listDriveBackups(accessToken) }
                 .onSuccess { backups ->
                     _state.update {
                         it.copy(
@@ -112,23 +111,25 @@ class BackupRestoreViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 setLoading(true)
-                when (driveBackupManager.createBackup(accessToken, password)) {
-                    is BackupOperationResult.Success -> {
+                when (backupUseCase.createDriveBackup(accessToken, password)) {
+                    is BackupResult.Success -> {
+                        val status = backupUseCase.status()
                         _state.update {
                             it.copy(
                                 isLoading = false,
-                                lastBackupAt = snapshotStore.lastBackupAt(),
+                                lastBackupAt = status.lastBackupAt,
                                 messageRes = R.string.backup_drive_created,
                             )
                         }
                         loadDriveBackups(accessToken)
                     }
-                    is BackupOperationResult.Failed -> {
+                    is BackupResult.Failed -> {
                         _state.update { it.copy(isLoading = false, messageRes = R.string.backup_drive_failed) }
                     }
                 }
             } finally {
                 password.fill('\u0000')
+                clearPassword()
             }
         }
     }
@@ -142,8 +143,8 @@ class BackupRestoreViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 setLoading(true)
-                when (driveBackupManager.restoreBackup(accessToken, fileId, password)) {
-                    is BackupOperationResult.Success -> {
+                when (backupUseCase.restoreDriveBackup(accessToken, fileId, password)) {
+                    is BackupResult.Success -> {
                         _state.update {
                             it.copy(
                                 isLoading = false,
@@ -152,12 +153,13 @@ class BackupRestoreViewModel @Inject constructor(
                             )
                         }
                     }
-                    is BackupOperationResult.Failed -> {
+                    is BackupResult.Failed -> {
                         _state.update { it.copy(isLoading = false, messageRes = R.string.backup_restore_failed) }
                     }
                 }
             } finally {
                 password.fill('\u0000')
+                clearPassword()
             }
         }
     }
@@ -170,21 +172,24 @@ class BackupRestoreViewModel @Inject constructor(
         }
         writeSharedFile(
             successRes = R.string.backup_local_created,
-            finallyBlock = { password.fill('\u0000') },
+            finallyBlock = {
+                password.fill('\u0000')
+                clearPassword()
+            },
         ) {
-            localBackupExportManager.writeEncryptedBackup(password)
+            backupUseCase.writeEncryptedBackup(password)
         }
     }
 
     fun exportJson() {
-        writeSharedFile(R.string.backup_export_created) {
-            localBackupExportManager.writeManualJson()
+        writePlaintextExport {
+            backupUseCase.writeManualJson()
         }
     }
 
     fun exportCsv() {
-        writeSharedFile(R.string.backup_export_created) {
-            localBackupExportManager.writeCsvZip()
+        writePlaintextExport {
+            backupUseCase.writeCsvZip()
         }
     }
 
@@ -195,7 +200,7 @@ class BackupRestoreViewModel @Inject constructor(
     private fun writeSharedFile(
         @StringRes successRes: Int,
         finallyBlock: () -> Unit = {},
-        block: suspend () -> SharedExportFile,
+        block: suspend () -> SharedBackupExport,
     ) {
         viewModelScope.launch {
             try {
@@ -205,8 +210,13 @@ class BackupRestoreViewModel @Inject constructor(
                         _state.update { it.copy(isLoading = false, messageRes = successRes) }
                         _events.emit(BackupRestoreEvent.Share(file))
                     }
-                    .onFailure {
-                        _state.update { it.copy(isLoading = false, messageRes = R.string.backup_export_failed) }
+                    .onFailure { error ->
+                        val message = if (error is PlaintextExportAuthException) {
+                            R.string.auth_error_invalid_credentials
+                        } else {
+                            R.string.backup_export_failed
+                        }
+                        _state.update { it.copy(isLoading = false, messageRes = message) }
                     }
             } finally {
                 finallyBlock()
@@ -217,6 +227,32 @@ class BackupRestoreViewModel @Inject constructor(
     private fun setLoading(loading: Boolean) {
         _state.update { it.copy(isLoading = loading, messageRes = null) }
     }
+
+    private fun writePlaintextExport(block: suspend () -> SharedBackupExport) {
+        val password = state.value.password.toCharArray()
+        if (password.isEmpty()) {
+            _state.update { it.copy(messageRes = R.string.backup_password_required) }
+            return
+        }
+        writeSharedFile(
+            successRes = R.string.backup_export_created,
+            finallyBlock = {
+                password.fill('\u0000')
+                clearPassword()
+            },
+        ) {
+            when (localAuthUseCase.authenticate(password)) {
+                LocalAuthResult.Success -> block()
+                else -> throw PlaintextExportAuthException()
+            }
+        }
+    }
+
+    private fun clearPassword() {
+        _state.update { it.copy(password = "") }
+    }
+
+    private class PlaintextExportAuthException : RuntimeException()
 }
 
 data class BackupRestoreUiState(
@@ -224,11 +260,11 @@ data class BackupRestoreUiState(
     val password: String = "",
     val autoBackupEnabled: Boolean = false,
     val lastBackupAt: Long? = null,
-    val driveBackups: List<DriveBackupFile> = emptyList(),
+    val driveBackups: List<DriveBackup> = emptyList(),
     val pendingRestoreFileId: String? = null,
     @StringRes val messageRes: Int? = null,
 )
 
 sealed interface BackupRestoreEvent {
-    data class Share(val file: SharedExportFile) : BackupRestoreEvent
+    data class Share(val file: SharedBackupExport) : BackupRestoreEvent
 }

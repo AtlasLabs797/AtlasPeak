@@ -3,6 +3,7 @@ package com.atlaspeak.data.backup
 import android.content.ContentValues
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.atlaspeak.data.db.AppDatabase
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -34,11 +35,14 @@ class RoomBackupSnapshotStore @Inject constructor(
         require(snapshot.tables.keys == AppDatabase.TABLES) { "Backup table set does not match the app schema" }
         database.runInTransaction {
             val db = database.openHelper.writableDatabase
+            val tableColumns = AppDatabase.TABLE_ORDER.associateWith { table -> db.columnsFor(table) }
             AppDatabase.TABLE_ORDER.asReversed().forEach { table ->
                 db.execSQL("DELETE FROM $table")
             }
             AppDatabase.TABLE_ORDER.forEach { table ->
+                val allowedColumns = tableColumns.getValue(table)
                 snapshot.tables.getValue(table).forEach { row ->
+                    require(row.keys.all { it in allowedColumns }) { "Backup row contains an unknown column" }
                     db.insert(table, SQLiteDatabase.CONFLICT_REPLACE, row.toContentValues())
                 }
             }
@@ -105,6 +109,17 @@ class RoomBackupSnapshotStore @Inject constructor(
             value.longOrNull != null -> put(column, value.longOrNull)
             value.doubleOrNull != null -> put(column, value.doubleOrNull)
             else -> put(column, value.content)
+        }
+    }
+
+    private fun SupportSQLiteDatabase.columnsFor(table: String): Set<String> {
+        return query("PRAGMA table_info($table)").use { cursor ->
+            buildSet {
+                val nameIndex = cursor.getColumnIndexOrThrow("name")
+                while (cursor.moveToNext()) {
+                    add(cursor.getString(nameIndex))
+                }
+            }
         }
     }
 

@@ -17,7 +17,22 @@ class BiometricAuthPolicy @Inject constructor() {
         lastUnlockAtMillis: Long?,
         nowMillis: Long,
     ): Boolean {
-        if (!biometricsEnabled || !passwordConfigured || timeoutMinutes == TIMEOUT_NEVER) return false
+        if (!biometricsEnabled) return false
+        return shouldRequireUnlock(
+            passwordConfigured = passwordConfigured,
+            timeoutMinutes = timeoutMinutes,
+            lastUnlockAtMillis = lastUnlockAtMillis,
+            nowMillis = nowMillis,
+        )
+    }
+
+    fun shouldRequireUnlock(
+        passwordConfigured: Boolean,
+        timeoutMinutes: Int,
+        lastUnlockAtMillis: Long?,
+        nowMillis: Long,
+    ): Boolean {
+        if (!passwordConfigured || timeoutMinutes == TIMEOUT_NEVER) return false
         if (!isSupportedTimeoutMinutes(timeoutMinutes)) return false
         val lastUnlock = lastUnlockAtMillis ?: return true
         return nowMillis - lastUnlock >= timeoutMinutes * 60_000L

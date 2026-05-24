@@ -3,6 +3,7 @@ package com.atlaspeak.presentation.backup
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.IntentSenderRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -53,8 +54,8 @@ import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.atlaspeak.R
-import com.atlaspeak.data.backup.DriveBackupFile
-import com.atlaspeak.data.backup.SharedExportFile
+import com.atlaspeak.domain.model.backup.DriveBackup
+import com.atlaspeak.domain.model.backup.SharedBackupExport
 import com.atlaspeak.presentation.theme.LocalSpacing
 import java.text.DateFormat
 import java.util.Date
@@ -325,7 +326,7 @@ private fun PasswordCard(
 
 @Composable
 private fun DriveBackupCard(
-    backups: List<DriveBackupFile>,
+    backups: List<DriveBackup>,
     pendingRestoreFileId: String?,
     onRefreshDrive: () -> Unit,
     onCreateDriveBackup: () -> Unit,
@@ -377,7 +378,7 @@ private fun DriveBackupCard(
 
 @Composable
 private fun BackupFileRow(
-    backup: DriveBackupFile,
+    backup: DriveBackup,
     isPendingRestore: Boolean,
     onConfirmRestore: (String) -> Unit,
     onCancelRestore: () -> Unit,
@@ -471,10 +472,10 @@ private fun SectionTitle(titleRes: Int, bodyRes: Int) {
     }
 }
 
-private fun Context.shareFile(file: SharedExportFile) {
+private fun Context.shareFile(file: SharedBackupExport) {
     val sendIntent = Intent(Intent.ACTION_SEND)
         .setType(file.mimeType)
-        .putExtra(Intent.EXTRA_STREAM, file.uri)
+        .putExtra(Intent.EXTRA_STREAM, Uri.parse(file.uri))
         .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     startActivity(Intent.createChooser(sendIntent, getString(R.string.backup_share_title)))
 }

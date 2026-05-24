@@ -39,7 +39,8 @@ descargas runtime. El origen/licencia esta en `THIRD_PARTY_NOTICES.md`.
 
 ```
 data/
-  backup/       Snapshot Room, codec ATPK, export local, DriveBackupManager, BackupWorker
+  backup/       Snapshot Room, codec ATPK, export local, DriveBackupManager, BackupWorker,
+                DataBackupRepository
   db/            AppDatabase (SQLCipher), dao/, entity/
   repository/    implementaciones de las interfaces de domain
   healthconnect/ HealthConnectManager (permisos, import, export)
@@ -53,7 +54,7 @@ domain/
 presentation/
   auth/          LoginScreen, AuthViewModel, BiometricPromptAuthenticator
   onboarding/    OnboardingScreen, OnboardingViewModel
-  navigation/    Launch gate, NavHost, bottom navigation, secure route effect
+  navigation/    Launch gate, NavHost, bottom navigation, secure route effect, session lock
   workout/       TrainScreen, TrainViewModel (biblioteca de ejercicios, rutinas y cardio)
   cardio/        ActiveCardioScreen, CardioCompleteScreen y ViewModels
   progress/      ProgressScreen, ProgressViewModel (historial y graficas)
@@ -108,7 +109,9 @@ Notas de integridad:
   Hash y salt en la DB SQLCipher. Ejecución en `Dispatchers.IO`.
 - **Gate de app:** `AtlasPeakNavHost` arranca en `Launch`. Si `onboarding_completed=false`
   navega a `Onboarding`; si ya está completado navega a `Login`. Tras autenticación local
-  correcta navega a `Home` limpiando login del back stack.
+  correcta navega a `Home` limpiando login del back stack. `SessionLockViewModel` reevalua
+  rutas sensibles en `ON_RESUME` y vuelve a `Login` cuando `last_login_at` supera el timeout
+  configurado.
 - **Google:** Credential Manager se lanza desde la `FragmentActivity` de UI para identidad.
   Drive usa un flujo separado de `AuthorizationClient` con scope `drive.appdata`. Un ID token
   Google no es un bearer token valido para Drive y nunca desbloquea la DB local.
@@ -129,8 +132,9 @@ Notas de integridad:
 - **Backup automatico:** opt-in. Para cifrar sin pedir contrasena cada dia, la contrasena de
   backup se guarda cifrada en `EncryptedSharedPreferences` protegido por Keystore. Si no hay
   grant silencioso de Drive o contrasena guardada, el worker termina sin lanzar UI.
-- **Export manual:** JSON/CSV sin cifrar excluye `users` y `auth_security` para no compartir
-  hashes de contrasena, salts ni estado de bloqueo.
+- **Export manual:** JSON/CSV sin cifrar exige step-up auth con contrasena local, excluye
+  `users` y `auth_security` para no compartir hashes de contrasena, salts ni estado de bloqueo.
+  El restore valida tablas y columnas contra el schema actual antes de insertar datos.
 - **Secretos:** `MAPS_API_KEY` y `OAUTH_WEB_CLIENT_ID` en `secrets.properties` (gitignored),
   inyectados via `manifestPlaceholders` y `BuildConfig`. **Sin `google-services.json`.**
 

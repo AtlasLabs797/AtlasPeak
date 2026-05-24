@@ -14,12 +14,19 @@ import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.navigation.NavDestination.Companion.hierarchy
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.atlaspeak.R
@@ -27,12 +34,29 @@ import com.atlaspeak.R
 @Composable
 fun AtlasPeakApp() {
     val navController = rememberNavController()
+    val sessionLockViewModel: SessionLockViewModel = hiltViewModel()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentDestination = navBackStackEntry?.destination
-    val currentRoute = currentDestination?.route
+    val currentRoute = navBackStackEntry?.destination?.route
     val showBottomBar = currentRoute in bottomTabs.map { it.route.route }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    val lockState = sessionLockViewModel.state.collectAsStateWithLifecycle().value
 
     SecureScreenEffect(currentRoute)
+    DisposableEffect(lifecycleOwner, currentRoute) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                sessionLockViewModel.evaluate(currentRoute)
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    LaunchedEffect(lockState.lockRequired) {
+        if (lockState.lockRequired) {
+            navController.navigateToSessionLock()
+            sessionLockViewModel.onLockHandled()
+        }
+    }
 
     Scaffold(
         bottomBar = {
@@ -54,6 +78,19 @@ fun AtlasPeakApp() {
     ) { innerPadding ->
         Box(Modifier.padding(innerPadding)) {
             AtlasPeakNavHost(navController = navController)
+        }
+    }
+}
+
+private fun NavHostController.navigateToSessionLock() {
+    runCatching {
+        navigate(AppRoute.Login.route) {
+            popUpTo(AppRoute.Home.route) { inclusive = true }
+            launchSingleTop = true
+        }
+    }.onFailure {
+        navigate(AppRoute.Login.route) {
+            launchSingleTop = true
         }
     }
 }

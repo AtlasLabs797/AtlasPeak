@@ -9,6 +9,7 @@ interface AuthRepository {
     suspend fun createOrUpdateLocalPassword(passwordHash: PasswordHash, nowMillis: Long)
     suspend fun markLogin(nowMillis: Long)
     suspend fun isBiometricUnlockEnabled(): Boolean
+    suspend fun getUnlockTimeoutMinutes(): Int
     suspend fun setBiometricUnlockEnabled(enabled: Boolean)
     suspend fun getAuthSecurityState(): AuthSecurityState
     suspend fun recordFailedPasswordAttempt(nowMillis: Long): AuthSecurityState

@@ -24,6 +24,45 @@
 
 ## Entradas
 
+### BUG-030 - Timeout de desbloqueo local no estaba conectado a lifecycle
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-24
+- **Fase:** Auditoria final
+- **Severidad:** Alta
+- **Sintoma:** al volver a la app desde background, una ruta sensible seguia accesible aunque el timeout hubiera expirado.
+- **Causa raiz:** `LaunchViewModel` solo decidia onboarding/login en arranque; no habia observador `ON_RESUME` ni guard central de sesion.
+- **Solucion:** `SessionLockViewModel` evalua rutas sensibles en resume y navega a `Login` si `LocalAuthUseCase.shouldRequireSessionUnlock()` lo exige.
+- **Prevencion:** `SessionLockViewModelTest` y tests de timeout en `LocalAuthUseCaseTest`.
+- **Fecha resolucion:** 2026-05-24
+
+---
+
+### BUG-029 - Export plaintext no exigia reautenticacion y retenia password UI
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-24
+- **Fase:** Auditoria final
+- **Severidad:** Media
+- **Sintoma:** JSON/CSV en claro podian exportarse desde una sesion abierta sin step-up auth; la password escrita seguia en `BackupRestoreUiState`.
+- **Causa raiz:** backup/export mezclaba accion sensible con sesion ya autenticada y limpiaba el `CharArray`, pero no el `String` de origen.
+- **Solucion:** export JSON/CSV verifica contrasena local antes de escribir; create/restore/export/autobackup limpian el estado `password`.
+- **Prevencion:** `BackupRestoreViewModelTest` cubre password incorrecta, export correcto y limpieza de estado.
+- **Fecha resolucion:** 2026-05-24
+
+---
+
+### BUG-028 - Presentation de backup importaba data layer
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-24
+- **Fase:** Auditoria final
+- **Severidad:** Media
+- **Sintoma:** `BackupRestoreViewModel` y `BackupRestoreScreen` importaban clases de `com.atlaspeak.data.backup`.
+- **Causa raiz:** Fase 12 implemento backup rapido alrededor de managers de data sin contrato de dominio.
+- **Solucion:** se anaden modelos/usecase/repositorio de backup en `domain`, `DataBackupRepository` mapea data->domain y `presentation` consume solo dominio.
+- **Prevencion:** `StaticArchitecturePolicyTest` falla si `presentation` vuelve a importar `data`, Room, Retrofit u OkHttp.
+- **Fecha resolucion:** 2026-05-24
+
+---
+
 ### BUG-027 - Graficos, mapa y toggles tenian semantica insuficiente para TalkBack
 - **Estado:** Resuelto
 - **Fecha deteccion:** 2026-05-24

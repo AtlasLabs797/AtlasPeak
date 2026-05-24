@@ -2,6 +2,7 @@ package com.atlaspeak.di
 
 import com.atlaspeak.data.repository.PreferencesOnboardingRepository
 import com.atlaspeak.data.backup.BackupSnapshotStore
+import com.atlaspeak.data.backup.DataBackupRepository
 import com.atlaspeak.data.backup.RoomBackupSnapshotStore
 import com.atlaspeak.data.backup.DriveBackupService
 import com.atlaspeak.data.drive.RetrofitDriveBackupService
@@ -22,6 +23,7 @@ import com.atlaspeak.data.repository.RoomWorkoutSettingsRepository
 import com.atlaspeak.data.repository.RoomWorkoutRepository
 import com.atlaspeak.data.security.EncryptionManager
 import com.atlaspeak.domain.repository.AuthRepository
+import com.atlaspeak.domain.repository.BackupRepository
 import com.atlaspeak.domain.repository.BodyCompositionRepository
 import com.atlaspeak.domain.repository.CardioRepository
 import com.atlaspeak.domain.repository.DashboardRepository
@@ -76,6 +78,9 @@ abstract class AuthModule {
 
     @Binds
     abstract fun bindDriveAccessTokenProvider(provider: GoogleDriveAccessTokenProvider): DriveAccessTokenProvider
+
+    @Binds
+    abstract fun bindBackupRepository(repository: DataBackupRepository): BackupRepository
 
     @Binds
     abstract fun bindPasswordHasher(encryptionManager: EncryptionManager): PasswordHasher

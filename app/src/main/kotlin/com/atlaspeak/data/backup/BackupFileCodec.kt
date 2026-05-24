@@ -24,13 +24,17 @@ class BackupFileCodec(
         val salt = ByteArray(SALT_BYTES).also(secureRandom::nextBytes)
         val iv = ByteArray(EncryptionManager.AES_GCM_IV_BYTES).also(secureRandom::nextBytes)
         val key = deriveBackupKey(password, salt, ITERATIONS)
-        val cipher = Cipher.getInstance(EncryptionManager.AES_GCM_TRANSFORMATION)
-        cipher.init(
-            Cipher.ENCRYPT_MODE,
-            SecretKeySpec(key, EncryptionManager.AES_ALGORITHM),
-            GCMParameterSpec(EncryptionManager.AES_GCM_TAG_BITS, iv),
-        )
-        val ciphertext = cipher.doFinal(plaintext)
+        val ciphertext = try {
+            val cipher = Cipher.getInstance(EncryptionManager.AES_GCM_TRANSFORMATION)
+            cipher.init(
+                Cipher.ENCRYPT_MODE,
+                SecretKeySpec(key, EncryptionManager.AES_ALGORITHM),
+                GCMParameterSpec(EncryptionManager.AES_GCM_TAG_BITS, iv),
+            )
+            cipher.doFinal(plaintext)
+        } finally {
+            key.fill(0)
+        }
 
         ByteBuffer.allocate(HEADER_BYTES + ciphertext.size)
             .order(ByteOrder.BIG_ENDIAN)
@@ -50,13 +54,17 @@ class BackupFileCodec(
         val header = parseHeader(encrypted)
         val ciphertext = encrypted.copyOfRange(HEADER_BYTES, encrypted.size)
         val key = deriveBackupKey(password, header.salt, header.iterations)
-        val cipher = Cipher.getInstance(EncryptionManager.AES_GCM_TRANSFORMATION)
-        cipher.init(
-            Cipher.DECRYPT_MODE,
-            SecretKeySpec(key, EncryptionManager.AES_ALGORITHM),
-            GCMParameterSpec(EncryptionManager.AES_GCM_TAG_BITS, header.iv),
-        )
-        cipher.doFinal(ciphertext)
+        try {
+            val cipher = Cipher.getInstance(EncryptionManager.AES_GCM_TRANSFORMATION)
+            cipher.init(
+                Cipher.DECRYPT_MODE,
+                SecretKeySpec(key, EncryptionManager.AES_ALGORITHM),
+                GCMParameterSpec(EncryptionManager.AES_GCM_TAG_BITS, header.iv),
+            )
+            cipher.doFinal(ciphertext)
+        } finally {
+            key.fill(0)
+        }
     }
 
     fun parseHeader(encrypted: ByteArray): Header {

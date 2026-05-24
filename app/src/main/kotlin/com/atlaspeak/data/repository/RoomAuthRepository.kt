@@ -49,6 +49,10 @@ class RoomAuthRepository @Inject constructor(
         return database.settingsDao().getSettings()?.biometricsEnabled == true
     }
 
+    override suspend fun getUnlockTimeoutMinutes(): Int {
+        return database.settingsDao().getSettings()?.biometricTimeoutMin ?: DEFAULT_UNLOCK_TIMEOUT_MINUTES
+    }
+
     override suspend fun setBiometricUnlockEnabled(enabled: Boolean) {
         database.withTransaction {
             database.settingsDao().insertSettings(AppSettingsEntity())
@@ -96,4 +100,8 @@ class RoomAuthRepository @Inject constructor(
         failedAttempts = failedAttempts,
         lockedUntilMillis = lockedUntil,
     )
+
+    private companion object {
+        const val DEFAULT_UNLOCK_TIMEOUT_MINUTES = 5
+    }
 }
