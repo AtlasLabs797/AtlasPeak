@@ -49,8 +49,9 @@ desde la carpeta de esa skill y no copies sus reglas aquí.
    `values-en/` (EN).
 5. **Migraciones Room explícitas.** `fallbackToDestructiveMigration()` prohibido fuera de tests.
    Cada cambio de schema = `Migration` + bump de versión + test de migración.
-6. **Seguridad permanente** (no solo en la fase de hardening): PBKDF2 **600.000** iter;
-   biometría `BIOMETRIC_STRONG`; `FLAG_SECURE` en Login/Biometría/Perfil/Backup; solo HTTPS;
+6. **Seguridad permanente** (no solo en la fase de hardening): sin contraseña para entrar
+   en la app (SEC-025); PBKDF2 **600.000** iter para backups cifrados; `FLAG_SECURE` en
+   salud/entrenamiento/Perfil/Backup; solo HTTPS;
    sin `ACCESS_BACKGROUND_LOCATION`; el backup cifrado **debe** llevar el salt en su cabecera
    (formato en `SECURITY.md` SEC-001); logging de OkHttp solo en `BuildConfig.DEBUG`.
 7. **Las versiones de dependencias viven SOLO en `gradle/libs.versions.toml`.** No hardcodear

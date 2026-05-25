@@ -56,7 +56,7 @@ Este archivo (`CLAUDE.md`) define **cómo** se construye. `SPEC.md` define **qu�
 | HTTP | Retrofit + OkHttp — **exclusivamente** para Drive REST API v3 |
 | Serialización | Kotlinx Serialization |
 | Cifrado | Android Keystore + EncryptedSharedPreferences + SQLCipher + AES-256-GCM |
-| Auth | Google Identity Services (Credential Manager) **opcional** + contraseña local |
+| Auth/Backup | Sin login de app; Google Drive OAuth opcional + passphrase de backup |
 | Health | `androidx.health.connect:connect-client` |
 | Location | FusedLocationProvider |
 | Maps | Google Maps Compose |
@@ -77,7 +77,7 @@ Timeline orientativo full-time. Wear OS **diferido a v2** (ver §9).
 |------|-----------|--------|
 | 0 | Bootstrap: proyecto compila, CI verde, docs creados | ⬜ |
 | 1 | Fundación + i18n + tema + DB + seed data | ⬜ |
-| 2 | Autenticación (contraseña local + biometría + Google opcional) | ⬜ |
+| 2 | Seguridad local + Google/backup opcional (sin contraseña de entrada) | ⬜ |
 | 3 | Onboarding | ⬜ |
 | 4 | Ejercicios y rutinas | ⬜ |
 | 5 | Entrenamiento activo (fuerza) + WorkoutForegroundService | ⬜ |
@@ -141,7 +141,7 @@ Hay tres secretos de configuración. **Ninguno** va al repo.
 | Secreto | Para qué | Dónde vive |
 |---------|----------|-----------|
 | `MAPS_API_KEY` | Google Maps Compose (cardio GPS) | `secrets.properties` (local) |
-| `OAUTH_WEB_CLIENT_ID` | Credential Manager + Drive OAuth | `secrets.properties` (local) |
+| `OAUTH_WEB_CLIENT_ID` | Drive OAuth (`AuthorizationClient`) | `secrets.properties` (local) |
 | Release keystore + passwords | Firmar el AAB | `atlas-peak-release.jks` + `keystore.properties` (local) |
 
 - Plantilla versionada: **`secrets.properties.template`**. El usuario la copia a
@@ -152,7 +152,7 @@ Hay tres secretos de configuración. **Ninguno** va al repo.
 - En Gradle, lee `secrets.properties` y expón los valores via `manifestPlaceholders`
   (para la Maps key) y `BuildConfig` (para el OAuth client id). NO los escribas inline.
 - **NO uses `google-services.json` ni el plugin `com.google.gms.google-services`.**
-  Credential Manager y Drive REST no lo necesitan. Si lo ves aparecer, bórralo.
+  Drive REST con `AuthorizationClient` no lo necesita. Si lo ves aparecer, bórralo.
 
 ---
 
@@ -163,14 +163,14 @@ Aplica en CADA fase, no solo en la 13:
 - [ ] ¿Hay algún `Log.d/e/i` con datos sensibles (email, token, password, ubicación)?
       Fuera. El logging interceptor de OkHttp **solo** en `BuildConfig.DEBUG`.
 - [ ] ¿Pantalla con datos personales críticos? → `FLAG_SECURE`
-      (Login, Biometría, Perfil, Backup).
+      (salud/entrenamiento, Perfil, Backup).
 - [ ] ¿Nueva llamada de red? → solo HTTPS, pasa por `network_security_config.xml`.
 - [ ] ¿Tocaste el backup? → el archivo cifrado **debe** llevar cabecera
       `[versión(1B)][iter(4B)][salt(16B)][IV(12B)][ciphertext+tag]`. Sin salt en el
       archivo, la restauración en otro dispositivo es imposible (ver `SECURITY.md` SEC-001).
-- [ ] ¿Cambió la contraseña local? → invalida/re-cifra backups previos (ver SEC-002).
-- [ ] PBKDF2-HMAC-SHA256 con **600.000** iteraciones (no 200k).
-- [ ] Biometría: `BIOMETRIC_STRONG` (Clase 3). `BIOMETRIC_WEAK` prohibido.
+- [ ] ¿Cambió la passphrase de backup? → los backups previos requieren la passphrase antigua (ver SEC-002).
+- [ ] PBKDF2-HMAC-SHA256 con **600.000** iteraciones (no 200k) para backups cifrados.
+- [ ] No reintroduzcas contraseña/biometría para entrar sin decisión explícita de producto (SEC-025).
 - [ ] `allowBackup="false"` en el manifest (la DB cifrada no debe ir al backup de Android).
 - [ ] Revisa que no pediste `ACCESS_BACKGROUND_LOCATION` (no se usa, dispara rechazo de Play).
 

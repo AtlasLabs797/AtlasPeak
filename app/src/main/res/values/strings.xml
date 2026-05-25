@@ -31,11 +31,6 @@
     <string name="onboarding_google_title">Google es opcional</string>
     <string name="onboarding_google_body">La conexion real se activara en Copias de seguridad. Ahora puedes seguir offline.</string>
     <string name="onboarding_google_status">No desbloquea datos locales ni crea cuenta en Atlas Peak.</string>
-    <string name="onboarding_password_title">Crea tu contraseña de respaldo</string>
-    <string name="onboarding_password_warning">Apúntala bien: si la olvidas y pierdes tu cuenta de Google, no podrás recuperar tus datos.</string>
-    <string name="onboarding_password_strength_weak">Fortaleza: baja</string>
-    <string name="onboarding_password_strength_medium">Fortaleza: media</string>
-    <string name="onboarding_password_strength_strong">Fortaleza: alta</string>
     <string name="onboarding_profile_title">Perfil basico</string>
     <string name="onboarding_profile_body">Estos datos ayudan a estimar calorias. Puedes saltarlo.</string>
     <string name="onboarding_profile_name">Nombre</string>
@@ -50,35 +45,9 @@
     <string name="onboarding_health_unavailable">Health Connect no esta disponible en este dispositivo. Puedes seguir y activarlo mas tarde.</string>
     <string name="onboarding_location_title">GPS para cardio</string>
     <string name="onboarding_location_body">La ubicacion solo se usa para registrar rutas de cardio al aire libre.</string>
-    <string name="onboarding_biometrics_title">Desbloqueo biometrico</string>
-    <string name="onboarding_biometrics_body">Activalo si quieres desbloquear con biometria fuerte del dispositivo.</string>
     <string name="onboarding_done_title">Listo</string>
     <string name="onboarding_done_body">Ya puedes empezar a usar Atlas Peak.</string>
     <string name="onboarding_permission_action">Solicitar permiso</string>
-
-    <!-- Auth -->
-    <string name="auth_unlock">Desbloquear</string>
-    <string name="auth_unlock_body">Introduce tu contrasena local para abrir Atlas Peak.</string>
-    <string name="auth_setup_title">Protege tus datos locales</string>
-    <string name="auth_setup_body">Crea una contrasena local. Google es opcional; esta contrasena protege tus datos y backups cifrados.</string>
-    <string name="auth_setup_action">Crear contrasena</string>
-    <string name="auth_password_label">Contrasena</string>
-    <string name="auth_confirm_password_label">Confirmar contrasena</string>
-    <string name="auth_google_action">Conectar Google opcional</string>
-    <string name="auth_biometric_action">Desbloquear con biometria</string>
-    <string name="auth_biometric_prompt_title">Desbloquear Atlas Peak</string>
-    <string name="auth_biometric_prompt_subtitle">Usa biometria fuerte del dispositivo.</string>
-    <string name="auth_enable_biometrics">Permitir desbloqueo con biometria en este dispositivo</string>
-    <string name="auth_locked_message">Demasiados intentos. Inténtalo de nuevo más tarde.</string>
-    <string name="auth_error_invalid_credentials">Contrasena incorrecta.</string>
-    <string name="auth_error_passwords_mismatch">Las contrasenas no coinciden.</string>
-    <string name="auth_error_weak_password">Usa al menos 8 caracteres.</string>
-    <string name="auth_error_local_password_required">Primero crea una contrasena local.</string>
-    <string name="auth_google_requires_local_password">Google no desbloquea tus datos locales. Usa tu contrasena.</string>
-    <string name="auth_error_google_not_configured">Google no esta configurado en este entorno.</string>
-    <string name="auth_google_cancelled">Inicio con Google cancelado.</string>
-    <string name="auth_error_google_failed">No se pudo iniciar con Google.</string>
-    <string name="auth_error_biometric_failed">No se pudo desbloquear con biometria.</string>
 
     <!-- Entrenar: ejercicios y rutinas -->
     <string name="workout_tab_exercises">Ejercicios</string>
@@ -325,7 +294,8 @@
     <!-- Backup / export -->
     <string name="backup_screen_body">Copia cifrada en Drive App Data y export manual desde almacenamiento privado.</string>
     <string name="backup_password_title">Contrasena de backup</string>
-    <string name="backup_password_body">La misma contrasena local descifra tus copias en otro dispositivo. El backup automatico guarda esta contrasena cifrada en este dispositivo.</string>
+    <string name="backup_password_label">Contrasena de backup</string>
+    <string name="backup_password_body">Solo se usa para cifrar y restaurar backups. El backup automatico guarda esta contrasena cifrada en este dispositivo.</string>
     <string name="backup_password_required">Introduce la contrasena para cifrar o restaurar.</string>
     <string name="backup_auto_title">Backup automatico diario</string>
     <string name="backup_auto_enabled">Backup automatico activado.</string>
@@ -348,7 +318,7 @@
     <string name="backup_restore_success">Backup restaurado.</string>
     <string name="backup_restore_failed">No se pudo restaurar. Comprueba la contrasena y el archivo.</string>
     <string name="backup_export_title">Export manual</string>
-    <string name="backup_export_body">Los exports manuales excluyen hashes de contrasena y estado de bloqueo.</string>
+    <string name="backup_export_body">Los exports manuales van en claro y no piden contrasena. Compartelos solo donde confies.</string>
     <string name="backup_local_create">Compartir backup cifrado</string>
     <string name="backup_local_created">Backup cifrado creado.</string>
     <string name="backup_export_json">Compartir JSON</string>

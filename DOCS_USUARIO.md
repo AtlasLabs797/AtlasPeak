@@ -19,15 +19,11 @@ con tu **Google Drive**, para guardar una copia de seguridad cifrada que solo t�
 1. **Bienvenida.** Pulsa "Empezar".
 2. **Cuenta Google (opcional).** Solo sirve para guardar copias de seguridad en tu Drive.
    Puedes saltarlo y activarlo más tarde.
-3. **Contraseña de respaldo (obligatoria).** Crea una contraseña local. **Apúntala bien:**
-   protege el acceso a la app y es la llave para restaurar tus copias en otro móvil.
-   ⚠️ Si la olvidas *y* pierdes tu cuenta de Google, no hay forma de recuperar los datos.
-4. **Tu perfil (opcional).** Nombre, edad, altura, género y objetivo. Ayuda a estimar
+3. **Tu perfil (opcional).** Nombre, edad, altura, género y objetivo. Ayuda a estimar
    calorías. Puedes rellenarlo después.
-5. **Permisos (opcionales).** Notificaciones, Health Connect (salud) y ubicación (GPS para
+4. **Permisos (opcionales).** Notificaciones, Health Connect (salud) y ubicación (GPS para
    cardio al aire libre). Puedes concederlos ahora o luego.
-6. **Biometría (opcional).** Desbloquear con huella o cara.
-7. **¡Listo!** Ya puedes entrenar.
+5. **¡Listo!** Ya puedes entrenar. La app no pide contraseña para entrar.
 
 ---
 
@@ -79,7 +75,8 @@ la hora del recordatorio por día. La semana empieza en lunes.
 **Perfil → Copias de seguridad.** Si conectaste Google, la app guarda una copia **cifrada**
 en tu Drive (carpeta privada que solo Atlas Peak ve). Puedes crear copias manuales o
 restaurar una. Se guardan las 5 más recientes.
-⚠️ Para restaurar necesitas tu **contraseña local** (la misma con la que se creó la copia).
+⚠️ Para crear o restaurar backups cifrados necesitas una **contraseña de backup**. Si la olvidas,
+esa copia no se puede recuperar.
 
 ### Exportar tus datos
 **Perfil → Exportar.** Saca todo en **JSON** (completo) o **CSV** (por tipo) y compártelo a
@@ -115,10 +112,11 @@ y para iniciar sesión con Google la primera vez (si decides usarla).
 
 **¿Y el modo oscuro?** **Perfil → Ajustes → Tema** (Sistema / Claro / Oscuro).
 
-**Olvidé mi contraseña.** Si tienes acceso a tu cuenta de Google, puedes restaurar desde una
-copia (necesitarás recordar la contraseña con la que se hizo). Si no recuerdas ninguna
-contraseña y pierdes Google, los datos no son recuperables — es el precio de que nadie más
-pueda leerlos.
+**¿La app pide contraseña para entrar?** No. Solo se pide una contraseña cuando quieres cifrar
+o restaurar una copia de seguridad.
+
+**Olvidé mi contraseña de backup.** Esa copia no se puede restaurar. Es el precio de que Google
+solo guarde un archivo cifrado que nadie más puede leer.
 
 ---
 

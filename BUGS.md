@@ -24,6 +24,32 @@
 
 ## Entradas
 
+### BUG-032 - Bottom navigation crasheaba al abrir tabs autenticados
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-25
+- **Fase:** Auditoria final
+- **Severidad:** Alta
+- **Sintoma:** desde el dashboard, tocar `Entrenar`, `Progreso`, `Cuerpo` o `Perfil` cerraba la app.
+- **Causa raiz:** la bottom navigation hacia `popUpTo(navController.graph.findStartDestination().id)`, pero el start destination real del grafo es `launch`, un destino transitorio eliminado del back stack despues de login/onboarding.
+- **Solucion:** `AtlasPeakApp` usa `popUpTo(AppRoute.Home.route)` como raiz estable de los tabs.
+- **Prevencion:** `BottomNavigationPolicyTest` bloquea que los tabs vuelvan a depender de `findStartDestination`.
+- **Fecha resolucion:** 2026-05-25
+
+---
+
+### BUG-031 - SQLCipher nativo no se cargaba antes de abrir Room
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-24
+- **Fase:** Auditoria final
+- **Severidad:** Alta
+- **Sintoma:** la app instalada en el emulador arrancaba `MainActivity` y caia con `UnsatisfiedLinkError` en `net.zetetic.database.sqlcipher.SQLiteConnection.nativeOpen`.
+- **Causa raiz:** `sqlcipher-android` incluye `libsqlcipher.so`, pero la app no llamaba a `System.loadLibrary("sqlcipher")` antes de que Hilt construyera la DB Room cifrada.
+- **Solucion:** `AtlasPeakApplication.attachBaseContext()` carga `sqlcipher` antes de `onCreate()` y de cualquier acceso a Room.
+- **Prevencion:** `StaticSecurityPolicyTest` verifica que la carga nativa de SQLCipher ocurre antes del acceso de aplicacion a la DB.
+- **Fecha resolucion:** 2026-05-24
+
+---
+
 ### BUG-030 - Timeout de desbloqueo local no estaba conectado a lifecycle
 - **Estado:** Resuelto
 - **Fecha deteccion:** 2026-05-24

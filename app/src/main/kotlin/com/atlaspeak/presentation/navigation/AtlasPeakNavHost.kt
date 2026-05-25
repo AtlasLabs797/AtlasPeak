@@ -17,7 +17,6 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.atlaspeak.R
-import com.atlaspeak.presentation.auth.LoginRoute
 import com.atlaspeak.presentation.backup.BackupRestoreRoute
 import com.atlaspeak.presentation.body.BodyCompositionRoute
 import com.atlaspeak.presentation.cardio.ActiveCardioRoute
@@ -55,27 +54,13 @@ fun AtlasPeakNavHost(
                     LaunchState.Onboarding -> navController.navigate(AppRoute.Onboarding.route) {
                         popUpTo(AppRoute.Launch.route) { inclusive = true }
                     }
-                    LaunchState.Login -> navController.navigate(AppRoute.Login.route) {
+                    LaunchState.Home -> navController.navigate(AppRoute.Home.route) {
                         popUpTo(AppRoute.Launch.route) { inclusive = true }
+                        launchSingleTop = true
                     }
                 }
             }
             PlaceholderScreen(titleRes = R.string.state_loading)
-        }
-        composable(AppRoute.Login.route) {
-            LoginRoute(
-                onAuthenticated = {
-                    navController.navigate(AppRoute.Home.route) {
-                        popUpTo(AppRoute.Login.route) {
-                            inclusive = true
-                        }
-                        launchSingleTop = true
-                    }
-                },
-            )
-        }
-        composable(AppRoute.Biometric.route) {
-            PlaceholderScreen(titleRes = R.string.auth_unlock)
         }
         composable(AppRoute.Onboarding.route) {
             OnboardingRoute(

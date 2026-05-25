@@ -72,6 +72,7 @@ import com.atlaspeak.R
 import com.atlaspeak.domain.model.workout.ActiveWorkoutExercise
 import com.atlaspeak.domain.model.workout.RestTimerFeedbackSettings
 import com.atlaspeak.domain.model.workout.WorkoutSet
+import com.atlaspeak.presentation.component.PremiumBackground
 import com.atlaspeak.presentation.theme.LocalSpacing
 import kotlinx.coroutines.delay
 
@@ -140,7 +141,7 @@ fun ActiveWorkoutScreen(
     var showExerciseSheet by remember { mutableStateOf(false) }
     RestFeedbackEffect(state.restTimer, state.restFeedbackSettings)
 
-    Surface(modifier = modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+    PremiumBackground(modifier = modifier.fillMaxSize()) {
         when {
             state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()

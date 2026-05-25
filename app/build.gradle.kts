@@ -33,8 +33,8 @@ android {
         applicationId = "com.atlaspeak"
         minSdk = 31
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = 102
+        versionName = "V-01.02"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -141,7 +141,6 @@ dependencies {
 
     // Seguridad
     implementation(libs.androidx.security.crypto)
-    implementation(libs.androidx.biometric)
 
     // Health Connect
     implementation(libs.androidx.health.connect.client)
@@ -149,10 +148,7 @@ dependencies {
     // Gráficos
     implementation(libs.vico.compose.m3)
 
-    // Auth (Credential Manager / Google Identity)
-    implementation(libs.androidx.credentials)
-    implementation(libs.androidx.credentials.play.services.auth)
-    implementation(libs.googleid)
+    // Google Drive OAuth
     implementation(libs.play.services.auth)
 
     // Red (solo Drive REST v3)

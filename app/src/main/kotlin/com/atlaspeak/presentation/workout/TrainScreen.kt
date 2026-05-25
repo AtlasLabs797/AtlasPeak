@@ -67,6 +67,7 @@ import com.atlaspeak.domain.model.cardio.CardioType
 import com.atlaspeak.domain.model.workout.Exercise
 import com.atlaspeak.domain.model.workout.MuscleGroup
 import com.atlaspeak.domain.model.workout.Routine
+import com.atlaspeak.presentation.component.PremiumBackground
 import com.atlaspeak.presentation.theme.LocalSpacing
 
 @Composable
@@ -155,10 +156,7 @@ fun TrainScreen(
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
-    Surface(
-        modifier = modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background,
-    ) {
+    PremiumBackground(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
@@ -173,7 +171,11 @@ fun TrainScreen(
                 )
                 MessageText(state.message)
             }
-            PrimaryTabRow(selectedTabIndex = state.selectedTab.ordinal) {
+            PrimaryTabRow(
+                selectedTabIndex = state.selectedTab.ordinal,
+                containerColor = Color.Transparent,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+            ) {
                 Tab(
                     selected = state.selectedTab == TrainTab.Exercises,
                     onClick = { onTabSelected(TrainTab.Exercises) },

@@ -20,7 +20,7 @@ class LaunchViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             onboardingRepository.onboardingCompleted.collect { completed ->
-                mutableState.value = if (completed) LaunchState.Login else LaunchState.Onboarding
+                mutableState.value = if (completed) LaunchState.Home else LaunchState.Onboarding
             }
         }
     }
@@ -29,5 +29,5 @@ class LaunchViewModel @Inject constructor(
 enum class LaunchState {
     Loading,
     Onboarding,
-    Login,
+    Home,
 }

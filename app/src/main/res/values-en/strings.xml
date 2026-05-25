@@ -26,11 +26,6 @@
     <string name="onboarding_google_title">Google is optional</string>
     <string name="onboarding_google_body">The real connection is enabled from Backups. You can continue offline now.</string>
     <string name="onboarding_google_status">It does not unlock local data or create an Atlas Peak account.</string>
-    <string name="onboarding_password_title">Create your backup password</string>
-    <string name="onboarding_password_warning">Write it down: if you forget it and lose your Google account, your data can\'t be recovered.</string>
-    <string name="onboarding_password_strength_weak">Strength: weak</string>
-    <string name="onboarding_password_strength_medium">Strength: medium</string>
-    <string name="onboarding_password_strength_strong">Strength: strong</string>
     <string name="onboarding_profile_title">Basic profile</string>
     <string name="onboarding_profile_body">These details help estimate calories. You can skip this.</string>
     <string name="onboarding_profile_name">Name</string>
@@ -45,34 +40,9 @@
     <string name="onboarding_health_unavailable">Health Connect is not available on this device. You can continue and enable it later.</string>
     <string name="onboarding_location_title">GPS for cardio</string>
     <string name="onboarding_location_body">Location is only used to record outdoor cardio routes.</string>
-    <string name="onboarding_biometrics_title">Biometric unlock</string>
-    <string name="onboarding_biometrics_body">Turn this on to unlock with strong device biometrics.</string>
     <string name="onboarding_done_title">Ready</string>
     <string name="onboarding_done_body">You can start using Atlas Peak.</string>
     <string name="onboarding_permission_action">Request permission</string>
-
-    <string name="auth_unlock">Unlock</string>
-    <string name="auth_unlock_body">Enter your local password to open Atlas Peak.</string>
-    <string name="auth_setup_title">Protect your local data</string>
-    <string name="auth_setup_body">Create a local password. Google is optional; this password protects your data and encrypted backups.</string>
-    <string name="auth_setup_action">Create password</string>
-    <string name="auth_password_label">Password</string>
-    <string name="auth_confirm_password_label">Confirm password</string>
-    <string name="auth_google_action">Connect optional Google</string>
-    <string name="auth_biometric_action">Unlock with biometrics</string>
-    <string name="auth_biometric_prompt_title">Unlock Atlas Peak</string>
-    <string name="auth_biometric_prompt_subtitle">Use strong device biometrics.</string>
-    <string name="auth_enable_biometrics">Allow biometric unlock on this device</string>
-    <string name="auth_locked_message">Too many attempts. Try again later.</string>
-    <string name="auth_error_invalid_credentials">Incorrect password.</string>
-    <string name="auth_error_passwords_mismatch">Passwords do not match.</string>
-    <string name="auth_error_weak_password">Use at least 8 characters.</string>
-    <string name="auth_error_local_password_required">Create a local password first.</string>
-    <string name="auth_google_requires_local_password">Google does not unlock your local data. Use your password.</string>
-    <string name="auth_error_google_not_configured">Google is not configured in this environment.</string>
-    <string name="auth_google_cancelled">Google sign-in cancelled.</string>
-    <string name="auth_error_google_failed">Could not sign in with Google.</string>
-    <string name="auth_error_biometric_failed">Could not unlock with biometrics.</string>
 
     <string name="workout_tab_exercises">Exercises</string>
     <string name="workout_tab_routines">Routines</string>
@@ -314,7 +284,8 @@
     <!-- Backup / export -->
     <string name="backup_screen_body">Encrypted Drive App Data backup and manual export from private storage.</string>
     <string name="backup_password_title">Backup password</string>
-    <string name="backup_password_body">The same local password decrypts backups on another device. Automatic backup stores this password encrypted on this device.</string>
+    <string name="backup_password_label">Backup password</string>
+    <string name="backup_password_body">Only used to encrypt and restore backups. Automatic backup stores this password encrypted on this device.</string>
     <string name="backup_password_required">Enter the password to encrypt or restore.</string>
     <string name="backup_auto_title">Daily automatic backup</string>
     <string name="backup_auto_enabled">Automatic backup enabled.</string>
@@ -337,7 +308,7 @@
     <string name="backup_restore_success">Backup restored.</string>
     <string name="backup_restore_failed">Could not restore. Check the password and file.</string>
     <string name="backup_export_title">Manual export</string>
-    <string name="backup_export_body">Manual exports exclude password hashes and lockout state.</string>
+    <string name="backup_export_body">Manual exports are cleartext and do not ask for a password. Share them only where you trust.</string>
     <string name="backup_local_create">Share encrypted backup</string>
     <string name="backup_local_created">Encrypted backup created.</string>
     <string name="backup_export_json">Share JSON</string>

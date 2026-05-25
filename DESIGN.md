@@ -27,25 +27,30 @@
 Implementar como `ColorScheme` de Material 3 con esquema claro y oscuro. **Dark/Light
 automáticos** siguiendo el sistema, con override manual en ajustes (`SYSTEM/LIGHT/DARK`).
 
+Dirección visual actual (2026-05-25): **premium performance lab**. Neutros con tinte
+orgánico, fondo off-black/off-white, tarjetas por contraste de superficie y acento vivo
+reservado para datos/acciones clave. Nada de UI genérica de gimnasio con rojo por todas
+partes: el rojo/coral queda para marca puntual, errores y estados de riesgo.
+
 | Token | Rol | Light (aprox.) | Dark (aprox.) |
 |-------|-----|----------------|---------------|
-| `primary` | Accent principal | `#D32F2F` (rojo AA) | `#FF6B66` |
-| `onPrimary` | Texto sobre primary | `#FFFFFF` | `#3A0907` |
-| `primaryContainer` | Seleccionados / estado activo suave | `#FFDAD6` | `#93000A` |
-| `onPrimaryContainer` | Texto sobre selected container | `#410002` | `#FFDAD6` |
-| `secondary` | Acciones secundarias / chips | neutro cálido | neutro cálido |
-| `surface` | Fondo de cards | `#FAFAFA` | `#1B1B1B` |
-| `surfaceVariant` | Cards secundarias / inputs | `#EFEFEF` | `#262626` |
-| `background` | Fondo base | `#FFFFFF` | `#121212` |
-| `onBackground` / `onSurface` | Texto principal | `#1A1A1A` | `#ECECEC` |
-| `outline` | Bordes sutiles | `#D6D6D6` | `#3A3A3A` |
-| `error` | Errores | `#B3261E` | `#F2B8B5` |
+| `primary` | Accent principal / accion clave | `#265C4B` | `#D7FF5F` |
+| `onPrimary` | Texto sobre primary | `#FFFFFF` | `#172100` |
+| `primaryContainer` | Seleccionados / estado activo suave | `#DFF5B0` | `#314600` |
+| `onPrimaryContainer` | Texto sobre selected container | `#17210A` | `#E9FF9A` |
+| `secondary` | Acciones secundarias / chips | `#5C6255` | `#C8CBBB` |
+| `surface` | Fondo de cards | `#FFFCF4` | `#151812` |
+| `surfaceVariant` | Cards secundarias / inputs | `#E9E6DC` | `#23271F` |
+| `background` | Fondo base | `#F6F4EE` | `#080A08` |
+| `onBackground` / `onSurface` | Texto principal | `#171914` | `#EDEFE5` |
+| `outline` | Bordes sutiles | `#C8C5BA` | `#464B40` |
+| `error` | Errores | `#BA1A1A` | `#FFB4AB` |
 
-**Regla:** `error` ≠ `primary`. El rojo de marca y el rojo de error son distintos para
-que un error no se confunda con un acento de UI.
+**Regla:** `error` ≠ `primary`. El coral no compite con el acento principal; si aparece,
+debe señalar riesgo, error o una accion destructiva.
 
 **Semánticos de progreso** (gráficos, PRs, estados):
-- Récord personal / éxito: verde `#2E7D32` (light) / `#7FD89B` (dark).
+- Récord personal / éxito: verde `#22784E` (light) / `#91E6A4` (dark).
 - Neutro / planificado: usar `onSurfaceVariant`.
 - Nunca codifiques información **solo** por color (añade icono o texto — daltonismo).
 
@@ -126,7 +131,7 @@ inventado pantalla a pantalla.
 - **Bottom navigation de 5 tabs**, siempre visible salvo en pantallas fullscreen:
   `HOME · ENTRENAR · PROGRESO · CUERPO · PERFIL`.
 - **Fullscreen (ocultan bottom nav):** `ActiveWorkout`, `WorkoutComplete`,
-  `ActiveCardio`, `CardioComplete`, flujo de Auth y Onboarding.
+  `ActiveCardio`, `CardioComplete` y Onboarding.
 - Iconografía: Material Icons Extended en v1 (custom icons → post-MVP).
 - El tab activo se marca con `primary`; inactivos con `onSurfaceVariant`.
 
@@ -148,7 +153,7 @@ inventado pantalla a pantalla.
 
 - Contraste AA verificado en light y dark.
 - `contentDescription` en todos los iconos sin texto.
-- Soporte TalkBack básico en pantallas críticas (Login, Onboarding, ActiveWorkout).
+- Soporte TalkBack básico en pantallas críticas (Onboarding, ActiveWorkout, Backup).
 - Targets ≥48dp. Texto escalable (no fijar tamaños en px; usar `sp`).
 - Estados no comunicados solo por color.
 

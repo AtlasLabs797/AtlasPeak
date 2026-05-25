@@ -30,4 +30,12 @@ class SensitiveRoutePolicyTest {
         assertFalse(isSensitiveRoute(AppRoute.Launch.route))
         assertFalse(isSensitiveRoute(null))
     }
+
+    @Test
+    fun `debug emulator bypasses FLAG_SECURE for visual QA only`() {
+        assertFalse(shouldApplySecureFlag(AppRoute.Onboarding.route, debugBuild = true, emulator = true))
+        assertTrue(shouldApplySecureFlag(AppRoute.Onboarding.route, debugBuild = true, emulator = false))
+        assertTrue(shouldApplySecureFlag(AppRoute.Onboarding.route, debugBuild = false, emulator = true))
+        assertFalse(shouldApplySecureFlag(AppRoute.Launch.route, debugBuild = true, emulator = true))
+    }
 }

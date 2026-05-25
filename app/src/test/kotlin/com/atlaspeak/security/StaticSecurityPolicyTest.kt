@@ -49,6 +49,18 @@ class StaticSecurityPolicyTest {
         assertTrue(filesWithLogging.isEmpty(), filesWithLogging.joinToString())
     }
 
+    @Test
+    fun `sqlcipher native library is loaded before application database access`() {
+        val application = mainSource.resolve("kotlin/com/atlaspeak/AtlasPeakApplication.kt").toFile().readText()
+
+        assertTrue(application.contains("override fun attachBaseContext(base: Context)"))
+        assertTrue(application.contains("System.loadLibrary(\"sqlcipher\")"))
+        assertTrue(
+            application.indexOf("System.loadLibrary(\"sqlcipher\")") <
+                application.indexOf("override fun onCreate()"),
+        )
+    }
+
     private fun countMatches(path: Path, pattern: Regex): Int =
         Files.walk(path).asSequence()
             .filter { Files.isRegularFile(it) && it.name.endsWith(".kt") }

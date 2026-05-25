@@ -19,6 +19,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.atlaspeak.R
+import com.atlaspeak.presentation.component.PremiumBackground
+import com.atlaspeak.presentation.component.PremiumCard
 import com.atlaspeak.presentation.theme.LocalSpacing
 
 @Composable
@@ -37,7 +39,7 @@ fun WorkoutCompleteScreen(
 ) {
     val spacing = LocalSpacing.current
     val session = state.session
-    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+    PremiumBackground(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -52,7 +54,7 @@ fun WorkoutCompleteScreen(
             when {
                 state.isLoading -> CircularProgressIndicator()
                 session == null -> Text(stringResource(R.string.state_empty_title))
-                else -> Card {
+                else -> PremiumCard {
                     Column(
                         modifier = Modifier.padding(spacing.card),
                         verticalArrangement = Arrangement.spacedBy(spacing.sm),

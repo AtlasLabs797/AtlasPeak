@@ -11,8 +11,8 @@ data class UserEntity(
     @PrimaryKey val id: String,
     @ColumnInfo(name = "google_id") val googleId: String? = null,
     val email: String? = null,
-    @ColumnInfo(name = "password_hash") val passwordHash: String,
-    @ColumnInfo(name = "password_salt") val passwordSalt: String,
+    @ColumnInfo(name = "password_hash") val passwordHash: String? = null,
+    @ColumnInfo(name = "password_salt") val passwordSalt: String? = null,
     @ColumnInfo(name = "created_at") val createdAt: Long,
     @ColumnInfo(name = "last_login_at") val lastLoginAt: Long? = null,
 )

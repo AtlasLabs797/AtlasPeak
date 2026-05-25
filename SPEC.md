@@ -21,7 +21,7 @@
 | D | Google Maps API key sin gestionar | Gestionada via `secrets.properties` + `manifestPlaceholders`, gitignored | SEC-005 |
 | E | PBKDF2 200k etiquetado "fuerte" | Subido a 600.000 iter (OWASP) | SEC-006 |
 | F | `allowBackup` sin definir → DB cifrada podría ir al backup de Android | `allowBackup="false"` + reglas de exclusión | SEC-007 |
-| G | `USE_FINGERPRINT` deprecado (minSdk 31) | Eliminado; `USE_BIOMETRIC` cubre todo | SEC-008 |
+| G | `USE_FINGERPRINT` deprecado (minSdk 31) | Eliminado; sin gate local tampoco se declara `USE_BIOMETRIC` | SEC-008 |
 | H | Versiones desactualizadas (Vico beta, Health Connect RC con artifact viejo, Wear alpha mezclado) | Actualizadas a estables verificadas; HC con artifact renombrado `androidx.health.connect:connect-client` | — |
 | I | Google Sign-In como "cuenta obligatoria" pese a no haber backend; fuerza internet en app local-first | Reclasificado: OAuth **opcional** solo para Drive; onboarding paso 2 saltable | — |
 | J | Contradicción: rate-limit en `EncryptedSharedPreferences` (§2.12) vs tabla `auth_security` | Unificado: contador en tabla `auth_security` (DB cifrada) | — |
@@ -40,11 +40,11 @@
 | 3 | Wear OS dependency incorrecta (`androidx.wear:wear`) | Diferida a v2; si se reactiva, usar `play-services-wearable` + `wear.compose` |
 | 4 | Mockito en proyecto 100% Kotlin | Reemplazado por MockK |
 | 5 | "E2E encryption con Keystore" en Health Connect | Corregido: Keystore es para almacenamiento local, no tránsito a HC |
-| 6 | Rate limiting aplicado a Google Sign-In | Aclarado: solo aplica a contraseña local |
+| 6 | Rate limiting aplicado a Google Sign-In | Obsoleto: no hay contraseña de entrada en v1 |
 | 7 | Health Connect full integration como feature premium | Eliminado de premium — es core gratuito |
 | 8 | Báscula "integrada directamente" | Corregido: integración indirecta vía app báscula → Health Connect |
 | 9 | Datos de báscula inexistentes en Health Connect | Documentados correctamente (4 tipos soportados, resto solo manual) |
-| 10 | Google Sign-In deprecated (GMS Auth) | Reemplazado por Google Identity Services (Credential Manager API) |
+| 10 | Google Sign-In deprecated (GMS Auth) | Obsoleto: no hay login de app; Drive usa `AuthorizationClient` |
 | 11 | Sin onboarding flow | Añadido como fase de desarrollo y pantallas |
 | 12 | Sin perfil de usuario | Añadido: nombre, edad, altura, género, objetivo |
 | 13 | Planificación semanal sin tab asignado | Asignada a Tab Perfil como sub-pantalla |
@@ -55,11 +55,11 @@
 | 18 | "Analytics local" sin definición | Eliminado — zero tracking, sin sistema de analytics |
 | 19 | **PBKDF2 iterations insuficientes (100k)** | Actualizado a 200.000 iter. PBKDF2-HMAC-SHA256 |
 | 20 | **Sin Foreground Service para entrenamiento activo** | Añadido `WorkoutForegroundService` y `CardioForegroundService` |
-| 21 | **Clave backup ligada al dispositivo (Keystore)** | Clave de backup derivada de contraseña local — restaurable en nuevo dispositivo |
+| 21 | **Clave backup ligada al dispositivo (Keystore)** | Clave de backup derivada de passphrase de backup — restaurable en nuevo dispositivo |
 | 22 | **Sin network_security_config.xml** | Añadida configuración: solo HTTPS, sin cleartext |
 | 23 | **i18n en Fase 16 (demasiado tarde)** | Movida a Fase 1 — strings.xml desde el inicio |
-| 24 | **Sin FLAG_SECURE en pantallas sensibles** | Añadido en rutas autenticadas con salud/entrenamiento, auth, perfil y backup |
-| 25 | **Biometría sin especificar nivel** | Definido: `BIOMETRIC_STRONG` (Clase 3) obligatorio |
+| 24 | **Sin FLAG_SECURE en pantallas sensibles** | Añadido en rutas con salud/entrenamiento, perfil y backup |
+| 25 | **Biometría sin especificar nivel** | Obsoleto: sin gate local, biometría no se usa en v1 |
 | 26 | **Sin WearableListenerService en manifest** | Conservado en el diseño v2; no se declara en v1 |
 | 27 | **Export a almacenamiento público** | Corregido: export a almacenamiento privado + share via ShareSheet |
 | 28 | **Sin estrategia de Room migrations** | Añadida — `fallbackToDestructiveMigration()` prohibido en producción |
@@ -291,29 +291,26 @@ Reloj → Teléfono (MessageClient — eventos puntuales):
 
 ### 2.12 AUTENTICACIÓN Y SEGURIDAD
 
-- **Google Identity Services (Credential Manager API)** como conexión opcional para Drive/Google; la app no depende de backend ni de cuenta Google
-- **Contraseña local obligatoria** — configurada durante onboarding, sirve como acceso de respaldo si se pierde la cuenta Google
-- **Hashing de contraseña:** PBKDF2-HMAC-SHA256 con **600.000 iteraciones** (OWASP) + salt aleatorio de 32 bytes, ejecutado en coroutine (no en main thread)
-- Hash de contraseña y salt almacenados en la tabla `users` de la DB SQLCipher
-- **Biometría:** `BiometricPrompt` con `BIOMETRIC_STRONG` (Clase 3 — huella dactilar segura, reconocimiento facial 3D). Nivel `BIOMETRIC_WEAK` explícitamente rechazado
-- Biometría es opcional y configurable; solo sirve para desbloquear la app, no como autenticación nueva
-- Biometría se solicita al volver al foreground después del timeout configurado (1 / 5 / 15 minutos / nunca)
-- **Rate limiting:** exclusivamente sobre contraseña local — 5 intentos fallidos → bloqueo 15 minutos. El contador se almacena en la tabla `auth_security` (DB cifrada con SQLCipher). *(v2.2: unificado — antes el spec mencionaba también `EncryptedSharedPreferences`, lo que contradecía la tabla.)*
-- **DB local:** encriptada con SQLCipher. La clave de cifrado se genera aleatoriamente, se almacena cifrada en Android Keystore (nunca en texto plano)
-- `FLAG_SECURE` activo en rutas autenticadas con salud/entrenamiento, auth, perfil y backup.
+- **Sin contraseña para entrar en la app.** Tras completar onboarding, `Launch` navega directo a `Home`.
+- **Google Drive OAuth opcional** mediante Google Identity `AuthorizationClient`; la app no depende de backend ni de cuenta Google.
+- **DB local:** encriptada con SQLCipher. La clave de cifrado se genera aleatoriamente, se almacena cifrada en Android Keystore (nunca en texto plano).
+- **Contraseña/passphrase solo para backups cifrados:** se introduce en la pantalla de Backup al crear/restaurar copias y deriva la clave AES-256-GCM con PBKDF2-HMAC-SHA256 600.000 iteraciones.
+- **Sin biometría de desbloqueo local** en v1 tras retirar el gate de entrada. No hay permiso, dependencia ni flujo visible de desbloqueo.
+- `FLAG_SECURE` activo en rutas con salud/entrenamiento, perfil y backup.
+- **Riesgo aceptado:** si alguien usa el móvil ya desbloqueado, puede abrir Atlas Peak y ver/exportar datos. La defensa pasa a ser el bloqueo del dispositivo.
 
-**Escenario de pérdida total de acceso:**
-Si el usuario pierde acceso a Google **y** olvida la contraseña local → los datos del dispositivo son inaccesibles. El backup en Drive está cifrado con una clave derivada de la contraseña local (no ligada al dispositivo) — si el usuario recuerda la contraseña puede restaurar en un dispositivo nuevo. Este escenario debe advertirse al usuario durante la configuración de contraseña.
+**Escenario de pérdida de backup:**
+Si el usuario olvida la passphrase usada para cifrar un backup, esa copia no se puede restaurar. Google Drive solo guarda binario cifrado; Atlas Peak no tiene backend ni recuperación de contraseña.
 
 ### 2.13 BACKUP Y RECUPERACIÓN
 
 - Backup a **Google Drive App Data folder** (carpeta privada, invisible para el usuario, solo accesible por Atlas Peak)
 - Acceso via **Drive REST API v3** con OAuth2 — scope: `https://www.googleapis.com/auth/drive.appdata`
-- El permiso Drive se obtiene con Google Identity `AuthorizationClient`; el ID token de Credential Manager no se usa como bearer token.
+- El permiso Drive se obtiene con Google Identity `AuthorizationClient`; no hay ID token de login de app que reutilizar como bearer token.
 - Retrofit + OkHttp como cliente HTTP (consistente con el resto del stack)
 - **Proceso de backup:**
   1. Serializar toda la DB a JSON (Kotlinx Serialization)
-  2. Derivar clave de 256 bits con PBKDF2-HMAC-SHA256 (600k iter) desde la contraseña local + un salt **propio del backup** (16 bytes aleatorios, generado por backup)
+  2. Derivar clave de 256 bits con PBKDF2-HMAC-SHA256 (600k iter) desde la passphrase de backup + un salt **propio del backup** (16 bytes aleatorios, generado por backup)
   3. Cifrar JSON con AES-256-GCM + IV aleatorio (12 bytes)
   4. **Formato del archivo (v2.2 — corregido):**
      `[magic "ATPK" (4B)] [versión (1B)] [iteraciones (4B big-endian)] [salt (16B)] [IV (12B)] [ciphertext + tag GCM]`
@@ -325,26 +322,24 @@ Si el usuario pierde acceso a Google **y** olvida la contraseña local → los d
 - **Proceso de restauración:**
   1. Listar backups disponibles con fecha y tamaño
   2. Seleccionar backup
-  3. Download + descifrar con contraseña local
+  3. Download + descifrar con passphrase de backup
   4. Transacción Room completa: DROP + INSERT de todos los datos
 - **Export manual:** JSON (estructura completa exportable) o CSV (un archivo por tipo: sesiones, sets, cardio, composición corporal)
 - Export guarda en almacenamiento privado de la app, luego comparte via Android `ShareSheet` — el usuario elige dónde enviarlo (Drive, email, etc.)
 - Export incluye: rutinas, ejercicios, sesiones, sets, cardio, composición corporal, plan semanal
-- Export JSON/CSV en claro exige step-up auth con contraseña local antes de escribir el archivo.
+- Export JSON/CSV en claro no exige contraseña tras retirar el gate local; el usuario decide dónde compartirlo.
 
 ### 2.14 ONBOARDING (PRIMER LANZAMIENTO)
 
-Flujo lineal; solo la contraseña de respaldo (paso 3) es obligatoria:
+Flujo lineal; todos los pasos salvo la pantalla final son saltables:
 
 1. **Bienvenida:** propuesta de valor en una pantalla, logo, CTA "Empezar"
-2. **Conectar Google (OPCIONAL, saltable):** Google Identity Services solo para habilitar el backup en Drive. *(v2.2: ya NO es obligatorio ni "crea cuenta" — no hay backend. La app funciona 100% offline. Se puede conectar más tarde desde Ajustes.)*
-3. **Contraseña de respaldo:** crear contraseña local (obligatorio, no salteable, con confirmación y medidor de fortaleza)
-4. **Perfil básico:** nombre, edad, altura, género, objetivo (salteable)
-5. **Permisos de notificaciones:** explicación + solicitud (salteable con advertencia)
-6. **Health Connect:** explicación de qué datos se leen/escriben + solicitud de permisos (salteable)
-7. **Ubicación para cardio GPS:** solicitud de permiso `ACCESS_FINE_LOCATION` (salteable)
-8. **Biometría:** activar opcionalmente (salteable)
-9. **Listo:** pantalla de confirmación → Home
+2. **Conectar Google (OPCIONAL, saltable):** Google Identity solo para habilitar el backup en Drive. *(v2.2: ya NO es obligatorio ni "crea cuenta" — no hay backend. La app funciona 100% offline. Se puede conectar más tarde desde Backup.)*
+3. **Perfil básico:** nombre, edad, altura, género, objetivo (salteable)
+4. **Permisos de notificaciones:** explicación + solicitud (salteable con advertencia)
+5. **Health Connect:** explicación de qué datos se leen/escriben + solicitud de permisos (salteable)
+6. **Ubicación para cardio GPS:** solicitud de permiso `ACCESS_FINE_LOCATION` (salteable)
+7. **Listo:** pantalla de confirmación → Home
 
 ### 2.15 PRIVACIDAD
 
@@ -379,7 +374,7 @@ Gráficos:                   Vico Charts (com.patrykandpatrick.vico)
 HTTP Client:                Retrofit + OkHttp [exclusivamente para Drive REST API v3]
 Serialización:              Kotlinx Serialization
 Cifrado:                    Android Keystore + EncryptedSharedPreferences + SQLCipher + AES-256-GCM
-Autenticación:              Google Identity Services — Credential Manager API
+Autenticación:              Sin login de app; Google Identity AuthorizationClient solo para Drive
 Health Connect:             androidx.health.connect:connect-client (estable)
 Location:                   Google Play Services Location (FusedLocationProvider)
 Maps:                       Google Maps Compose
@@ -451,10 +446,7 @@ dependencies {
     implementation("androidx.security:security-crypto:1.1.0-alpha06")
     // EncryptedSharedPreferences + acceso al Keystore
 
-    // ── Google Identity Services (Sign-In moderno) ────────────────────────────
-    implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
-    implementation("androidx.credentials:credentials:1.3.0")
-    implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
+    // ── Google Drive OAuth ───────────────────────────────────────────────────
     implementation("com.google.android.gms:play-services-auth:21.5.1") // AuthorizationClient para Drive
 
     // ── Google Drive REST API v3 (via Retrofit, sin Google API Client library) ─
@@ -542,12 +534,9 @@ dependencies {
 <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
 <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
 
-<!-- Internet (Google Sign-In opcional, Drive backup) -->
+<!-- Internet (Google Drive backup opcional) -->
 <uses-permission android:name="android.permission.INTERNET" />
 <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
-
-<!-- Biometría (v2.2: USE_FINGERPRINT eliminado — deprecado desde API 28, minSdk es 31) -->
-<uses-permission android:name="android.permission.USE_BIOMETRIC" />
 
 <!-- Vibración (rest timer) -->
 <uses-permission android:name="android.permission.VIBRATE" />
@@ -611,8 +600,8 @@ users
   id                TEXT    PK          -- UUID generado localmente
   google_id         TEXT                -- nullable, id de cuenta Google
   email             TEXT                -- nullable; Google/Drive es opcional
-  password_hash     TEXT    NOT NULL    -- PBKDF2-HMAC-SHA256, 600k iter
-  password_salt     TEXT    NOT NULL    -- 32 bytes aleatorios, base64
+  password_hash     TEXT                -- nullable; legado de auth local, no usado para entrar
+  password_salt     TEXT                -- nullable; legado de auth local, no usado para entrar
   created_at        INTEGER NOT NULL
   last_login_at     INTEGER
 
@@ -910,10 +899,6 @@ atlas-peak/
 │       │   ├── model/                       ← data classes sin anotaciones Room/Retrofit
 │       │   ├── repository/                  ← interfaces (contratos)
 │       │   └── usecase/
-│       │       ├── auth/
-│       │       │   ├── GoogleSignInUseCase.kt
-│       │       │   ├── LocalAuthUseCase.kt
-│       │       │   └── BiometricAuthUseCase.kt
 │       │       ├── workout/
 │       │       │   ├── CreateRoutineUseCase.kt
 │       │       │   ├── StartWorkoutSessionUseCase.kt
@@ -938,8 +923,8 @@ atlas-peak/
 │       │
 │       ├── presentation/
 │       │   ├── screen/
-│       │   │   ├── auth/            ← LoginScreen, SplashScreen
-│       │   │   ├── onboarding/      ← 9 pantallas del flujo inicial
+│       │   │   ├── auth/            ← legado local no enrutable en v1
+│       │   │   ├── onboarding/      ← 7 pantallas del flujo inicial
 │       │   │   ├── home/            ← HomeScreen (dashboard)
 │       │   │   ├── workout/         ← Rutinas, ActiveWorkout, Historial
 │       │   │   ├── cardio/          ← Tipos cardio, ActiveCardio
@@ -1096,10 +1081,11 @@ Tab 5: PERFIL         → ProfileScreen
                         ├── BackupRestoreScreen
                         └── ExportScreen
 
-Flujo Auth (fuera del NavHost principal):
+Flujo inicial:
   SplashScreen
-  └── LoginScreen
-      └── OnboardingFlow (solo primer lanzamiento, 9 pasos)
+  └── Launch
+      ├── OnboardingFlow (solo primer lanzamiento, 7 pasos)
+      └── Home (si onboarding ya esta completado)
 ```
 
 **Total: 27 pantallas.**
@@ -1112,12 +1098,11 @@ Flujo Auth (fuera del NavHost principal):
 
 | Capa | Tecnología | Notas |
 |------|------------|-------|
-| Sign-In Google opcional | Google Identity Services (Credential Manager) | Reemplaza GMS Auth (deprecated); usado para Drive/Google |
-| Contraseña respaldo | PBKDF2-HMAC-SHA256, 600.000 iter, salt 32B | Ejecución en `Dispatchers.IO` |
-| Almacenamiento hash/salt | Tabla `users` en DB SQLCipher | La clave de DB vive protegida por Android Keystore |
-| Biometría | `BiometricPrompt` clase `BIOMETRIC_STRONG` | Solo desbloqueo, no auth nueva |
-| Rate limiting | 5 intentos → lock 15 min | Solo contraseña local |
-| Pantallas sensibles | `FLAG_SECURE` | Rutas autenticadas con salud/entrenamiento, Login, Perfil, Backup, Biometría |
+| Google Drive opcional | Google Identity `AuthorizationClient` | Solo pide scope `drive.appdata` desde Backup |
+| Entrada a la app | Sin contraseña local | `Launch` navega a `Home` tras onboarding |
+| Passphrase backup | PBKDF2-HMAC-SHA256, 600.000 iter, salt 16B en archivo | Solo cifra/restaura backups |
+| Biometría | No usada en v1 para desbloqueo | Sin gate local no aporta UX |
+| Pantallas sensibles | `FLAG_SECURE` | Rutas con salud/entrenamiento, Perfil y Backup |
 
 ### 7.2 Cifrado Local
 
@@ -1133,7 +1118,7 @@ Flujo Auth (fuera del NavHost principal):
 ```
 Proceso de cifrado de backup (v2.2 — corregido):
 1. salt_backup = 16 bytes aleatorios (por backup); iteraciones = 600.000
-2. Contraseña local + salt_backup → PBKDF2-HMAC-SHA256 → clave maestra de 256 bits
+2. Passphrase de backup + salt_backup → PBKDF2-HMAC-SHA256 → clave maestra de 256 bits
 3. JSON completo de la DB → cifrado con AES-256-GCM + IV aleatorio (12 bytes)
 4. Formato del archivo:
    [magic "ATPK" (4B)] [versión (1B)] [iteraciones (4B BE)] [salt_backup (16B)] [IV (12B)] [ciphertext + tag GCM (16B)]
@@ -1145,17 +1130,17 @@ Por qué la cabecera:
 - El salt y las iteraciones NO son secretos; deben acompañar al ciphertext para poder
   derivar la misma clave en cualquier dispositivo.
 - En v2.1 el formato era [IV][ciphertext] sin salt → en un dispositivo nuevo no había forma
-  de derivar la clave → la feature "restaurar con tu contraseña" estaba rota. (SEC-001)
+  de derivar la clave → la feature "restaurar con tu passphrase" estaba rota. (SEC-001)
 
 Ventaja clave (ahora sí funciona):
 - La clave NO está ligada al dispositivo físico.
-- Si el usuario instala en un nuevo dispositivo y recuerda su contraseña local,
+- Si el usuario instala en un nuevo dispositivo y recuerda la passphrase de backup,
   puede restaurar el backup correctamente (lee la cabecera, deriva la clave, descifra).
 - Google solo ve datos binarios cifrados, nunca el contenido.
 
-Aviso: cambiar la contraseña local invalida los backups previos (estaban cifrados con la
-clave derivada de la contraseña antigua). La app advierte de esto y ofrece crear un backup
-nuevo. (SEC-002)
+Aviso: cambiar la passphrase de backup no re-cifra backups previos; esas copias siguen
+requiriendo la passphrase con la que se crearon. La app debe advertirlo si se ofrece guardar
+una nueva passphrase para backup automático. (SEC-002)
 
 Backup automatico: como no hay backend ni refresh server-side, la app solo puede cifrar en
 segundo plano si el usuario acepta guardar la contraseña de backup cifrada en el dispositivo
@@ -1169,8 +1154,8 @@ la propia marca de exito del backup anterior.
 
 - `network_security_config.xml`: cleartext prohibido en producción
 - Todas las llamadas a Drive REST API usan `Authorization: Bearer {access_token}`
-- El `access_token` sale de `AuthorizationClient` con scope `drive.appdata`; un ID token de
-  Credential Manager nunca se usa contra Drive.
+- El `access_token` sale de `AuthorizationClient` con scope `drive.appdata`; no hay login de
+  app ni ID token que reutilizar contra Drive.
 - `OkHttp logging interceptor` desactivado en builds release (BuildConfig.DEBUG)
 
 ### 7.5 Export de Datos
@@ -1180,17 +1165,16 @@ la propia marca de exito del backup anterior.
 - El archivo no queda accesible a otras apps directamente
 - `FileProvider` configurado en manifest con `android:exported="false"`
 - El backup cifrado contiene las tablas necesarias para restaurar (`users` incluido). El
-  export manual JSON/CSV, al no estar cifrado, excluye hashes/salts de contraseña y
-  `auth_security`.
-- El export manual en claro exige reautenticacion local justo antes de generar el archivo.
+  export manual JSON/CSV, al no estar cifrado, excluye `users` y `auth_security`.
+- El export manual en claro no exige reautenticacion local tras retirar el gate de entrada.
 
 ### 7.6 Puntos Débiles Conocidos y Aceptados
 
 | Limitación | Por qué se acepta |
 |------------|-------------------|
-| Rate limiting reseteable borrando datos de app | La protección real es el hash fuerte de contraseña |
-| Backup no restaurable si se olvida contraseña Y pierde cuenta Google | Documentado y advertido en UI. No hay solución sin comprometer seguridad |
-| FLAG_SECURE impide screenshots en rutas sensibles | Aplicado a la zona autenticada con salud/entrenamiento; `Launch` queda fuera |
+| Sin contraseña para abrir la app | Decisión de producto: fricción cero; se confía en el bloqueo del dispositivo |
+| Backup no restaurable si se olvida la passphrase | Documentado y advertido en UI. No hay solución sin comprometer cifrado |
+| FLAG_SECURE impide screenshots en rutas sensibles | Aplicado a rutas con salud/entrenamiento; `Launch` queda fuera |
 
 ---
 
@@ -1248,7 +1232,7 @@ Descargar: https://git-scm.com
 
 **Credenciales necesarias (v2.2 — NO usar `google-services.json`):**
 ```
-1. OAuth 2.0 Client ID (tipo "Web application")  → para Credential Manager + Drive
+1. OAuth 2.0 Client ID (tipo "Web application")  → para Drive OAuth
    - Registrar también el SHA-1 de tu keystore (debug y release) como cliente Android.
 2. Maps SDK for Android API key                   → restringida por package name + SHA-1.
 
@@ -1400,19 +1384,16 @@ jobs:
 - `FeatureFlags.kt`
 - Wear OS queda fuera de v1; se conserva solo el diseño en `SPEC.md §2.10`.
 
-**FASE 2 — Autenticación completa (2 semanas)**
-- Google Identity Services Sign-In opcional (Credential Manager API)
-- Contraseña local: PBKDF2-HMAC-SHA256 (600k iter), salt, hash en tabla `users`, contador de intentos en tabla `auth_security`
-- `BiometricPrompt` con `BIOMETRIC_STRONG` + lógica de timeout configurable
-- Rate limiting en contraseña local (5 intentos, 15 min lock, tabla `auth_security`)
-- `LoginScreen` con `FLAG_SECURE`
-- `AuthViewModel` + `LocalAuthUseCase` + `GoogleSignInUseCase`
-- `EncryptionManager.kt`: wrappers de Keystore, AES-256-GCM, PBKDF2
+**FASE 2 — Seguridad local y Google opcional (2 semanas)**
+- Google Identity `AuthorizationClient` opcional para Drive, sin cuenta obligatoria.
+- Sin `LoginScreen` ni contraseña para entrar en la app.
+- SQLCipher + Android Keystore para cifrado local transparente.
+- Passphrase de backup con PBKDF2-HMAC-SHA256 (600k iter) solo en flujos de Backup.
+- `EncryptionManager.kt`: wrappers de Keystore, AES-256-GCM, PBKDF2.
 
 **FASE 3 — Onboarding (1 semana)**
-- Flujo de 9 pasos completo
+- Flujo de 7 pasos completo
 - Solicitud de permisos: notificaciones, Health Connect, ubicación
-- Pantalla de configuración de contraseña local con medidor de fortaleza
 - Setup de perfil básico (nombre, edad, altura, género, objetivo)
 - `UserProfile` entity + DAO + repositorio
 - Persistir flag `onboarding_completed` en DataStore
@@ -1483,10 +1464,10 @@ jobs:
 **FASE 12 — Backup + Export (2 semanas)**
 - `DriveApiService.kt`: Retrofit interface para Drive REST API v3
 - `AuthorizationClient` con scope `drive.appdata`; no usar ID token como token Drive
-- `DriveBackupManager.kt`: serialize → encrypt (AES-256-GCM, clave derivada de password) → upload
+- `DriveBackupManager.kt`: serialize → encrypt (AES-256-GCM, clave derivada de passphrase) → upload
 - `BackupRestoreScreen`: listar backups, crear manual, restaurar
 - `BackupWorker`: backup automático diario si hay cambios
-- Export JSON completo sin auth secrets + CSV ZIP por tipo, con step-up auth local
+- Export JSON completo sin auth secrets + CSV ZIP por tipo, sin step-up local
 - `BackupRestoreScreen` incluye opciones de export y Share Sheet
 
 **FASE 13 — Wear OS diferido a v2**
@@ -1507,7 +1488,7 @@ jobs:
 - **Unit tests (MockK):** todos los Use Cases, ViewModels, EncryptionManager, lógica de conflictos HC
 - **Integración (Room in-memory):** DAOs, repositorios, migraciones
 - **Flows (Turbine):** StateFlows de ViewModels, emissions de LocationTracker
-- **Compose UI tests:** pantallas críticas (ActiveWorkout, Login, Onboarding)
+- **Compose UI tests:** pantallas críticas (ActiveWorkout, Onboarding, Backup)
 - **WorkManager tests:** workers con `work-testing`
 - Target mínimo: **70% cobertura en capas domain y data**
 
@@ -1548,11 +1529,11 @@ jobs:
 | SQLCipher para cifrado DB | EncryptedRoom (androidx.security) | EncryptedRoom está deprecated desde 2023 |
 | Retrofit directo para Drive | Google API Client library | API Client trae deps conflictivas con OkHttp y pesa ~5MB extra |
 | MockK para testing | Mockito | Mockito es Java; MockK es Kotlin-native, mejor integración con coroutines |
-| Clave backup derivada de password | Clave ligada al Keystore del dispositivo | Permite restaurar en nuevo dispositivo si se recuerda la contraseña |
+| Clave backup derivada de passphrase | Clave ligada al Keystore del dispositivo | Permite restaurar en nuevo dispositivo si se recuerda la passphrase |
 | ForegroundService para workout timer | ViewModel con CountDownTimer | ViewModel se destruye cuando la app pasa a background |
 | i18n desde Fase 1 | Internacionalizar en Fase final | Añadirlo al final obliga a revisar las 27 pantallas una por una |
 | Argon2id descartado | PBKDF2-HMAC-SHA256 | Argon2 requiere librería nativa (NDK); PBKDF2 con 600k iter (OWASP) es suficiente para uso local |
-| BIOMETRIC_STRONG obligatorio | BIOMETRIC_WEAK | BIOMETRIC_WEAK acepta reconocimiento facial 2D (inseguro) |
+| Biometría local descartada en v1 | Biometría débil/fuerte | Sin gate local no aporta UX; reabrirla exige decisión de producto |
 
 ---
 

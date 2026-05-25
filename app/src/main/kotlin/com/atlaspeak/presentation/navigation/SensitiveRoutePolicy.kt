@@ -3,8 +3,6 @@ package com.atlaspeak.presentation.navigation
 internal fun isSensitiveRoute(route: String?): Boolean = route in sensitiveRoutes
 
 private val sensitiveRoutes = setOf(
-    AppRoute.Login.route,
-    AppRoute.Biometric.route,
     AppRoute.Onboarding.route,
     AppRoute.Home.route,
     AppRoute.Train.route,

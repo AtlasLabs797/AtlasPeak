@@ -33,7 +33,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -56,6 +55,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.atlaspeak.R
 import com.atlaspeak.domain.model.backup.DriveBackup
 import com.atlaspeak.domain.model.backup.SharedBackupExport
+import com.atlaspeak.presentation.component.PremiumBackground
 import com.atlaspeak.presentation.theme.LocalSpacing
 import java.text.DateFormat
 import java.util.Date
@@ -162,10 +162,7 @@ fun BackupRestoreScreen(
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
-    Surface(
-        modifier = modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background,
-    ) {
+    PremiumBackground(modifier = modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(spacing.screen),
@@ -289,7 +286,7 @@ private fun PasswordCard(
                     value = password,
                     onValueChange = onPasswordChanged,
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.auth_password_label)) },
+                    label = { Text(stringResource(R.string.backup_password_label)) },
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),

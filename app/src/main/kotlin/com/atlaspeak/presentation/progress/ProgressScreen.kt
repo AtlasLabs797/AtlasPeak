@@ -31,7 +31,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.PrimaryTabRow
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -39,6 +38,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -57,6 +57,7 @@ import com.atlaspeak.domain.model.workout.WorkoutSession
 import com.atlaspeak.presentation.cardio.CardioRouteMap
 import com.atlaspeak.presentation.component.PeriodSelector
 import com.atlaspeak.presentation.component.PeriodSelectorItem
+import com.atlaspeak.presentation.component.PremiumBackground
 import com.atlaspeak.presentation.theme.LocalSpacing
 import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
@@ -102,10 +103,7 @@ fun ProgressScreen(
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
-    Surface(
-        modifier = modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background,
-    ) {
+    PremiumBackground(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
@@ -123,7 +121,11 @@ fun ProgressScreen(
                     onPeriodSelected = onPeriodSelected,
                 )
             }
-            PrimaryTabRow(selectedTabIndex = state.selectedTab.ordinal) {
+            PrimaryTabRow(
+                selectedTabIndex = state.selectedTab.ordinal,
+                containerColor = Color.Transparent,
+                contentColor = MaterialTheme.colorScheme.onSurface,
+            ) {
                 Tab(
                     selected = state.selectedTab == ProgressTab.History,
                     onClick = { onTabSelected(ProgressTab.History) },

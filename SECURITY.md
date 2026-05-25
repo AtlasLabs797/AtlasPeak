@@ -11,8 +11,8 @@
 
 Atlas Peak es **local-first** sin backend propio. Las superficies de ataque reales son:
 
-1. **Acceso físico al dispositivo desbloqueado** → mitigado con gate de contraseña +
-   biometría + timeout + `FLAG_SECURE`.
+1. **Acceso físico al dispositivo desbloqueado** → riesgo aceptado tras retirar el gate de
+   contraseña; la defensa real es el bloqueo del dispositivo + `FLAG_SECURE` contra capturas.
 2. **Extracción de la DB del dispositivo** → mitigado con SQLCipher (clave en Keystore).
 3. **Backup en Google Drive comprometido** (cuenta Google hackeada / Google interno) →
    mitigado con AES-256-GCM y clave derivada de contraseña (Google solo ve binario cifrado).
@@ -31,6 +31,24 @@ salvo lo que el propio Google maneja en su OAuth.
 Estos se detectaron al auditar el spec **antes** de escribir código. Los fixes están
 reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de versiones.
 
+### SEC-025 - Gate de contraseña local retirado por decisión de producto
+- **Estado:** Aceptado (riesgo conocido)
+- **Fecha:** 2026-05-25
+- **Severidad:** Media
+- **Sintoma:** pedir contraseña al entrar convertia una app de uso diario en friccion constante.
+- **Causa raiz:** el modelo anterior trataba todos los datos locales como si exigieran step-up permanente, aunque el usuario prefiere confiar en el bloqueo del dispositivo.
+- **Solucion:** `Launch` navega directo a `Home` tras onboarding; se elimina `SessionLockViewModel`, el onboarding ya no crea contraseña ni biometria, y los hashes/salts locales pasan a nullable con migracion 2→3 que borra credenciales legadas. La passphrase se mantiene solo para cifrar/restaurar backups.
+- **Prevencion:** no reintroducir login local salvo decisión explícita. Cualquier export JSON/CSV queda aceptado como claro; los backups Drive siguen cifrados.
+
+### SEC-024 - Capturas permitidas solo en emulador debug para QA visual
+- **Estado:** Resuelto
+- **Fecha:** 2026-05-24
+- **Severidad:** Baja
+- **Sintoma:** `FLAG_SECURE` protegia correctamente el onboarding y rutas sensibles, pero dejaba las capturas del emulador negras e impedia QA visual automatizada.
+- **Causa raiz:** la politica de seguridad no distinguia release/dispositivo real de emulador debug usado como herramienta de validacion.
+- **Solucion:** `SecureScreenEffect` mantiene la lista de rutas sensibles, pero omite `FLAG_SECURE` solo cuando `BuildConfig.DEBUG` y el runtime es un emulador Android. Release y debug en dispositivo real siguen protegidos.
+- **Prevencion:** `SensitiveRoutePolicyTest` cubre que el bypass solo aplica a emulador debug.
+
 ### SEC-010 — DB SQLCipher y clave local protegida
 - **Estado:** 🟢 Resuelto
 - **Fecha:** 2026-05-23
@@ -41,13 +59,13 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
 - **Prevención:** no usar `fallbackToDestructiveMigration()` fuera de tests; revisar este flujo en Fase 13 junto con backup/restore.
 
 ### SEC-011 — Auth local con PBKDF2 y rate-limit persistente
-- **Estado:** 🟢 Resuelto
+- **Estado:** Obsoleto por SEC-025
 - **Fecha:** 2026-05-23
 - **Severidad:** Alta
 - **Síntoma:** Fase 2 necesitaba un gate local real; dejar el `NavHost` arrancando en `Home` convertía auth en teatro.
 - **Causa raíz:** Fase 1 solo tenía rutas placeholder y la tabla `auth_security`, sin DAO/repositorio/use case de autenticación.
-- **Solución:** `LoginScreen` es el destino inicial, `LocalAuthUseCase` usa PBKDF2-HMAC-SHA256 con 600.000 iteraciones y salt de 32 bytes, comparación constante, y bloqueo persistente de 5 intentos/15 min en `auth_security`. Google Identity no desbloquea datos locales; solo informa de conexión opcional. Biometría requiere contraseña local previa y opt-in guardado.
-- **Prevención:** constantes únicas en `EncryptionManager`/`LocalAuthPolicy`, tests unitarios de crypto/rate-limit/bypass de Google y `FLAG_SECURE` por ruta sensible.
+- **Solución:** la solución original fue retirada por SEC-025. Se eliminó el flujo de auth local (`LoginScreen`, `LocalAuthUseCase`, biometría y repositorio de auth); los hashes/salts migran a `NULL` y no hay login local visible.
+- **Prevención:** si vuelve el login local, reactivar PBKDF2/rate-limit/biometría como feature explícita, no como requisito implícito.
 
 ### SEC-012 — Onboarding sensible y permisos Health Connect
 - **Estado:** 🟢 Resuelto
@@ -131,22 +149,22 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
 - **Prevencion:** test estatico `all notification builders and channels are private on lockscreen`.
 
 ### SEC-021 - Timeout de desbloqueo local no se ejecutaba al volver a foreground
-- **Estado:** Resuelto
+- **Estado:** Aceptado / obsoleto por SEC-025
 - **Fecha:** 2026-05-24
 - **Severidad:** Alta
 - **Sintoma:** `biometric_timeout_min` y la politica de timeout existian, pero ninguna ruta sensible revalidaba el desbloqueo al volver de background.
 - **Causa raiz:** el gate de auth solo se ejecutaba en `Launch`; `FLAG_SECURE` bloquea capturas, pero no bloquea a una persona con el dispositivo desbloqueado.
-- **Solucion:** `SessionLockViewModel` evalua rutas sensibles en `ON_RESUME` y fuerza vuelta a `Login` si `last_login_at` supera el timeout configurado. `LocalAuthUseCase` expone `shouldRequireSessionUnlock()` y `AuthRepository` lee el timeout persistido.
-- **Prevencion:** `SessionLockViewModelTest` y nuevos tests de `LocalAuthUseCase` cubren timeout expirado/no expirado.
+- **Solucion:** la mitigacion original fue reemplazada por SEC-025: no hay gate local ni timeout de sesion. `FLAG_SECURE` se mantiene para capturas/vista de recientes.
+- **Prevencion:** no tratar `last_login_at` como control vigente; si vuelve el login local, recuperar tests de timeout antes de exponerlo.
 
 ### SEC-022 - Export JSON/CSV en claro sin step-up auth
-- **Estado:** Resuelto
+- **Estado:** Aceptado por SEC-025
 - **Fecha:** 2026-05-24
 - **Severidad:** Media
 - **Sintoma:** una sesion ya abierta podia exportar datos de salud/entrenamiento en claro por ShareSheet sin volver a pedir contrasena.
 - **Causa raiz:** el flujo de export manual excluia hashes y lockout, pero no distinguia entre sesion autenticada y accion sensible de exfiltracion.
-- **Solucion:** `BackupRestoreViewModel.exportJson()` y `exportCsv()` verifican la contrasena local con `LocalAuthUseCase.authenticate()` antes de escribir el archivo; despues limpian el estado de password de UI. Los backups cifrados siguen usando la password para cifrar.
-- **Prevencion:** `BackupRestoreViewModelTest` prueba rechazo con password incorrecta, ejecucion con password correcta y limpieza del estado.
+- **Solucion:** al retirar la contraseña de entrada, el step-up local deja de existir. `BackupRestoreViewModel.exportJson()` y `exportCsv()` escriben exports manuales sin contraseña; la UI avisa que son cleartext. Los backups cifrados siguen usando passphrase.
+- **Prevencion:** mantener los exports manuales excluyendo `users` y `auth_security`; no confundirlos con backup cifrado.
 
 ### SEC-023 - Restore de backup aceptaba columnas desconocidas hasta SQLite
 - **Estado:** Resuelto
@@ -207,7 +225,7 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
   Firebase/GMS plugin, no presente en los plugins del proyecto, y **contiene una API key**
   que acabaría en el repo.
 - **Causa raíz:** confusión entre Firebase y Google Identity Services / Drive REST.
-- **Solución:** **no se usa `google-services.json`.** Credential Manager + Drive REST solo
+- **Solución:** **no se usa `google-services.json`.** `AuthorizationClient` + Drive REST solo
   necesitan el **Web OAuth Client ID** (no secreto, pero gestionado via `secrets.properties`
   para no esparcirlo). `google-services.json` añadido al `.gitignore` por si acaso.
 - **Prevención:** documentado en `CLAUDE.md §6`.
@@ -249,7 +267,7 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
 - **Fecha:** 2026-05-23
 - **Severidad:** Baja
 - **Síntoma:** permiso deprecado desde API 28; con minSdk 31 es peso muerto.
-- **Solución:** eliminado. `USE_BIOMETRIC` cubre todo.
+- **Solución:** eliminado. Tras SEC-025 tampoco se declara `USE_BIOMETRIC` porque no hay desbloqueo biométrico local.
 
 ### SEC-009 — `foregroundServiceType="health"` sin permiso asociado
 - **Estado:** 🟢 Resuelto
@@ -275,12 +293,11 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
       `google-services.json` siguen en `.gitignore`.
 - [ ] OkHttp logging interceptor desactivado en release (`BuildConfig.DEBUG`).
 - [ ] Sin `Log.*` con datos sensibles en builds release (ProGuard/R8 los retira; verificar).
-- [ ] `FLAG_SECURE` activo en rutas autenticadas con salud/entrenamiento, perfil y backup.
+- [ ] `FLAG_SECURE` activo en rutas con salud/entrenamiento, perfil y backup.
 - [ ] `network_security_config.xml`: `cleartextTrafficPermitted="false"` en producción.
 - [ ] Maps API key restringida (SHA-1 + package) en Cloud Console.
 - [ ] Permisos del manifest = solo los usados (sin `ACCESS_BACKGROUND_LOCATION`).
 - [ ] Test de round-trip de backup entre "dispositivos" (salts distintos) pasa.
-- [ ] Biometría = `BIOMETRIC_STRONG`.
 - [ ] PBKDF2 = 600.000 iteraciones.
 
 ---
@@ -289,6 +306,7 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
 
 | ID | Limitación | Por qué se acepta |
 |----|------------|-------------------|
+| RA-05 | Sin contraseña para abrir la app | El usuario prefiere friccion cero; se confia en bloqueo del dispositivo y `FLAG_SECURE` |
 | SEC-002 | Cambiar contraseña invalida backups previos | Es el coste de la portabilidad sin backend; mitigado con aviso UX |
 | RA-01 | Rate-limit reseteable borrando datos de la app | La defensa real es el hash fuerte; sin servidor no hay alternativa |
 | RA-02 | Pérdida de contraseña **y** cuenta Google → datos irrecuperables | Documentado y advertido en onboarding; no hay solución sin comprometer el cifrado |

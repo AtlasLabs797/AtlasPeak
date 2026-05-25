@@ -1,6 +1,7 @@
 package com.atlaspeak
 
 import android.app.Application
+import android.content.Context
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.atlaspeak.data.backup.BackupWorkScheduler
@@ -31,6 +32,11 @@ class AtlasPeakApplication : Application(), Configuration.Provider {
         get() = Configuration.Builder()
             .setWorkerFactory(workerFactory)
             .build()
+
+    override fun attachBaseContext(base: Context) {
+        super.attachBaseContext(base)
+        System.loadLibrary("sqlcipher")
+    }
 
     override fun onCreate() {
         super.onCreate()

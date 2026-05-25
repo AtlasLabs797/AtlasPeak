@@ -1,6 +1,7 @@
 package com.atlaspeak.presentation.home
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +13,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.AccessTime
@@ -20,9 +23,7 @@ import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.TaskAlt
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -32,6 +33,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -51,6 +54,9 @@ import com.atlaspeak.domain.model.dashboard.DashboardSnapshot
 import com.atlaspeak.domain.model.dashboard.DashboardWidget
 import com.atlaspeak.presentation.component.PeriodSelector
 import com.atlaspeak.presentation.component.PeriodSelectorItem
+import com.atlaspeak.presentation.component.PremiumBackground
+import com.atlaspeak.presentation.component.PremiumCard
+import com.atlaspeak.presentation.component.PremiumIconBadge
 import com.atlaspeak.presentation.theme.LocalSpacing
 import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
@@ -93,10 +99,7 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
-    Surface(
-        modifier = modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background,
-    ) {
+    PremiumBackground(modifier = modifier.fillMaxSize()) {
         if (state.isLoading && state.snapshot == null) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
@@ -160,31 +163,26 @@ private fun DashboardContent(
             WeeklyMinutesCard(snapshot.weeklyTrainingMinutes)
         }
         item {
-            MetricCard(
-                titleRes = R.string.home_widget_volume_title,
-                icon = Icons.Filled.FitnessCenter,
-                value = stringResource(R.string.home_value_kg, snapshot.totalVolumeKg),
-                subtitle = stringResource(R.string.home_widget_volume_subtitle),
-                period = filters.totalVolumePeriod,
-                onPeriodSelected = { onPeriodSelected(DashboardWidget.TotalVolume, it) },
-            )
-        }
-        item {
-            ConsistencyCard(
-                consistency = snapshot.consistency,
-                period = filters.consistencyPeriod,
-                onPeriodSelected = { onPeriodSelected(DashboardWidget.Consistency, it) },
-            )
-        }
-        item {
-            MetricCard(
-                titleRes = R.string.home_widget_activity_title,
-                icon = Icons.Filled.AccessTime,
-                value = stringResource(R.string.home_value_minutes, snapshot.totalActivitySeconds / 60),
-                subtitle = stringResource(R.string.home_widget_activity_subtitle),
-                period = filters.totalActivityPeriod,
-                onPeriodSelected = { onPeriodSelected(DashboardWidget.TotalActivity, it) },
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(spacing.cardGap),
+            ) {
+                MetricCard(
+                    titleRes = R.string.home_widget_volume_title,
+                    icon = Icons.Filled.FitnessCenter,
+                    value = stringResource(R.string.home_value_kg, snapshot.totalVolumeKg),
+                    subtitle = stringResource(R.string.home_widget_volume_subtitle),
+                    period = filters.totalVolumePeriod,
+                    onPeriodSelected = { onPeriodSelected(DashboardWidget.TotalVolume, it) },
+                    modifier = Modifier.weight(1f),
+                )
+                ConsistencyCard(
+                    consistency = snapshot.consistency,
+                    period = filters.consistencyPeriod,
+                    onPeriodSelected = { onPeriodSelected(DashboardWidget.Consistency, it) },
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
         item {
             ChartMetricCard(
@@ -223,35 +221,68 @@ private fun DashboardContent(
             )
         }
         item {
-            MetricCard(
-                titleRes = R.string.home_widget_sleep_title,
-                icon = Icons.Filled.Bedtime,
-                value = snapshot.averageSleepHours?.let { stringResource(R.string.home_value_hours, it) }
-                    ?: stringResource(R.string.home_value_empty),
-                subtitle = stringResource(R.string.home_widget_sleep_subtitle),
-                period = filters.sleepPeriod,
-                onPeriodSelected = { onPeriodSelected(DashboardWidget.Sleep, it) },
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(spacing.cardGap),
+            ) {
+                MetricCard(
+                    titleRes = R.string.home_widget_activity_title,
+                    icon = Icons.Filled.AccessTime,
+                    value = stringResource(R.string.home_value_minutes, snapshot.totalActivitySeconds / 60),
+                    subtitle = stringResource(R.string.home_widget_activity_subtitle),
+                    period = filters.totalActivityPeriod,
+                    onPeriodSelected = { onPeriodSelected(DashboardWidget.TotalActivity, it) },
+                    modifier = Modifier.weight(1f),
+                )
+                MetricCard(
+                    titleRes = R.string.home_widget_sleep_title,
+                    icon = Icons.Filled.Bedtime,
+                    value = snapshot.averageSleepHours?.let { stringResource(R.string.home_value_hours, it) }
+                        ?: stringResource(R.string.home_value_empty),
+                    subtitle = stringResource(R.string.home_widget_sleep_subtitle),
+                    period = filters.sleepPeriod,
+                    onPeriodSelected = { onPeriodSelected(DashboardWidget.Sleep, it) },
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun WeeklyMinutesCard(minutes: Int) {
+private fun WeeklyMinutesCard(minutes: Int, modifier: Modifier = Modifier) {
     val spacing = LocalSpacing.current
-    ElevatedCard {
+    val colors = MaterialTheme.colorScheme
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(28.dp))
+            .background(
+                Brush.linearGradient(
+                    listOf(
+                        colors.primaryContainer,
+                        colors.surfaceVariant,
+                    ),
+                ),
+            )
+            .padding(spacing.lg),
+    ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(spacing.card),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(spacing.md),
         ) {
-            Icon(
-                imageVector = Icons.Filled.AccessTime,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-            )
+            Surface(
+                shape = CircleShape,
+                color = colors.background.copy(alpha = 0.72f),
+                contentColor = colors.onBackground,
+            ) {
+                Icon(
+                    modifier = Modifier.padding(spacing.sm),
+                    imageVector = Icons.Filled.AccessTime,
+                    contentDescription = null,
+                )
+            }
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(spacing.xxs),
@@ -259,11 +290,12 @@ private fun WeeklyMinutesCard(minutes: Int) {
                 Text(
                     text = stringResource(R.string.home_weekly_minutes_title),
                     style = MaterialTheme.typography.titleMedium,
+                    color = colors.onPrimaryContainer,
                 )
                 Text(
                     text = stringResource(R.string.home_value_minutes, minutes),
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.displaySmall,
+                    color = colors.onPrimaryContainer,
                 )
             }
         }
@@ -278,12 +310,14 @@ private fun MetricCard(
     subtitle: String,
     period: DashboardPeriod,
     onPeriodSelected: (DashboardPeriod) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     DashboardCardScaffold(
         titleRes = titleRes,
         icon = icon,
         period = period,
         onPeriodSelected = onPeriodSelected,
+        modifier = modifier,
     ) {
         Text(
             text = value,
@@ -305,6 +339,7 @@ private fun ConsistencyCard(
     consistency: DashboardConsistency,
     period: DashboardPeriod,
     onPeriodSelected: (DashboardPeriod) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val value = stringResource(R.string.home_value_consistency, consistency.activeDays, consistency.targetDays)
     val subtitle = stringResource(
@@ -321,6 +356,7 @@ private fun ConsistencyCard(
         subtitle = subtitle,
         period = period,
         onPeriodSelected = onPeriodSelected,
+        modifier = modifier,
     )
 }
 
@@ -371,10 +407,11 @@ private fun DashboardCardScaffold(
     icon: ImageVector,
     period: DashboardPeriod,
     onPeriodSelected: (DashboardPeriod) -> Unit,
+    modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val spacing = LocalSpacing.current
-    Card {
+    PremiumCard(modifier = modifier) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -386,11 +423,12 @@ private fun DashboardCardScaffold(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(spacing.sm),
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                )
+                PremiumIconBadge {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                    )
+                }
                 Text(
                     modifier = Modifier.weight(1f),
                     text = stringResource(titleRes),

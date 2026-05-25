@@ -31,20 +31,16 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.Fingerprint
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Password
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.RocketLaunch
 import androidx.compose.material3.Button
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -52,12 +48,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.atlaspeak.R
 import com.atlaspeak.domain.model.onboarding.OnboardingStep
-import com.atlaspeak.domain.model.onboarding.PasswordStrength
+import com.atlaspeak.presentation.component.PremiumBackground
+import com.atlaspeak.presentation.component.PremiumIconBadge
 import com.atlaspeak.presentation.theme.LocalSpacing
 
 @Composable
@@ -104,14 +100,11 @@ fun OnboardingRoute(
             }
         },
         onSkip = viewModel::skipOptionalStep,
-        onPasswordChanged = viewModel::onPasswordChanged,
-        onConfirmPasswordChanged = viewModel::onConfirmPasswordChanged,
         onDisplayNameChanged = viewModel::onDisplayNameChanged,
         onAgeChanged = viewModel::onAgeChanged,
         onHeightChanged = viewModel::onHeightChanged,
         onGenderChanged = viewModel::onGenderChanged,
         onGoalChanged = viewModel::onGoalChanged,
-        onBiometricsEnabledChanged = viewModel::onBiometricsEnabledChanged,
     )
 }
 
@@ -120,21 +113,15 @@ fun OnboardingScreen(
     state: OnboardingUiState,
     onPrimaryAction: () -> Unit,
     onSkip: () -> Unit,
-    onPasswordChanged: (String) -> Unit,
-    onConfirmPasswordChanged: (String) -> Unit,
     onDisplayNameChanged: (String) -> Unit,
     onAgeChanged: (String) -> Unit,
     onHeightChanged: (String) -> Unit,
     onGenderChanged: (String) -> Unit,
     onGoalChanged: (String) -> Unit,
-    onBiometricsEnabledChanged: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
-    Surface(
-        modifier = modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background,
-    ) {
+    PremiumBackground(modifier = modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -149,14 +136,11 @@ fun OnboardingScreen(
             StepHeader(state.currentStep)
             StepBody(
                 state = state,
-                onPasswordChanged = onPasswordChanged,
-                onConfirmPasswordChanged = onConfirmPasswordChanged,
                 onDisplayNameChanged = onDisplayNameChanged,
                 onAgeChanged = onAgeChanged,
                 onHeightChanged = onHeightChanged,
                 onGenderChanged = onGenderChanged,
                 onGoalChanged = onGoalChanged,
-                onBiometricsEnabledChanged = onBiometricsEnabledChanged,
             )
             OnboardingMessageText(state.message)
             Button(
@@ -168,7 +152,7 @@ fun OnboardingScreen(
             ) {
                 Text(stringResource(primaryActionRes(state.currentStep)))
             }
-            if (state.currentStep != OnboardingStep.Password && state.currentStep != OnboardingStep.Done) {
+            if (state.currentStep != OnboardingStep.Done) {
                 OutlinedButton(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -190,11 +174,12 @@ private fun StepHeader(step: OnboardingStep) {
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(spacing.sm),
     ) {
-        Icon(
-            imageVector = step.icon(),
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-        )
+        PremiumIconBadge {
+            Icon(
+                imageVector = step.icon(),
+                contentDescription = null,
+            )
+        }
         Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
             Text(
                 text = stringResource(step.titleRes()),
@@ -213,46 +198,14 @@ private fun StepHeader(step: OnboardingStep) {
 @Composable
 private fun StepBody(
     state: OnboardingUiState,
-    onPasswordChanged: (String) -> Unit,
-    onConfirmPasswordChanged: (String) -> Unit,
     onDisplayNameChanged: (String) -> Unit,
     onAgeChanged: (String) -> Unit,
     onHeightChanged: (String) -> Unit,
     onGenderChanged: (String) -> Unit,
     onGoalChanged: (String) -> Unit,
-    onBiometricsEnabledChanged: (Boolean) -> Unit,
 ) {
     val spacing = LocalSpacing.current
     when (state.currentStep) {
-        OnboardingStep.Password -> {
-            OutlinedTextField(
-                modifier = Modifier.fillMaxWidth(),
-                value = state.password,
-                onValueChange = onPasswordChanged,
-                label = { Text(stringResource(R.string.auth_password_label)) },
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            )
-            OutlinedTextField(
-                modifier = Modifier.fillMaxWidth(),
-                value = state.confirmPassword,
-                onValueChange = onConfirmPasswordChanged,
-                label = { Text(stringResource(R.string.auth_confirm_password_label)) },
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            )
-            Text(
-                text = stringResource(state.passwordStrength.labelRes()),
-                style = MaterialTheme.typography.labelLarge,
-                color = when (state.passwordStrength) {
-                    PasswordStrength.Weak -> MaterialTheme.colorScheme.error
-                    PasswordStrength.Medium -> MaterialTheme.colorScheme.onSurfaceVariant
-                    PasswordStrength.Strong -> MaterialTheme.colorScheme.primary
-                },
-            )
-        }
         OnboardingStep.Google -> {
             Text(
                 text = stringResource(R.string.onboarding_google_status),
@@ -301,19 +254,6 @@ private fun StepBody(
                 singleLine = true,
             )
         }
-        OnboardingStep.Biometrics -> {
-            Row(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
-                Checkbox(
-                    checked = state.biometricsEnabled,
-                    onCheckedChange = onBiometricsEnabledChanged,
-                )
-                Text(
-                    text = stringResource(R.string.auth_enable_biometrics),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
         else -> Unit
     }
 }
@@ -322,8 +262,6 @@ private fun StepBody(
 private fun OnboardingMessageText(message: OnboardingMessage?) {
     if (message == null) return
     val messageRes = when (message) {
-        OnboardingMessage.WeakPassword -> R.string.auth_error_weak_password
-        OnboardingMessage.PasswordMismatch -> R.string.auth_error_passwords_mismatch
         OnboardingMessage.GenericError -> R.string.error_generic
         OnboardingMessage.HealthConnectUnavailable -> R.string.onboarding_health_unavailable
     }
@@ -337,43 +275,31 @@ private fun OnboardingMessageText(message: OnboardingMessage?) {
 private fun OnboardingStep.icon(): ImageVector = when (this) {
     OnboardingStep.Welcome -> Icons.Filled.RocketLaunch
     OnboardingStep.Google -> Icons.Filled.Cloud
-    OnboardingStep.Password -> Icons.Filled.Password
     OnboardingStep.Profile -> Icons.Filled.Person
     OnboardingStep.Notifications -> Icons.Filled.Notifications
     OnboardingStep.HealthConnect -> Icons.Filled.Favorite
     OnboardingStep.Location -> Icons.Filled.LocationOn
-    OnboardingStep.Biometrics -> Icons.Filled.Fingerprint
     OnboardingStep.Done -> Icons.Filled.CheckCircle
 }
 
 private fun OnboardingStep.titleRes(): Int = when (this) {
     OnboardingStep.Welcome -> R.string.onboarding_welcome_title
     OnboardingStep.Google -> R.string.onboarding_google_title
-    OnboardingStep.Password -> R.string.onboarding_password_title
     OnboardingStep.Profile -> R.string.onboarding_profile_title
     OnboardingStep.Notifications -> R.string.onboarding_notifications_title
     OnboardingStep.HealthConnect -> R.string.onboarding_health_title
     OnboardingStep.Location -> R.string.onboarding_location_title
-    OnboardingStep.Biometrics -> R.string.onboarding_biometrics_title
     OnboardingStep.Done -> R.string.onboarding_done_title
 }
 
 private fun OnboardingStep.bodyRes(): Int = when (this) {
     OnboardingStep.Welcome -> R.string.onboarding_welcome_body
     OnboardingStep.Google -> R.string.onboarding_google_body
-    OnboardingStep.Password -> R.string.onboarding_password_warning
     OnboardingStep.Profile -> R.string.onboarding_profile_body
     OnboardingStep.Notifications -> R.string.onboarding_notifications_body
     OnboardingStep.HealthConnect -> R.string.onboarding_health_body
     OnboardingStep.Location -> R.string.onboarding_location_body
-    OnboardingStep.Biometrics -> R.string.onboarding_biometrics_body
     OnboardingStep.Done -> R.string.onboarding_done_body
-}
-
-private fun PasswordStrength.labelRes(): Int = when (this) {
-    PasswordStrength.Weak -> R.string.onboarding_password_strength_weak
-    PasswordStrength.Medium -> R.string.onboarding_password_strength_medium
-    PasswordStrength.Strong -> R.string.onboarding_password_strength_strong
 }
 
 private fun primaryActionRes(step: OnboardingStep): Int = when (step) {

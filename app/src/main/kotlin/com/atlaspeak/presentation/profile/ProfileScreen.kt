@@ -17,7 +17,6 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -26,6 +25,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import com.atlaspeak.R
+import com.atlaspeak.presentation.component.PremiumBackground
+import com.atlaspeak.presentation.component.PremiumCard
+import com.atlaspeak.presentation.component.PremiumIconBadge
 import com.atlaspeak.presentation.theme.LocalSpacing
 
 @Composable
@@ -49,10 +51,7 @@ fun ProfileScreen(
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
-    Surface(
-        modifier = modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background,
-    ) {
+    PremiumBackground(modifier = modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(spacing.screen),
@@ -108,7 +107,7 @@ private fun ProfileActionCard(
     onClick: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
-    Card {
+    PremiumCard {
         TextButton(
             onClick = onClick,
             modifier = Modifier.fillMaxWidth(),
@@ -119,11 +118,12 @@ private fun ProfileActionCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(spacing.md),
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                )
+                PremiumIconBadge {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                    )
+                }
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(spacing.xxs),

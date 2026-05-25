@@ -61,7 +61,7 @@ import com.atlaspeak.data.db.entity.WorkoutSetEntity
         HcSleepStageEntity::class,
         HcHeartRateSampleEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -85,6 +85,141 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_1_2 = object : Migration(1, 2) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE body_composition ADD COLUMN body_water_mass_kg REAL")
+            }
+        }
+
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS users_new (
+                        id TEXT NOT NULL,
+                        google_id TEXT,
+                        email TEXT,
+                        password_hash TEXT,
+                        password_salt TEXT,
+                        created_at INTEGER NOT NULL,
+                        last_login_at INTEGER,
+                        PRIMARY KEY(id)
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO users_new (
+                        id,
+                        google_id,
+                        email,
+                        password_hash,
+                        password_salt,
+                        created_at,
+                        last_login_at
+                    )
+                    SELECT
+                        id,
+                        google_id,
+                        email,
+                        NULL,
+                        NULL,
+                        created_at,
+                        NULL
+                    FROM users
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS user_profile_backup (
+                        id TEXT NOT NULL,
+                        user_id TEXT NOT NULL,
+                        display_name TEXT,
+                        age INTEGER,
+                        height_cm REAL,
+                        gender TEXT,
+                        goal_type TEXT,
+                        photo_uri TEXT,
+                        updated_at INTEGER NOT NULL,
+                        PRIMARY KEY(id)
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO user_profile_backup (
+                        id,
+                        user_id,
+                        display_name,
+                        age,
+                        height_cm,
+                        gender,
+                        goal_type,
+                        photo_uri,
+                        updated_at
+                    )
+                    SELECT
+                        id,
+                        user_id,
+                        display_name,
+                        age,
+                        height_cm,
+                        gender,
+                        goal_type,
+                        photo_uri,
+                        updated_at
+                    FROM user_profile
+                    """.trimIndent(),
+                )
+                db.execSQL("DROP TABLE user_profile")
+                db.execSQL("DROP TABLE users")
+                db.execSQL("ALTER TABLE users_new RENAME TO users")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_users_google_id ON users(google_id)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_users_email ON users(email)")
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS user_profile (
+                        id TEXT NOT NULL,
+                        user_id TEXT NOT NULL,
+                        display_name TEXT,
+                        age INTEGER,
+                        height_cm REAL,
+                        gender TEXT,
+                        goal_type TEXT,
+                        photo_uri TEXT,
+                        updated_at INTEGER NOT NULL,
+                        PRIMARY KEY(id),
+                        FOREIGN KEY(user_id) REFERENCES users(id) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO user_profile (
+                        id,
+                        user_id,
+                        display_name,
+                        age,
+                        height_cm,
+                        gender,
+                        goal_type,
+                        photo_uri,
+                        updated_at
+                    )
+                    SELECT
+                        id,
+                        user_id,
+                        display_name,
+                        age,
+                        height_cm,
+                        gender,
+                        goal_type,
+                        photo_uri,
+                        updated_at
+                    FROM user_profile_backup
+                    """.trimIndent(),
+                )
+                db.execSQL("DROP TABLE user_profile_backup")
+                db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_user_profile_user_id ON user_profile(user_id)")
+                db.execSQL("UPDATE app_settings SET biometrics_enabled = 0")
+                db.execSQL("UPDATE auth_security SET failed_attempts = 0, locked_until = NULL")
             }
         }
 

@@ -41,6 +41,35 @@ class AppDatabaseMigrationTest {
         migrated.close()
     }
 
+    @Test
+    fun migration2To3RemovesEntryPasswordWhileKeepingProfile() {
+        helper.createDatabase(TEST_DB, 2).apply {
+            insertV2UserAndProfile()
+            close()
+        }
+
+        val migrated = helper.runMigrationsAndValidate(
+            TEST_DB,
+            3,
+            true,
+            AppDatabase.MIGRATION_2_3,
+        )
+
+        migrated.query("SELECT password_hash, password_salt, last_login_at FROM users WHERE id = 'user-1'")
+            .use { cursor ->
+                cursor.moveToFirst()
+                assertNull(cursor.getString(0))
+                assertNull(cursor.getString(1))
+                assertNull(cursor.getString(2))
+            }
+        migrated.query("SELECT display_name FROM user_profile WHERE user_id = 'user-1'")
+            .use { cursor ->
+                cursor.moveToFirst()
+                assertEquals("Atlas User", cursor.getString(0))
+            }
+        migrated.close()
+    }
+
     private fun SupportSQLiteDatabase.insertV1BodyComposition() {
         execSQL(
             """
@@ -58,6 +87,45 @@ class AppDatabaseMigrationTest {
                 'MANUAL',
                 0,
                 1700000000000
+            )
+            """.trimIndent(),
+        )
+    }
+
+    private fun SupportSQLiteDatabase.insertV2UserAndProfile() {
+        execSQL(
+            """
+            INSERT INTO users (
+                id,
+                google_id,
+                email,
+                password_hash,
+                password_salt,
+                created_at,
+                last_login_at
+            ) VALUES (
+                'user-1',
+                NULL,
+                NULL,
+                'hash',
+                'salt',
+                1700000000000,
+                1700000000100
+            )
+            """.trimIndent(),
+        )
+        execSQL(
+            """
+            INSERT INTO user_profile (
+                id,
+                user_id,
+                display_name,
+                updated_at
+            ) VALUES (
+                'profile-1',
+                'user-1',
+                'Atlas User',
+                1700000000200
             )
             """.trimIndent(),
         )

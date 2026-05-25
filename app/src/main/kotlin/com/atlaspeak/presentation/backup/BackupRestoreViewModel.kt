@@ -4,12 +4,10 @@ import androidx.annotation.StringRes
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.atlaspeak.R
+import com.atlaspeak.domain.usecase.backup.BackupUseCase
 import com.atlaspeak.domain.model.backup.BackupResult
 import com.atlaspeak.domain.model.backup.DriveBackup
 import com.atlaspeak.domain.model.backup.SharedBackupExport
-import com.atlaspeak.domain.model.auth.LocalAuthResult
-import com.atlaspeak.domain.usecase.auth.LocalAuthUseCase
-import com.atlaspeak.domain.usecase.backup.BackupUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -24,7 +22,6 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class BackupRestoreViewModel @Inject constructor(
     private val backupUseCase: BackupUseCase,
-    private val localAuthUseCase: LocalAuthUseCase,
 ) : ViewModel() {
     private val _state = MutableStateFlow(BackupRestoreUiState())
     val state: StateFlow<BackupRestoreUiState> = _state.asStateFlow()
@@ -182,13 +179,13 @@ class BackupRestoreViewModel @Inject constructor(
     }
 
     fun exportJson() {
-        writePlaintextExport {
+        writeSharedFile(successRes = R.string.backup_export_created) {
             backupUseCase.writeManualJson()
         }
     }
 
     fun exportCsv() {
-        writePlaintextExport {
+        writeSharedFile(successRes = R.string.backup_export_created) {
             backupUseCase.writeCsvZip()
         }
     }
@@ -210,13 +207,8 @@ class BackupRestoreViewModel @Inject constructor(
                         _state.update { it.copy(isLoading = false, messageRes = successRes) }
                         _events.emit(BackupRestoreEvent.Share(file))
                     }
-                    .onFailure { error ->
-                        val message = if (error is PlaintextExportAuthException) {
-                            R.string.auth_error_invalid_credentials
-                        } else {
-                            R.string.backup_export_failed
-                        }
-                        _state.update { it.copy(isLoading = false, messageRes = message) }
+                    .onFailure {
+                        _state.update { it.copy(isLoading = false, messageRes = R.string.backup_export_failed) }
                     }
             } finally {
                 finallyBlock()
@@ -228,31 +220,9 @@ class BackupRestoreViewModel @Inject constructor(
         _state.update { it.copy(isLoading = loading, messageRes = null) }
     }
 
-    private fun writePlaintextExport(block: suspend () -> SharedBackupExport) {
-        val password = state.value.password.toCharArray()
-        if (password.isEmpty()) {
-            _state.update { it.copy(messageRes = R.string.backup_password_required) }
-            return
-        }
-        writeSharedFile(
-            successRes = R.string.backup_export_created,
-            finallyBlock = {
-                password.fill('\u0000')
-                clearPassword()
-            },
-        ) {
-            when (localAuthUseCase.authenticate(password)) {
-                LocalAuthResult.Success -> block()
-                else -> throw PlaintextExportAuthException()
-            }
-        }
-    }
-
     private fun clearPassword() {
         _state.update { it.copy(password = "") }
     }
-
-    private class PlaintextExportAuthException : RuntimeException()
 }
 
 data class BackupRestoreUiState(

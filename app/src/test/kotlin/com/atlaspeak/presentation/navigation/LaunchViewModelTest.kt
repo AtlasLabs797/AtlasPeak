@@ -29,7 +29,7 @@ class LaunchViewModelTest {
     }
 
     @Test
-    fun `launch gate sends first run to onboarding and completed users to login`() = runTest {
+    fun `launch gate sends first run to onboarding and completed users to home`() = runTest {
         val repository = FakeOnboardingRepository(completed = false)
         val viewModel = LaunchViewModel(repository)
         dispatcher.scheduler.advanceUntilIdle()
@@ -39,7 +39,7 @@ class LaunchViewModelTest {
         repository.completed.value = true
         dispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals(LaunchState.Login, viewModel.state.value)
+        assertEquals(LaunchState.Home, viewModel.state.value)
     }
 
     private class FakeOnboardingRepository(

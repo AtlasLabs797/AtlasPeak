@@ -7,10 +7,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -21,6 +19,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.atlaspeak.R
 import com.atlaspeak.domain.model.cardio.CardioSession
+import com.atlaspeak.presentation.component.PremiumBackground
+import com.atlaspeak.presentation.component.PremiumCard
 import com.atlaspeak.presentation.theme.LocalSpacing
 
 @Composable
@@ -39,7 +39,7 @@ fun CardioCompleteScreen(
 ) {
     val spacing = LocalSpacing.current
     val session = state.session
-    Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+    PremiumBackground(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -71,7 +71,7 @@ fun CardioCompleteScreen(
 @Composable
 private fun CardioSummary(session: CardioSession) {
     val spacing = LocalSpacing.current
-    Card {
+    PremiumCard {
         Column(
             modifier = Modifier
                 .fillMaxWidth()

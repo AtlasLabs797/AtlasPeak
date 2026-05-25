@@ -8,9 +8,140 @@
 
 ---
 
-## [No publicado]
+## [V-01.02] - 2026-05-25
+
+### Release V-01.02
+
+#### 2026-05-25 - APK release
+
+**Cambiado**
+- Fijada la version de app en `versionName = "V-01.02"` y `versionCode = 102`.
+
+**Verificado**
+- `.\gradlew.bat :app:assembleRelease --no-daemon --console=plain --no-build-cache --no-configuration-cache` pasa.
+- APK generado: `app/build/outputs/apk/release/app-release-unsigned.apk` (27.964.605 bytes).
+- `aapt2 dump badging` confirma `versionCode='102'` y `versionName='V-01.02'`.
+- SHA-256: `6B9A5CCA0CE86D32858767BE2BDE24DB120C1EDCDBEBC5BF88A74A6E9218DCD6`.
+- `apksigner verify` no valida el APK porque no existe `keystore.properties`; el artefacto
+  generado es release unsigned.
+
+### Retirada del gate de contraseña local
+
+#### 2026-05-25 - Entrada directa a la app
+
+**Eliminado**
+- Retirado el login local como gate de entrada: `Launch` navega a `Home` tras onboarding
+  completado.
+- Eliminados `LoginScreen`, `AuthViewModel`, `SessionLockViewModel`, use cases/repositorios
+  de auth local, strings de auth, dependencia de biometría y dependencias de Credential Manager.
+- Onboarding ya no pide contraseña ni opt-in biométrico.
+
+**Cambiado**
+- La passphrase queda limitada a backups cifrados: crear/restaurar backup Drive/local.
+- Export JSON/CSV en claro ya no exige contraseña local; el texto avisa que se comparte sin
+  cifrado.
+- `users.password_hash`, `users.password_salt` y `users.last_login_at` pasan a nullable; Room
+  sube a schema v3 con migración 2→3 que borra credenciales locales legadas.
+
+**Seguridad**
+- Registrado `SEC-025`: riesgo aceptado si alguien accede al móvil ya desbloqueado.
+- `USE_BIOMETRIC` deja de declararse porque no hay desbloqueo biométrico local en v1.
+
+**Verificado**
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat :app:assembleDebug :app:testDebugUnitTest :app:lintDebug :app:assembleRelease --no-daemon --console=plain --no-build-cache --no-configuration-cache` pasa.
+- `connectedAndroidTest` no se ejecuta: `adb devices` no muestra emulador/dispositivo.
+
+### Rediseño UI premium
+
+#### 2026-05-25 - Sistema visual y dashboard
+
+**Cambiado**
+- Redefinida la paleta en `AtlasPeakTheme`: neutros off-black/off-white, acento lima/verde
+  y coral reservado para error/riesgo.
+- Añadidos `PremiumBackground`, `PremiumCard` y `PremiumIconBadge` como base visual compartida.
+- Rediseñado el dashboard Home con hero de minutos semanales, métricas en pares, tarjetas
+  de gráfica con mayor jerarquía y navegación inferior flotante.
+- Actualizados selectores de periodo a chips propios tipo segmented control.
+- Aplicado el nuevo fondo premium a auth, onboarding, entrenamiento, cardio, progreso,
+  cuerpo, perfil, planificación, notificaciones y backup.
+- Ajustada la escala tipográfica para titulares y números grandes con tabular figures.
+- `DESIGN.md` queda alineado con la nueva dirección visual.
+
+**Verificado**
+- `.\gradlew.bat compileDebugKotlin --rerun-tasks` pasa.
+- `.\gradlew.bat test --rerun-tasks` pasa.
+- `.\gradlew.bat lint` pasa.
+- `.\gradlew.bat assembleDebug` pasa.
+- QA visual runtime no se pudo completar porque `adb devices` no muestra emulador ni
+  dispositivo conectado.
 
 ### Auditoria final v1
+
+#### 2026-05-25 - Crash de tabs de bottom navigation
+
+**Corregido**
+- Registrado y resuelto `BUG-032`: tocar `Entrenar`, `Progreso`, `Cuerpo` o `Perfil`
+  desde el dashboard podia cerrar la app.
+- La bottom navigation ya no hace `popUpTo` al `startDestination` transitorio `launch`;
+  usa `Home` como raiz estable del back stack autenticado.
+
+**Anadido**
+- `BottomNavigationPolicyTest` cubre que los tabs no vuelvan a depender de
+  `findStartDestination`.
+
+**Verificado**
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat :app:compileDebugKotlin --rerun-tasks --no-build-cache --no-daemon --console=plain` pasa.
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat :app:testDebugUnitTest --tests com.atlaspeak.presentation.navigation.BottomNavigationPolicyTest --no-daemon --console=plain` pasa.
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat :app:assembleDebug --no-daemon --console=plain` pasa.
+- QA runtime en emulador no pudo completarse: `AtlasPeak_Clean_API35` arranca QEMU, pero
+  sale antes de aparecer en `adb devices`; `emulator -accel-check` indica WHPX operativo.
+
+#### 2026-05-25 - Generacion de APK debug
+
+**Verificado**
+- `.\gradlew.bat :app:assembleDebug --rerun-tasks --no-daemon --console=plain` pasa.
+- APK generada: `app/build/outputs/apk/debug/app-debug.apk` (102.652.921 bytes).
+- `apksigner verify --verbose --print-certs` confirma firma debug con APK Signature Scheme v2.
+- SHA-256: `36264C39CF17FC2352503F3CF8E1260C6B4A239B28E7F3AA38FE16B41851F226`.
+
+#### 2026-05-24 - Capturas visuales en emulador debug
+
+**Cambiado**
+- `SecureScreenEffect` mantiene `FLAG_SECURE` en release y en dispositivos reales, pero lo omite
+  en emulador con `BuildConfig.DEBUG` para permitir QA visual y capturas de pantalla.
+
+**Seguridad**
+- Registrado `SEC-024`: bypass acotado a emulador debug; las rutas siguen marcadas como
+  sensibles y release no cambia.
+
+**Verificado**
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat :app:testDebugUnitTest --tests com.atlaspeak.presentation.navigation.SensitiveRoutePolicyTest --no-daemon` pasa.
+- Reinstalada build debug en `emulator-5554`; `screencap` ya muestra el onboarding en vez de
+  una captura negra.
+
+#### 2026-05-24 - Runtime QA en emulador y carga nativa SQLCipher
+
+**Corregido**
+- Registrado y resuelto `BUG-031`: la app caia al arrancar en emulador porque `libsqlcipher.so`
+  no se cargaba antes de abrir Room cifrado.
+- `AtlasPeakApplication.attachBaseContext()` carga `System.loadLibrary("sqlcipher")` antes de
+  `onCreate()` y antes de que Hilt pueda construir dependencias que tocan la DB.
+
+**Anadido**
+- `StaticSecurityPolicyTest` verifica que la carga nativa de SQLCipher queda antes del acceso
+  de aplicacion a Room.
+
+**Verificado**
+- Se limpiaron procesos antiguos `adb`/`emulator`/`qemu`, se arranco `AtlasPeak_UserClean_API35`
+  en `emulator-5554`, se instalo `app-debug.apk` y se lanzo `com.atlaspeak.debug`.
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat :app:testDebugUnitTest --tests com.atlaspeak.security.StaticSecurityPolicyTest --no-daemon` pasa.
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat :app:assembleDebug --no-daemon` pasa.
+- `adb shell dumpsys activity activities` confirma `com.atlaspeak.debug/com.atlaspeak.MainActivity`
+  como ventana enfocada; `pidof com.atlaspeak.debug` devuelve proceso vivo.
+- `build/runtime-qa/atlaspeak-final-ui.xml` muestra el onboarding inicial; la captura PNG queda
+  negra porque `FLAG_SECURE` protege la pantalla, comportamiento esperado.
+- `build/runtime-qa/atlaspeak-final-logcat.txt` no contiene `FATAL EXCEPTION`, `UnsatisfiedLinkError`
+  ni `ANR in com.atlaspeak` tras el fix.
 
 #### 2026-05-24 - Seguridad, arquitectura y backup hardening
 

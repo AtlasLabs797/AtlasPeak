@@ -52,7 +52,7 @@ domain/
   repository/    interfaces (contratos)
   usecase/       auth/ workout/ cardio/ progress/ body/ healthconnect/ backup/ plan/
 presentation/
-  auth/          LoginScreen, AuthViewModel, BiometricPromptAuthenticator
+  auth/          legado de auth local no enrutable en v1
   onboarding/    OnboardingScreen, OnboardingViewModel
   navigation/    Launch gate, NavHost, bottom navigation, secure route effect, session lock
   workout/       TrainScreen, TrainViewModel (biblioteca de ejercicios, rutinas y cardio)
@@ -105,20 +105,14 @@ Notas de integridad:
 
 ## 5. Seguridad (detalle en `SECURITY.md`)
 
-- **Login:** contraseña local con PBKDF2-HMAC-SHA256, **600.000 iter**, salt de 32 bytes.
-  Hash y salt en la DB SQLCipher. Ejecución en `Dispatchers.IO`.
-- **Gate de app:** `AtlasPeakNavHost` arranca en `Launch`. Si `onboarding_completed=false`
-  navega a `Onboarding`; si ya está completado navega a `Login`. Tras autenticación local
-  correcta navega a `Home` limpiando login del back stack. `SessionLockViewModel` reevalua
-  rutas sensibles en `ON_RESUME` y vuelve a `Login` cuando `last_login_at` supera el timeout
-  configurado.
-- **Google:** Credential Manager se lanza desde la `FragmentActivity` de UI para identidad.
-  Drive usa un flujo separado de `AuthorizationClient` con scope `drive.appdata`. Un ID token
-  Google no es un bearer token valido para Drive y nunca desbloquea la DB local.
-- **Biometría:** `BiometricPrompt` clase `BIOMETRIC_STRONG`. Solo desbloqueo, no auth nueva.
-  Timeout configurable (1/5/15/nunca). Re-pide al volver a foreground tras el timeout.
-- **Rate limiting:** 5 intentos → bloqueo 15 min. Contador en tabla `auth_security` (DB cifrada).
-- **`FLAG_SECURE`** en rutas autenticadas con salud/entrenamiento, Biometria, Perfil y Backup.
+- **Entrada a la app:** no hay contraseña local ni pantalla de login enrutable. `AtlasPeakNavHost`
+  arranca en `Launch`; si `onboarding_completed=false` navega a `Onboarding`, y si ya está
+  completado navega directo a `Home`.
+- **Google:** no hay login Google para entrar. Drive usa `AuthorizationClient` con scope
+  `drive.appdata`; un ID token Google no es un bearer token valido para Drive y nunca
+  desbloquea la DB local.
+- **Biometría:** no se usa para desbloqueo en v1 porque no hay gate local.
+- **`FLAG_SECURE`** en rutas con salud/entrenamiento, Perfil y Backup.
 - **Red:** solo HTTPS (`network_security_config.xml`, sin cleartext). Drive REST usa
   `Authorization: Bearer {access_token}` obtenido por `AuthorizationClient`; Atlas Peak no
   reutiliza ID tokens como credenciales Drive.
@@ -126,14 +120,14 @@ Notas de integridad:
   ```
   [magic "ATPK" (4B)] [versión (1B)] [iteraciones (4B BE)] [salt (16B)] [IV (12B)] [ciphertext+tag GCM]
   ```
-  Clave = PBKDF2(contraseña, salt-del-archivo, iteraciones-del-archivo). El salt viaja en el
+  Clave = PBKDF2(passphrase de backup, salt-del-archivo, iteraciones-del-archivo). El salt viaja en el
   archivo (no es secreto) → permite restaurar en otro dispositivo. AES-256-GCM (tag de 16B
   incluido por el proveedor JCE).
 - **Backup automatico:** opt-in. Para cifrar sin pedir contrasena cada dia, la contrasena de
   backup se guarda cifrada en `EncryptedSharedPreferences` protegido por Keystore. Si no hay
   grant silencioso de Drive o contrasena guardada, el worker termina sin lanzar UI.
-- **Export manual:** JSON/CSV sin cifrar exige step-up auth con contrasena local, excluye
-  `users` y `auth_security` para no compartir hashes de contrasena, salts ni estado de bloqueo.
+- **Export manual:** JSON/CSV sin cifrar no exige contraseña tras retirar el gate local; excluye
+  `users` y `auth_security` para no compartir restos de auth legada.
   El restore valida tablas y columnas contra el schema actual antes de insertar datos.
 - **Secretos:** `MAPS_API_KEY` y `OAUTH_WEB_CLIENT_ID` en `secrets.properties` (gitignored),
   inyectados via `manifestPlaceholders` y `BuildConfig`. **Sin `google-services.json`.**
@@ -142,18 +136,16 @@ Notas de integridad:
 
 ## 6. Autenticación y Google (aclaración importante)
 
-No hay backend, así que "iniciar sesión" no autentica contra ningún servidor de Atlas Peak.
-El gate real es la **contraseña local**. Google Identity Services (Credential Manager) sirve
-**solo** para obtener el token OAuth con scope `drive.appdata` y poder hacer backup. Por eso
-Google es **opcional** y el onboarding lo permite saltar; la app funciona 100% offline sin él.
-La obtencion de permiso Drive sucede en la pantalla de Backup, no durante login.
+No hay backend, así que Atlas Peak no tiene inicio de sesión propio. Google Identity
+`AuthorizationClient` sirve **solo** para obtener el token OAuth con scope `drive.appdata` y
+poder hacer backup. Por eso Google es **opcional** y el onboarding lo permite saltar; la app
+funciona 100% offline sin él. La obtencion de permiso Drive sucede en la pantalla de Backup.
 
 ## 6.1 Onboarding
 
-- Flujo fullscreen de 9 pasos: bienvenida, Google opcional, contraseña obligatoria, perfil,
-  notificaciones, Health Connect, ubicación, biometría y listo.
+- Flujo fullscreen de 7 pasos: bienvenida, Google opcional, perfil, notificaciones,
+  Health Connect, ubicación y listo.
 - `onboarding_completed` vive en DataStore (`PreferencesOnboardingRepository`), no en Room.
-- La contraseña usa `LocalAuthUseCase`; onboarding no implementa PBKDF2 ni crea usuarios a mano.
 - `ProfileRepository` mapea `UserProfile` domain a `user_profile`; si el perfil se salta no
   se crea una fila falsa.
 - Permisos solicitados solo desde su paso: `POST_NOTIFICATIONS` en Android 13+, Health Connect
@@ -393,7 +385,7 @@ en el código.
 - **Unit (MockK):** UseCases, ViewModels, `EncryptionManager`, lógica de conflictos HC.
 - **Integración (Room in-memory):** DAOs, repos, migraciones.
 - **Flows (Turbine):** StateFlows de ViewModels, emisiones de `LocationTracker`.
-- **Compose UI:** pantallas críticas (ActiveWorkout, Login, Onboarding).
+- **Compose UI:** pantallas críticas (ActiveWorkout, Onboarding, Backup).
 - **WorkManager:** workers con `work-testing`.
 - Objetivo: **≥70%** cobertura en `domain` y `data`.
 - Gate local/CI: `./gradlew jacocoDebugDomainDataCoverageVerification`.
