@@ -14,8 +14,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -43,7 +41,9 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.atlaspeak.R
+import com.atlaspeak.presentation.component.AtlasPrimaryButton
 import com.atlaspeak.presentation.component.PremiumBackground
+import com.atlaspeak.presentation.component.PremiumCard
 import com.atlaspeak.presentation.theme.LocalSpacing
 
 @Composable
@@ -172,7 +172,7 @@ private fun WeeklyPlanDayCard(
     onSave: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
-    Card {
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -238,12 +238,11 @@ private fun WeeklyPlanDayCard(
                 supportingText = { Text(stringResource(R.string.weekly_plan_reminder_best_effort)) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
             )
-            Button(
+            AtlasPrimaryButton(
                 onClick = onSave,
                 modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(stringResource(R.string.action_save))
-            }
+                text = stringResource(R.string.action_save),
+            )
         }
     }
 }

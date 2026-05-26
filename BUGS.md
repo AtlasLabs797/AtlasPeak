@@ -24,6 +24,124 @@
 
 ## Entradas
 
+### BUG-041 - Entrenamiento planificado no era accion principal en Home ni Entrenar
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-26
+- **Fase:** Polish UI/UX
+- **Severidad:** Media
+- **Sintoma:** Inicio mostraba metricas antes que la rutina planificada del dia, y Entrenar abria por defecto la biblioteca/creacion de ejercicios en vez de la accion de iniciar una rutina.
+- **Causa raiz:** `HomeScreen` no consultaba el plan semanal y `TrainUiState` arrancaba en `TrainTab.Exercises`; ademas `RoutineContent` mostraba el constructor antes del CTA de inicio.
+- **Solucion:** `HomeViewModel` carga la rutina de hoy desde `WeeklyPlanUseCase`, `HomeScreen` muestra una card "Entrenamiento de hoy" con CTA, `TrainUiState` abre en `Routines` y el detalle/inicio de rutina se renderiza antes del builder.
+- **Prevencion:** mantener el inicio de sesion de entrenamiento como primer CTA visible cuando exista una rutina planificada o seleccionada.
+- **Fecha resolucion:** 2026-05-26
+
+---
+
+### BUG-040 - Iconos de cardio ignoraban el icon_name de seed data
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-26
+- **Fase:** Polish UI/UX
+- **Severidad:** Baja
+- **Sintoma:** todos los tipos de cardio se mostraban con el mismo icono de correr aunque la base de datos seed ya tenia `icon_name` distintos para bici, remo, natacion, etc.
+- **Causa raiz:** `CardioType` de dominio no exponia `iconName` y `TrainScreen.CardioTypeCard` hardcodeaba `DirectionsRun`.
+- **Solucion:** `CardioType` expone `iconName`, `RoomCardioRepository` lo mapea desde Room y `CardioTypeCard` resuelve iconos Material distintos por tipo.
+- **Prevencion:** si un modelo trae metadatos visuales desde seed/schema, la UI no debe reemplazarlos por un icono generico.
+- **Fecha resolucion:** 2026-05-26
+
+---
+
+### BUG-039 - Onboarding de perfil usaba texto libre para genero y objetivo
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-26
+- **Fase:** Polish UI/UX
+- **Severidad:** Media
+- **Sintoma:** al tocar Genero u Objetivo aparecia el teclado, no un selector; el usuario podia escribir valores libres inconsistentes.
+- **Causa raiz:** `OnboardingScreen` usaba `AtlasTextField` para campos de opcion cerrada.
+- **Solucion:** se sustituyen esos campos por selectores con `FilterChip`: Masculino/Femenino y objetivos predefinidos.
+- **Prevencion:** campos de taxonomia cerrada se implementan como selector, no como input de texto.
+- **Fecha resolucion:** 2026-05-26
+
+---
+
+### BUG-038 - Entrenamiento activo no avanzaba de ejercicio y el descanso acababa en silencio
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-26
+- **Fase:** Polish UI/UX
+- **Severidad:** Alta
+- **Sintoma:** al completar todos los sets de un ejercicio la pantalla no pasaba al siguiente; el CTA seguia diciendo Finalizar y podia cerrar la sesion. Al llegar a cero, el descanso desaparecia sin sonido ni vibracion final.
+- **Causa raiz:** `ActiveWorkoutScreen` no sincronizaba el `HorizontalPager` con el estado de sets completados y el feedback sonoro/haptico estaba ligado al inicio del timer, no al final. El boton primario no distinguia "siguiente ejercicio" de "finalizar entrenamiento".
+- **Solucion:** el pager avanza al siguiente ejercicio tras acabar/omitir el descanso, el CTA cambia a Siguiente o queda deshabilitado hasta completar sets, y el feedback se dispara cuando el rest timer llega a cero.
+- **Prevencion:** el estado completado de un ejercicio debe tener una transicion explicita de pagina y el feedback del descanso debe probarse en el evento de fin, no solo en el de inicio.
+- **Fecha resolucion:** 2026-05-26
+
+---
+
+### BUG-037 - AssistChip de badge en composicion corporal sugeria ser interactivo
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-26
+- **Fase:** Auditoria final
+- **Severidad:** Baja
+- **Sintoma:** la lista de metricas de composicion corporal mostraba un `AssistChip` (Health Connect / Manual only) que respondia al tap con ripple pero no hacia nada (`onClick = {}`), confundiendo al usuario sobre si era una accion.
+- **Causa raiz:** el chip se uso como etiqueta informativa con `onClick` vacio en `BodyCompositionScreen.kt`. Material da ripple por defecto a cualquier `AssistChip` clickable.
+- **Solucion:** se anade `enabled = false` al chip en `BodyCompositionScreen.kt`, asi pierde el ripple y queda claramente como badge informativo.
+- **Prevencion:** revisar `Grep` periodico de `onClick = \{\}` para detectar componentes interactivos sin accion.
+- **Fecha resolucion:** 2026-05-26
+
+---
+
+### BUG-036 - Teclado virtual tapa los TextField (edge-to-edge sin imePadding)
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-26
+- **Fase:** Auditoria final
+- **Severidad:** Alta
+- **Sintoma:** al tocar un `TextField` (onboarding, backup, ajustes, plan semanal, entrenamiento) el teclado se abria por encima del campo, dejando al usuario escribiendo a ciegas. El borde inferior de la pantalla seguia en su sitio en vez de empujar el contenido hacia arriba.
+- **Causa raiz:** `MainActivity` activa `enableEdgeToEdge()` pero el contenedor del `NavHost` en `AtlasPeakApp.kt` no aplicaba `imePadding()` y ninguna pantalla individual lo hacia tampoco. El `Scaffold` de Material 3 no incluye `WindowInsets.ime` en su `contentWindowInsets` por defecto, asi que el contenido quedaba debajo del teclado.
+- **Solucion:** el `Box` que envuelve `AtlasPeakNavHost` ahora aplica `.fillMaxSize().padding(innerPadding).imePadding()`. Asi todas las pantallas se empujan hacia arriba cuando aparece el teclado, sin tocar pantalla por pantalla.
+- **Prevencion:** el `imePadding()` esta centralizado en el contenedor raiz, asi que cualquier pantalla nueva con inputs hereda el comportamiento automaticamente.
+- **Fecha resolucion:** 2026-05-26
+
+---
+
+### BUG-035 - Menu inferior con taps no registrados por doble inset y altura insuficiente
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-26
+- **Fase:** Auditoria final
+- **Severidad:** Alta
+- **Sintoma:** el menu inferior se renderizaba pero al tocar los items no cambiaba de pantalla; los arreglos previos (BUG-032/033/034) corrigieron la logica de navegacion pero el problema persistia a nivel de interaccion.
+- **Causa raiz:** el `NavigationBar` Material 3 aplica por defecto `NavigationBarDefaults.windowInsets` (system navigation bars). El contenedor `Box` exterior ya aplicaba `navigationBarsPadding()`, asi que el padding de la barra del sistema se sumaba dos veces. Combinado con `Modifier.height(spacing.minTouchTarget + spacing.md)` (64dp, frente a los 80dp por defecto de Material), el area util quedaba comprimida y los `NavigationBarItem` perdian o desplazaban su touch target detras del system nav bar.
+- **Solucion:** en `AtlasPeakApp.kt` se elimina la altura forzada del `NavigationBar` (usa la altura por defecto de Material 3, 80dp) y se le pasa `windowInsets = WindowInsets(0, 0, 0, 0)` para que el unico responsable de los insets sea el `Box` envolvente. Asi cada `NavigationBarItem` recibe su touch target completo y los taps cambian de pestana de forma fiable.
+- **Prevencion:** el fix mantiene a `BottomNavigationPolicyTest` verde sin nuevas suposiciones. No hay regresion de logica de navegacion (todas las aserciones siguen pasando).
+- **Fecha resolucion:** 2026-05-26
+
+---
+
+### BUG-034 - Menu inferior restauraba stacks inestables
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-25
+- **Fase:** Auditoria final
+- **Severidad:** Alta
+- **Sintoma:** el menu inferior seguia sin comportarse de forma fiable al cambiar entre `Home`, `Entrenar`, `Progreso`, `Cuerpo` y `Perfil`; en especial podia depender de un back stack anterior o volver a subpantallas.
+- **Causa raiz:** el arreglo previo uso `Home` como raiz global y mantuvo `saveState/restoreState` en los tabs. Eso es fragil: `Home` es una pantalla, no el contenedor autenticado, y restaurar estado en tabs puede revivir rutas hijas en vez de abrir la raiz del tab.
+- **Solucion:** se anade `AppRoute.AppGraph` como grafo autenticado estable con `Home` como start destination. El menu inferior navega con `popUpTo(AppGraph)`, `launchSingleTop`, `saveState = false` y `restoreState = false`; tocar un tab siempre abre su ruta raiz.
+- **Prevencion:** `BottomNavigationPolicyTest` ahora exige `AppGraph` como raiz de tabs, prohibe `restoreState = true`/`saveState = true` en el menu inferior y mantiene cubiertas las rutas visibles/ocultas.
+- **Fecha resolucion:** 2026-05-25
+
+---
+
+### BUG-033 - Regresion de tabs inferiores tras wrapper de navegacion
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-25
+- **Fase:** Auditoria final
+- **Severidad:** Alta
+- **Sintoma:** `Entrenar`, `Progreso`, `Cuerpo` y `Perfil` seguian sin abrir de forma fiable desde el menu inferior.
+- **Causa raiz:** el arreglo anterior volvio a meter las tabs dentro de un grafo wrapper `main` y el menu hizo `popUpTo(main)`. Ese grafo no aportaba nada y dejaba la navegacion dependiendo de un destino intermedio innecesario.
+- **Solucion:** se elimina `AppRoute.Main`; `Launch` y `Onboarding` entran directamente en `Home`, y el menu inferior usa `Home` como raiz estable del back stack autenticado.
+- **Prevencion:** `BottomNavigationPolicyTest` bloquea el regreso del wrapper `main`, comprueba las cinco rutas de tabs y mantiene prohibido `findStartDestination()` en el menu inferior.
+- **Nota 2026-05-25:** supersedido por `BUG-034`. La conclusion correcta no era "sin grafo autenticado", sino "sin grafo wrapper mal usado"; el fix definitivo usa `AppGraph`.
+- **Fecha resolucion:** 2026-05-25
+
+---
+
 ### BUG-032 - Bottom navigation crasheaba al abrir tabs autenticados
 - **Estado:** Resuelto
 - **Fecha deteccion:** 2026-05-25

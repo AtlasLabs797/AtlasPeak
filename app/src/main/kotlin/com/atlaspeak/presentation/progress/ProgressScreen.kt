@@ -58,6 +58,7 @@ import com.atlaspeak.presentation.cardio.CardioRouteMap
 import com.atlaspeak.presentation.component.PeriodSelector
 import com.atlaspeak.presentation.component.PeriodSelectorItem
 import com.atlaspeak.presentation.component.PremiumBackground
+import com.atlaspeak.presentation.component.PremiumCard
 import com.atlaspeak.presentation.theme.LocalSpacing
 import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
@@ -335,7 +336,7 @@ private fun ProgressHistoryItem.metricText(): String {
 @Composable
 private fun HistoryDetailCard(item: ProgressHistoryItem) {
     val spacing = LocalSpacing.current
-    ElevatedCard {
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -426,7 +427,7 @@ private fun ExerciseProgressContent(exercises: List<ExerciseProgress>) {
 @Composable
 private fun ExerciseProgressCard(progress: ExerciseProgress) {
     val spacing = LocalSpacing.current
-    ElevatedCard {
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -486,7 +487,7 @@ private fun MuscleGroupProgressContent(groups: List<MuscleGroupProgress>) {
 @Composable
 private fun MuscleGroupProgressCard(group: MuscleGroupProgress) {
     val spacing = LocalSpacing.current
-    ElevatedCard {
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()

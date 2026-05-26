@@ -65,6 +65,20 @@ class StaticUiPolicyTest {
         assertTrue((english - spanish).isEmpty(), "Missing ES keys: ${(english - spanish).joinToString()}")
     }
 
+    @Test
+    fun `home dashboard keeps one card per row`() {
+        val homeSource = presentationSource.resolve("home/HomeScreen.kt")
+            .toFile()
+            .readText()
+            .replace("\r\n", "\n")
+
+        assertTrue(homeSource.contains("LazyColumn("))
+        assertFalse(homeSource.contains("LazyVerticalGrid"))
+        assertFalse(homeSource.contains("GridCells"))
+        assertFalse(homeSource.contains("Arrangement.spacedBy(spacing.cardGap),\n            ) {\n                MetricCard("))
+        assertTrue(homeSource.contains("PremiumCard(modifier = modifier.fillMaxWidth())"))
+    }
+
     private fun kotlinFiles(): List<Path> =
         Files.walk(presentationSource).asSequence()
             .filter { Files.isRegularFile(it) && it.name.endsWith(".kt") }

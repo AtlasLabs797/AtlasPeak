@@ -23,14 +23,10 @@ import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Sync
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -56,9 +52,12 @@ import com.atlaspeak.domain.model.body.BodyCompositionSource
 import com.atlaspeak.domain.model.body.BodyMetric
 import com.atlaspeak.domain.model.body.BodyMetricPoint
 import com.atlaspeak.domain.model.body.BodyMetricValue
+import com.atlaspeak.presentation.component.AtlasPrimaryButton
+import com.atlaspeak.presentation.component.AtlasSecondaryButton
 import com.atlaspeak.presentation.component.PeriodSelector
 import com.atlaspeak.presentation.component.PeriodSelectorItem
 import com.atlaspeak.presentation.component.PremiumBackground
+import com.atlaspeak.presentation.component.PremiumCard
 import com.atlaspeak.presentation.theme.LocalSpacing
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
@@ -227,7 +226,7 @@ private fun HealthConnectCard(
     onRequestPermissions: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
-    Card {
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -260,22 +259,20 @@ private fun HealthConnectCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(spacing.sm),
             ) {
-                Button(
+                AtlasPrimaryButton(
+                    modifier = Modifier.weight(1f),
                     onClick = onSync,
                     enabled = !isSyncing,
+                    text = stringResource(R.string.body_health_sync),
+                    leadingIcon = Icons.Filled.Sync,
+                )
+                AtlasSecondaryButton(
                     modifier = Modifier.weight(1f),
-                ) {
-                    Icon(Icons.Filled.Sync, contentDescription = null)
-                    Text(stringResource(R.string.body_health_sync))
-                }
-                OutlinedButton(
                     onClick = onRequestPermissions,
                     enabled = !isSyncing,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Icon(Icons.Filled.Settings, contentDescription = null)
-                    Text(stringResource(R.string.body_health_permissions))
-                }
+                    text = stringResource(R.string.body_health_permissions),
+                    leadingIcon = Icons.Filled.Settings,
+                )
             }
         }
     }
@@ -304,17 +301,18 @@ private fun HeaderRow(onAddClick: () -> Unit) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Button(onClick = onAddClick) {
-            Icon(Icons.Filled.Add, contentDescription = null)
-            Text(stringResource(R.string.body_add_entry))
-        }
+        AtlasPrimaryButton(
+            onClick = onAddClick,
+            text = stringResource(R.string.body_add_entry),
+            leadingIcon = Icons.Filled.Add,
+        )
     }
 }
 
 @Composable
 private fun EmptyBodyCard(onAddClick: () -> Unit) {
     val spacing = LocalSpacing.current
-    ElevatedCard {
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -335,10 +333,11 @@ private fun EmptyBodyCard(onAddClick: () -> Unit) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Button(onClick = onAddClick) {
-                Icon(Icons.Filled.Add, contentDescription = null)
-                Text(stringResource(R.string.body_add_entry))
-            }
+            AtlasPrimaryButton(
+                onClick = onAddClick,
+                text = stringResource(R.string.body_add_entry),
+                leadingIcon = Icons.Filled.Add,
+            )
         }
     }
 }
@@ -346,7 +345,7 @@ private fun EmptyBodyCard(onAddClick: () -> Unit) {
 @Composable
 private fun LatestValuesTable(values: List<BodyMetricValue>) {
     val spacing = LocalSpacing.current
-    Card {
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -397,6 +396,7 @@ private fun LatestValueRow(value: BodyMetricValue) {
             )
             AssistChip(
                 onClick = {},
+                enabled = false,
                 label = {
                     Text(
                         stringResource(
@@ -421,7 +421,7 @@ private fun ManualBodyEntryCard(
     onCancel: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
-    Card {
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -457,12 +457,14 @@ private fun ManualBodyEntryCard(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(spacing.sm, Alignment.End),
             ) {
-                OutlinedButton(onClick = onCancel) {
-                    Text(stringResource(R.string.action_cancel))
-                }
-                Button(onClick = onSaveDraft) {
-                    Text(stringResource(R.string.action_save))
-                }
+                AtlasSecondaryButton(
+                    onClick = onCancel,
+                    text = stringResource(R.string.action_cancel),
+                )
+                AtlasPrimaryButton(
+                    onClick = onSaveDraft,
+                    text = stringResource(R.string.action_save),
+                )
             }
         }
     }
@@ -499,7 +501,7 @@ private fun BodyMetricTabs(
 @Composable
 private fun BodyMetricChartCard(metric: BodyMetric, points: List<BodyMetricPoint>) {
     val spacing = LocalSpacing.current
-    Card {
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()

@@ -11,8 +11,12 @@
 
 Atlas Peak es **local-first** sin backend propio. Las superficies de ataque reales son:
 
+Decision vigente (SEC-026): las capturas de pantalla estan permitidas en toda la app.
+Esto reduce privacidad frente a screenshots, screen recording y vista de recientes.
+
 1. **Acceso físico al dispositivo desbloqueado** → riesgo aceptado tras retirar el gate de
-   contraseña; la defensa real es el bloqueo del dispositivo + `FLAG_SECURE` contra capturas.
+   contraseña; la defensa real es el bloqueo del dispositivo. Las capturas estan permitidas
+   por SEC-026.
 2. **Extracción de la DB del dispositivo** → mitigado con SQLCipher (clave en Keystore).
 3. **Backup en Google Drive comprometido** (cuenta Google hackeada / Google interno) →
    mitigado con AES-256-GCM y clave derivada de contraseña (Google solo ve binario cifrado).
@@ -31,6 +35,15 @@ salvo lo que el propio Google maneja en su OAuth.
 Estos se detectaron al auditar el spec **antes** de escribir código. Los fixes están
 reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de versiones.
 
+### SEC-026 - Capturas permitidas en toda la app
+- **Estado:** Aceptado (riesgo conocido)
+- **Fecha:** 2026-05-25
+- **Severidad:** Media
+- **Sintoma:** el usuario necesita poder tomar capturas de cualquier pantalla de Atlas Peak.
+- **Causa raiz:** `FLAG_SECURE` protegia rutas con salud/entrenamiento/perfil/backup, pero tambien bloqueaba capturas legitimas para uso personal, soporte y QA.
+- **Solucion:** `SecureScreenEffect` ya no aplica `WindowManager.LayoutParams.FLAG_SECURE`; limpia el flag y `shouldApplySecureFlag()` devuelve siempre `false`. `SensitiveRoutePolicy` conserva la clasificacion de rutas sensibles, pero no bloquea screenshots.
+- **Prevencion:** cualquier reintroduccion de `FLAG_SECURE` debe ser una decision explicita. El riesgo aceptado es que datos de salud, perfil, entrenamiento y backup pueden aparecer en screenshots y vista de recientes.
+
 ### SEC-025 - Gate de contraseña local retirado por decisión de producto
 - **Estado:** Aceptado (riesgo conocido)
 - **Fecha:** 2026-05-25
@@ -41,13 +54,13 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
 - **Prevencion:** no reintroducir login local salvo decisión explícita. Cualquier export JSON/CSV queda aceptado como claro; los backups Drive siguen cifrados.
 
 ### SEC-024 - Capturas permitidas solo en emulador debug para QA visual
-- **Estado:** Resuelto
+- **Estado:** Obsoleto por SEC-026
 - **Fecha:** 2026-05-24
 - **Severidad:** Baja
 - **Sintoma:** `FLAG_SECURE` protegia correctamente el onboarding y rutas sensibles, pero dejaba las capturas del emulador negras e impedia QA visual automatizada.
 - **Causa raiz:** la politica de seguridad no distinguia release/dispositivo real de emulador debug usado como herramienta de validacion.
-- **Solucion:** `SecureScreenEffect` mantiene la lista de rutas sensibles, pero omite `FLAG_SECURE` solo cuando `BuildConfig.DEBUG` y el runtime es un emulador Android. Release y debug en dispositivo real siguen protegidos.
-- **Prevencion:** `SensitiveRoutePolicyTest` cubre que el bypass solo aplica a emulador debug.
+- **Solucion:** la solucion original limitaba capturas a emulador debug. SEC-026 la reemplaza: las capturas estan permitidas tambien en release y dispositivo real.
+- **Prevencion:** `SensitiveRoutePolicyTest` cubre que `FLAG_SECURE` no se aplica.
 
 ### SEC-010 — DB SQLCipher y clave local protegida
 - **Estado:** 🟢 Resuelto
@@ -68,13 +81,13 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
 - **Prevención:** si vuelve el login local, reactivar PBKDF2/rate-limit/biometría como feature explícita, no como requisito implícito.
 
 ### SEC-012 — Onboarding sensible y permisos Health Connect
-- **Estado:** 🟢 Resuelto
+- **Estado:** 🟢 Resuelto / actualizado por SEC-025 y SEC-026
 - **Fecha:** 2026-05-23
 - **Severidad:** Media
-- **Síntoma:** Fase 3 añade captura de contraseña/perfil y permisos Health Connect durante onboarding.
+- **Síntoma:** Fase 3 añade captura de perfil y permisos Health Connect durante onboarding. La captura de contraseña quedo obsoleta por SEC-025.
 - **Causa raíz:** onboarding pasó de placeholder a flujo sensible; además el manifest necesitaba declarar permisos Health Connect antes de pedirlos.
-- **Solución:** `FLAG_SECURE` cubre `Onboarding`, se declaran permisos `android.permission.health.*` del spec, y el request de Health Connect comprueba disponibilidad del SDK antes de lanzar el contrato.
-- **Prevención:** revisión de rutas sensibles cada vez que una pantalla capture contraseña, perfil, backup o permisos de salud.
+- **Solución:** se declaran permisos `android.permission.health.*` del spec, y el request de Health Connect comprueba disponibilidad del SDK antes de lanzar el contrato. Tras SEC-026, `Onboarding` sigue clasificada como ruta sensible pero no bloquea screenshots.
+- **Prevención:** revisión de rutas sensibles cada vez que una pantalla capture perfil, backup o permisos de salud. No reintroducir `FLAG_SECURE` sin decision explicita.
 
 ### SEC-013 — Foreground service de fuerza puede fallar por permiso runtime
 - **Estado:** 🟢 Resuelto
@@ -95,13 +108,13 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
 - **Prevencion:** Fase 13 debe validar el flujo en Android 14/15 real: GPS concedido, GPS denegado y cardio manual.
 
 ### SEC-015 - Composicion corporal muestra datos de salud sensibles
-- **Estado:** Resuelto
+- **Estado:** Aceptado por SEC-026
 - **Fecha:** 2026-05-24
 - **Severidad:** Media
-- **Sintoma:** Fase 9 activa la pantalla `Body` con peso, grasa, masa muscular y edad corporal; sin proteccion, esos datos podrian aparecer en screenshots o vista de recientes.
-- **Causa raiz:** `Body` era placeholder y no estaba incluido en las rutas sensibles con `FLAG_SECURE`.
-- **Solucion:** `AppRoute.Body.route` se anade a `secureRoutes`; no se introducen nuevos permisos, red ni logs de valores corporales.
-- **Prevencion:** toda pantalla que muestre salud, backup, perfil, auth o permisos sensibles debe revisarse contra `SecureScreenEffect`.
+- **Sintoma:** Fase 9 activa la pantalla `Body` con peso, grasa, masa muscular y edad corporal; esos datos pueden aparecer en screenshots o vista de recientes.
+- **Causa raiz:** `Body` era placeholder y no estaba clasificado como ruta sensible; despues SEC-026 cambio la politica y las capturas quedaron permitidas en toda la app.
+- **Solucion:** `AppRoute.Body.route` sigue clasificada como sensible para auditoria; `SecureScreenEffect` no aplica `FLAG_SECURE` y no se introducen nuevos permisos, red ni logs de valores corporales.
+- **Prevencion:** toda pantalla que muestre salud, backup, perfil o permisos sensibles debe revisarse contra `SensitiveRoutePolicy`; cualquier bloqueo de screenshots requiere decision explicita.
 
 ### SEC-016 - Sincronizacion Health Connect con permisos revocables
 - **Estado:** Resuelto
@@ -131,13 +144,13 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
 - **Prevencion:** tests de manager/HTTP prueban que se sube binario cifrado, no JSON, con `multipart/related` para Drive; revision permanente: ID tokens nunca son bearer tokens de Drive; cualquier export no cifrado debe excluir credenciales, hashes y estado de bloqueo.
 
 ### SEC-019 - Rutas autenticadas con salud sin FLAG_SECURE
-- **Estado:** Resuelto
+- **Estado:** Obsoleto por SEC-026
 - **Fecha:** 2026-05-24
 - **Severidad:** Media
 - **Sintoma:** `Home`, `Train`, `Progress`, `ActiveWorkout`, `ActiveCardio` y pantallas de resumen mostraban datos de salud, ubicacion o entrenamiento sin bloqueo de screenshots/vista de recientes.
 - **Causa raiz:** el allowlist de `SecureScreenEffect` se quedo en auth/perfil/backup/cuerpo, pero fases posteriores movieron datos sensibles a casi toda la zona autenticada.
-- **Solucion:** se extrae `SensitiveRoutePolicy` y todas las rutas autenticadas con salud/entrenamiento pasan a `FLAG_SECURE`; `Launch` queda fuera para evitar churn durante splash.
-- **Prevencion:** test unitario `all authenticated health and workout routes are protected from screenshots`; cualquier ruta nueva post-login debe entrar en la politica o justificarlo en `SECURITY.md`.
+- **Solucion:** la solucion original protegia rutas autenticadas con `FLAG_SECURE`. SEC-026 revierte ese bloqueo por decision de producto; las rutas siguen clasificadas, pero las capturas se permiten.
+- **Prevencion:** cualquier reintroduccion de `FLAG_SECURE` requiere decision explicita y actualizacion de este documento.
 
 ### SEC-020 - Notificaciones foreground filtraban actividad en lockscreen
 - **Estado:** Resuelto
@@ -154,7 +167,7 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
 - **Severidad:** Alta
 - **Sintoma:** `biometric_timeout_min` y la politica de timeout existian, pero ninguna ruta sensible revalidaba el desbloqueo al volver de background.
 - **Causa raiz:** el gate de auth solo se ejecutaba en `Launch`; `FLAG_SECURE` bloquea capturas, pero no bloquea a una persona con el dispositivo desbloqueado.
-- **Solucion:** la mitigacion original fue reemplazada por SEC-025: no hay gate local ni timeout de sesion. `FLAG_SECURE` se mantiene para capturas/vista de recientes.
+- **Solucion:** la mitigacion original fue reemplazada por SEC-025 y SEC-026: no hay gate local ni timeout de sesion, y las capturas estan permitidas.
 - **Prevencion:** no tratar `last_login_at` como control vigente; si vuelve el login local, recuperar tests de timeout antes de exponerlo.
 
 ### SEC-022 - Export JSON/CSV en claro sin step-up auth
@@ -293,7 +306,7 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
       `google-services.json` siguen en `.gitignore`.
 - [ ] OkHttp logging interceptor desactivado en release (`BuildConfig.DEBUG`).
 - [ ] Sin `Log.*` con datos sensibles en builds release (ProGuard/R8 los retira; verificar).
-- [ ] `FLAG_SECURE` activo en rutas con salud/entrenamiento, perfil y backup.
+- [ ] Capturas permitidas intencionalmente: no reintroducir `FLAG_SECURE` sin decision explicita.
 - [ ] `network_security_config.xml`: `cleartextTrafficPermitted="false"` en producción.
 - [ ] Maps API key restringida (SHA-1 + package) en Cloud Console.
 - [ ] Permisos del manifest = solo los usados (sin `ACCESS_BACKGROUND_LOCATION`).
@@ -306,7 +319,8 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
 
 | ID | Limitación | Por qué se acepta |
 |----|------------|-------------------|
-| RA-05 | Sin contraseña para abrir la app | El usuario prefiere friccion cero; se confia en bloqueo del dispositivo y `FLAG_SECURE` |
+| RA-05 | Sin contraseña para abrir la app | El usuario prefiere friccion cero; se confia en bloqueo del dispositivo |
+| RA-06 | Capturas de pantalla permitidas | Decision de producto; facilita uso personal, soporte y QA, pero puede exponer datos si el usuario comparte capturas |
 | SEC-002 | Cambiar contraseña invalida backups previos | Es el coste de la portabilidad sin backend; mitigado con aviso UX |
 | RA-01 | Rate-limit reseteable borrando datos de la app | La defensa real es el hash fuerte; sin servidor no hay alternativa |
 | RA-02 | Pérdida de contraseña **y** cuenta Google → datos irrecuperables | Documentado y advertido en onboarding; no hay solución sin comprometer el cifrado |

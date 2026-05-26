@@ -10,9 +10,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
 
@@ -24,25 +22,11 @@ fun PremiumBackground(
     val colors = MaterialTheme.colorScheme
     Box(
         modifier = modifier
-            .background(colors.background)
             .background(
-                Brush.radialGradient(
-                    colors = listOf(
-                        colors.primary.copy(alpha = 0.16f),
-                        Color.Transparent,
-                    ),
-                    center = Offset(x = 160f, y = 0f),
-                    radius = 920f,
-                ),
-            )
-            .background(
-                Brush.radialGradient(
-                    colors = listOf(
-                        colors.primaryContainer.copy(alpha = 0.10f),
-                        Color.Transparent,
-                    ),
-                    center = Offset(x = 900f, y = 1300f),
-                    radius = 1100f,
+                Brush.verticalGradient(
+                    0f to colors.background,
+                    0.45f to colors.background,
+                    1f to colors.surfaceVariant.copy(alpha = 0.20f),
                 ),
             ),
         content = content,
@@ -70,10 +54,11 @@ fun PremiumCard(
 @Composable
 fun PremiumIconBadge(
     modifier: Modifier = Modifier,
+    size: androidx.compose.ui.unit.Dp = 44.dp,
     content: @Composable BoxScope.() -> Unit,
 ) {
     Surface(
-        modifier = modifier.size(44.dp),
+        modifier = modifier.size(size),
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.primaryContainer,
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,

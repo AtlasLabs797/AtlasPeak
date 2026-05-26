@@ -23,7 +23,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -48,6 +47,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.atlaspeak.R
 import com.atlaspeak.domain.model.planning.NotificationSettings
+import com.atlaspeak.presentation.component.AtlasPrimaryButton
 import com.atlaspeak.presentation.component.PremiumBackground
 import com.atlaspeak.presentation.theme.LocalSpacing
 
@@ -168,12 +168,11 @@ fun NotificationSettingsScreen(
                     )
                 }
                 item {
-                    Button(
+                    AtlasPrimaryButton(
                         onClick = onSave,
                         modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(stringResource(R.string.action_save))
-                    }
+                        text = stringResource(R.string.action_save),
+                    )
                 }
             }
         }

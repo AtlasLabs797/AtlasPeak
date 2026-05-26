@@ -36,7 +36,7 @@ class RoomCardioRepository @Inject constructor(
                 nameEs = type.name,
                 nameEn = type.name,
                 hasGps = type.hasGps,
-                iconName = "directions_run",
+                iconName = type.iconName,
                 isPreset = false,
                 isArchived = type.isArchived,
             ),
@@ -88,6 +88,7 @@ class RoomCardioRepository @Inject constructor(
         hasGps = hasGps,
         isPreset = isPreset,
         isArchived = isArchived,
+        iconName = iconName,
     )
 
     private suspend fun CardioSessionEntity.toDomain(workout: WorkoutSessionEntity): CardioSession {

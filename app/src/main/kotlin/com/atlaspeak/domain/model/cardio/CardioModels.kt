@@ -6,6 +6,7 @@ data class CardioType(
     val hasGps: Boolean,
     val isPreset: Boolean,
     val isArchived: Boolean,
+    val iconName: String = "directions_run",
 )
 
 sealed class CardioMode {

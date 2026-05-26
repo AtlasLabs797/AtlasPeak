@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -19,6 +18,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.atlaspeak.R
 import com.atlaspeak.domain.model.cardio.CardioSession
+import com.atlaspeak.presentation.component.AtlasPrimaryButton
 import com.atlaspeak.presentation.component.PremiumBackground
 import com.atlaspeak.presentation.component.PremiumCard
 import com.atlaspeak.presentation.theme.LocalSpacing
@@ -56,14 +56,11 @@ fun CardioCompleteScreen(
                 session == null -> Text(stringResource(R.string.state_empty_title))
                 else -> CardioSummary(session)
             }
-            Button(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = spacing.minTouchTarget),
+            AtlasPrimaryButton(
+                modifier = Modifier.fillMaxWidth(),
                 onClick = onDone,
-            ) {
-                Text(stringResource(R.string.action_continue))
-            }
+                text = stringResource(R.string.action_continue),
+            )
         }
     }
 }

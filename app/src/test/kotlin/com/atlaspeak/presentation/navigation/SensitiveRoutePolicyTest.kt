@@ -6,8 +6,9 @@ import org.junit.jupiter.api.Test
 
 class SensitiveRoutePolicyTest {
     @Test
-    fun `all authenticated health and workout routes are protected from screenshots`() {
+    fun `sensitive routes are still classified but no longer block screenshots`() {
         listOf(
+            AppRoute.Onboarding.route,
             AppRoute.Home.route,
             AppRoute.Train.route,
             AppRoute.ActiveWorkout.route,
@@ -22,20 +23,15 @@ class SensitiveRoutePolicyTest {
             AppRoute.BackupRestore.route,
         ).forEach { route ->
             assertTrue(isSensitiveRoute(route), route)
+            assertFalse(shouldApplySecureFlag(route), route)
         }
     }
 
     @Test
-    fun `launch route stays outside FLAG_SECURE to avoid flashing policy churn`() {
+    fun `non sensitive routes do not block screenshots`() {
         assertFalse(isSensitiveRoute(AppRoute.Launch.route))
         assertFalse(isSensitiveRoute(null))
-    }
-
-    @Test
-    fun `debug emulator bypasses FLAG_SECURE for visual QA only`() {
-        assertFalse(shouldApplySecureFlag(AppRoute.Onboarding.route, debugBuild = true, emulator = true))
-        assertTrue(shouldApplySecureFlag(AppRoute.Onboarding.route, debugBuild = true, emulator = false))
-        assertTrue(shouldApplySecureFlag(AppRoute.Onboarding.route, debugBuild = false, emulator = true))
-        assertFalse(shouldApplySecureFlag(AppRoute.Launch.route, debugBuild = true, emulator = true))
+        assertFalse(shouldApplySecureFlag(AppRoute.Launch.route))
+        assertFalse(shouldApplySecureFlag(null))
     }
 }

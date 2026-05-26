@@ -4,7 +4,53 @@ import android.Manifest
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.RocketLaunch
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
@@ -17,43 +63,18 @@ import androidx.health.connect.client.records.LeanBodyMassRecord
 import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.WeightRecord
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Cloud
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.RocketLaunch
-import androidx.compose.material3.Button
-import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.atlaspeak.R
 import com.atlaspeak.domain.model.onboarding.OnboardingStep
+import com.atlaspeak.presentation.component.AtlasGhostButton
+import com.atlaspeak.presentation.component.AtlasPrimaryButton
+import com.atlaspeak.presentation.component.AtlasTextField
 import com.atlaspeak.presentation.component.PremiumBackground
-import com.atlaspeak.presentation.component.PremiumIconBadge
+import com.atlaspeak.presentation.component.PremiumCard
+import com.atlaspeak.presentation.component.StepDots
+import com.atlaspeak.presentation.theme.AtlasBrushes
+import com.atlaspeak.presentation.theme.AtlasMotion
 import com.atlaspeak.presentation.theme.LocalSpacing
 
 @Composable
@@ -121,75 +142,105 @@ fun OnboardingScreen(
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
+    val totalSteps = OnboardingStep.entries.size
     PremiumBackground(modifier = modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(spacing.screen),
-            verticalArrangement = Arrangement.spacedBy(spacing.cardGap),
+                .padding(horizontal = spacing.screen, vertical = spacing.lg),
+            verticalArrangement = Arrangement.spacedBy(spacing.lg),
         ) {
-            LinearProgressIndicator(
-                progress = { (state.currentStep.ordinal + 1) / OnboardingStep.entries.size.toFloat() },
-                modifier = Modifier.fillMaxWidth(),
+            StepDots(current = state.currentStep.ordinal, total = totalSteps)
+            Text(
+                text = stringResource(
+                    R.string.onboarding_step_label,
+                    state.currentStep.ordinal + 1,
+                    totalSteps,
+                ),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            StepHeader(state.currentStep)
-            StepBody(
-                state = state,
-                onDisplayNameChanged = onDisplayNameChanged,
-                onAgeChanged = onAgeChanged,
-                onHeightChanged = onHeightChanged,
-                onGenderChanged = onGenderChanged,
-                onGoalChanged = onGoalChanged,
-            )
+            OnboardingHero(step = state.currentStep)
+            AnimatedContent(
+                targetState = state.currentStep,
+                transitionSpec = {
+                    fadeIn(animationSpec = tween(AtlasMotion.DurationMedium)) togetherWith
+                        fadeOut(animationSpec = tween(AtlasMotion.DurationFast))
+                },
+                label = "",
+            ) { step ->
+                Column(verticalArrangement = Arrangement.spacedBy(spacing.md)) {
+                    Text(
+                        text = stringResource(step.titleRes()),
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onBackground,
+                    )
+                    Text(
+                        text = stringResource(step.bodyRes()),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    StepBody(
+                        state = state,
+                        onDisplayNameChanged = onDisplayNameChanged,
+                        onAgeChanged = onAgeChanged,
+                        onHeightChanged = onHeightChanged,
+                        onGenderChanged = onGenderChanged,
+                        onGoalChanged = onGoalChanged,
+                    )
+                }
+            }
             OnboardingMessageText(state.message)
-            Button(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = spacing.minTouchTarget),
+            Spacer(Modifier.height(spacing.xs))
+            AtlasPrimaryButton(
+                modifier = Modifier.fillMaxWidth(),
                 enabled = !state.isSubmitting,
                 onClick = onPrimaryAction,
-            ) {
-                Text(stringResource(primaryActionRes(state.currentStep)))
-            }
+                text = stringResource(primaryActionRes(state.currentStep)),
+            )
             if (state.currentStep != OnboardingStep.Done) {
-                OutlinedButton(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = spacing.minTouchTarget),
+                AtlasGhostButton(
+                    modifier = Modifier.fillMaxWidth(),
                     enabled = !state.isSubmitting,
                     onClick = onSkip,
-                ) {
-                    Text(stringResource(R.string.action_skip))
-                }
+                    text = stringResource(R.string.action_skip),
+                )
             }
         }
     }
 }
 
 @Composable
-private fun StepHeader(step: OnboardingStep) {
-    val spacing = LocalSpacing.current
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+private fun OnboardingHero(step: OnboardingStep) {
+    val colors = MaterialTheme.colorScheme
+    val decorationCd = stringResource(R.string.onboarding_hero_decoration_cd)
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(200.dp)
+            .clip(RoundedCornerShape(28.dp))
+            .background(AtlasBrushes.heroGradient(colors)),
+        contentAlignment = Alignment.Center,
     ) {
-        PremiumIconBadge {
+        Image(
+            painter = painterResource(R.drawable.ic_onboarding_hero),
+            contentDescription = decorationCd,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop,
+        )
+        Box(
+            modifier = Modifier
+                .size(96.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(colors.surface.copy(alpha = 0.92f)),
+            contentAlignment = Alignment.Center,
+        ) {
             Icon(
                 imageVector = step.icon(),
                 contentDescription = null,
-            )
-        }
-        Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
-            Text(
-                text = stringResource(step.titleRes()),
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onBackground,
-            )
-            Text(
-                text = stringResource(step.bodyRes()),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = colors.primary,
+                modifier = Modifier.size(48.dp),
             )
         }
     }
@@ -207,54 +258,93 @@ private fun StepBody(
     val spacing = LocalSpacing.current
     when (state.currentStep) {
         OnboardingStep.Google -> {
-            Text(
-                text = stringResource(R.string.onboarding_google_status),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        OnboardingStep.Profile -> {
-            OutlinedTextField(
-                modifier = Modifier.fillMaxWidth(),
-                value = state.displayName,
-                onValueChange = onDisplayNameChanged,
-                label = { Text(stringResource(R.string.onboarding_profile_name)) },
-                singleLine = true,
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
-                OutlinedTextField(
-                    modifier = Modifier.weight(1f),
-                    value = state.age,
-                    onValueChange = onAgeChanged,
-                    label = { Text(stringResource(R.string.onboarding_profile_age)) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                )
-                OutlinedTextField(
-                    modifier = Modifier.weight(1f),
-                    value = state.heightCm,
-                    onValueChange = onHeightChanged,
-                    label = { Text(stringResource(R.string.onboarding_profile_height)) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+            PremiumCard(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    modifier = Modifier.padding(spacing.card),
+                    text = stringResource(R.string.onboarding_google_status),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            OutlinedTextField(
-                modifier = Modifier.fillMaxWidth(),
-                value = state.gender,
-                onValueChange = onGenderChanged,
-                label = { Text(stringResource(R.string.onboarding_profile_gender)) },
-                singleLine = true,
-            )
-            OutlinedTextField(
-                modifier = Modifier.fillMaxWidth(),
-                value = state.goalType,
-                onValueChange = onGoalChanged,
-                label = { Text(stringResource(R.string.onboarding_profile_goal)) },
-                singleLine = true,
-            )
+        }
+        OnboardingStep.Profile -> {
+            PremiumCard(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(spacing.card),
+                    verticalArrangement = Arrangement.spacedBy(spacing.sm),
+                ) {
+                    AtlasTextField(
+                        modifier = Modifier.fillMaxWidth(),
+                        value = state.displayName,
+                        onValueChange = onDisplayNameChanged,
+                        label = stringResource(R.string.onboarding_profile_name),
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                        AtlasTextField(
+                            modifier = Modifier.weight(1f),
+                            value = state.age,
+                            onValueChange = onAgeChanged,
+                            label = stringResource(R.string.onboarding_profile_age),
+                            keyboardType = KeyboardType.Number,
+                        )
+                        AtlasTextField(
+                            modifier = Modifier.weight(1f),
+                            value = state.heightCm,
+                            onValueChange = onHeightChanged,
+                            label = stringResource(R.string.onboarding_profile_height),
+                            keyboardType = KeyboardType.Decimal,
+                        )
+                    }
+                    ChoiceSelector(
+                        label = stringResource(R.string.onboarding_profile_gender),
+                        options = listOf(
+                            stringResource(R.string.onboarding_gender_male),
+                            stringResource(R.string.onboarding_gender_female),
+                        ),
+                        selected = state.gender,
+                        onSelected = onGenderChanged,
+                    )
+                    ChoiceSelector(
+                        label = stringResource(R.string.onboarding_profile_goal),
+                        options = listOf(
+                            stringResource(R.string.onboarding_goal_fat_loss),
+                            stringResource(R.string.onboarding_goal_muscle_gain),
+                            stringResource(R.string.onboarding_goal_maintenance),
+                            stringResource(R.string.onboarding_goal_endurance),
+                        ),
+                        selected = state.goalType,
+                        onSelected = onGoalChanged,
+                    )
+                }
+            }
         }
         else -> Unit
+    }
+}
+
+@Composable
+private fun ChoiceSelector(
+    label: String,
+    options: List<String>,
+    selected: String,
+    onSelected: (String) -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
+            items(options, key = { it }) { option ->
+                FilterChip(
+                    selected = selected == option,
+                    onClick = { onSelected(option) },
+                    label = { Text(option) },
+                )
+            }
+        }
     }
 }
 
@@ -269,6 +359,7 @@ private fun OnboardingMessageText(message: OnboardingMessage?) {
         text = stringResource(messageRes),
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.error,
+        textAlign = TextAlign.Start,
     )
 }
 

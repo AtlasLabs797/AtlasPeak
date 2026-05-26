@@ -33,8 +33,6 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -42,8 +40,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -51,6 +47,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -72,9 +69,14 @@ import com.atlaspeak.R
 import com.atlaspeak.domain.model.workout.ActiveWorkoutExercise
 import com.atlaspeak.domain.model.workout.RestTimerFeedbackSettings
 import com.atlaspeak.domain.model.workout.WorkoutSet
+import com.atlaspeak.presentation.component.AtlasPrimaryButton
+import com.atlaspeak.presentation.component.AtlasSecondaryButton
+import com.atlaspeak.presentation.component.AtlasTextField
 import com.atlaspeak.presentation.component.PremiumBackground
+import com.atlaspeak.presentation.component.PremiumCard
 import com.atlaspeak.presentation.theme.LocalSpacing
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @Composable
 fun ActiveWorkoutRoute(
@@ -151,6 +153,26 @@ fun ActiveWorkoutScreen(
             }
             else -> {
                 val pagerState = rememberPagerState(pageCount = { session.exercises.size.coerceAtLeast(1) })
+                val coroutineScope = rememberCoroutineScope()
+                val completionKey = session.exercises.joinToString(separator = "|") { exercise ->
+                    "${exercise.exerciseId}:${exercise.sets.count { it.completed }}/${exercise.sets.size}"
+                }
+                val currentExercise = session.exercises.getOrNull(
+                    pagerState.currentPage.coerceAtMost(session.exercises.lastIndex),
+                )
+                val currentExerciseComplete = currentExercise?.allSetsCompleted() == true
+                val canMoveNext = currentExerciseComplete && pagerState.currentPage < session.exercises.lastIndex
+                val allExercisesComplete = session.exercises.isNotEmpty() && session.exercises.all { it.allSetsCompleted() }
+
+                LaunchedEffect(completionKey, state.restTimer == null) {
+                    if (state.restTimer != null) return@LaunchedEffect
+                    val currentPage = pagerState.currentPage.coerceAtMost(session.exercises.lastIndex)
+                    val exercise = session.exercises.getOrNull(currentPage) ?: return@LaunchedEffect
+                    if (exercise.allSetsCompleted() && currentPage < session.exercises.lastIndex) {
+                        pagerState.animateScrollToPage(currentPage + 1)
+                    }
+                }
+
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
@@ -180,26 +202,34 @@ fun ActiveWorkoutScreen(
                         }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
-                        OutlinedButton(
-                            modifier = Modifier
-                                .weight(1f)
-                                .heightIn(min = spacing.minTouchTarget),
+                        AtlasSecondaryButton(
+                            modifier = Modifier.weight(1f),
                             onClick = { showExerciseSheet = true },
-                        ) {
-                            Icon(Icons.AutoMirrored.Filled.List, contentDescription = null)
-                            Text(
-                                modifier = Modifier.padding(start = spacing.xs),
-                                text = stringResource(R.string.workout_active_exercise_sheet),
-                            )
-                        }
-                        Button(
-                            modifier = Modifier
-                                .weight(1f)
-                                .heightIn(min = spacing.minTouchTarget),
-                            onClick = onCompleteWorkout,
-                        ) {
-                            Text(stringResource(R.string.workout_finish_action))
-                        }
+                            text = stringResource(R.string.workout_active_exercise_sheet),
+                            leadingIcon = Icons.AutoMirrored.Filled.List,
+                        )
+                        AtlasPrimaryButton(
+                            modifier = Modifier.weight(1f),
+                            enabled = canMoveNext || allExercisesComplete,
+                            onClick = {
+                                if (canMoveNext) {
+                                    coroutineScope.launch {
+                                        pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                                    }
+                                } else {
+                                    onCompleteWorkout()
+                                }
+                            },
+                            text = stringResource(
+                                if (canMoveNext) {
+                                    R.string.workout_next_exercise_action
+                                } else if (allExercisesComplete) {
+                                    R.string.workout_finish_action
+                                } else {
+                                    R.string.workout_complete_sets_action
+                                },
+                            ),
+                        )
                     }
                 }
                 state.restTimer?.let { timer ->
@@ -241,12 +271,12 @@ private fun ProgressCard(
     elapsedSeconds: Long,
 ) {
     val spacing = LocalSpacing.current
-    Card {
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(spacing.card),
-            verticalArrangement = Arrangement.spacedBy(spacing.xs),
+            verticalArrangement = Arrangement.spacedBy(spacing.sm),
         ) {
             Text(
                 text = routineName.ifBlank { stringResource(R.string.screen_train_title) },
@@ -257,14 +287,16 @@ private fun ProgressCard(
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
                     text = stringResource(R.string.workout_active_progress, completedExercises, totalExercises),
                     style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
                     text = formatElapsed(elapsedSeconds),
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.headlineSmall,
                     color = MaterialTheme.colorScheme.primary,
                 )
             }
@@ -302,18 +334,12 @@ private fun ExercisePage(
             )
         }
         item {
-            Button(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = spacing.minTouchTarget),
+            AtlasSecondaryButton(
+                modifier = Modifier.fillMaxWidth(),
                 onClick = { onAddSet(exercise) },
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = null)
-                Text(
-                    modifier = Modifier.padding(start = spacing.xs),
-                    text = stringResource(R.string.workout_add_set),
-                )
-            }
+                text = stringResource(R.string.workout_add_set),
+                leadingIcon = Icons.Filled.Add,
+            )
         }
     }
 }
@@ -328,12 +354,25 @@ private fun SetRow(
     onRemoveSet: (WorkoutSet) -> Unit,
 ) {
     val spacing = LocalSpacing.current
-    Card {
+    val colors = MaterialTheme.colorScheme
+    val containerColor = if (set.completed) colors.primaryContainer.copy(alpha = 0.55f) else colors.surface
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        color = containerColor,
+        contentColor = colors.onSurface,
+        border = androidx.compose.foundation.BorderStroke(
+            width = 1.dp,
+            color = if (set.completed) colors.primary.copy(alpha = 0.45f) else colors.outline.copy(alpha = 0.55f),
+        ),
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(spacing.card),
-            verticalArrangement = Arrangement.spacedBy(spacing.xs),
+            verticalArrangement = Arrangement.spacedBy(spacing.sm),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -353,22 +392,20 @@ private fun SetRow(
                     Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.workout_remove_set_cd))
                 }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
-                OutlinedTextField(
+            Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                AtlasTextField(
+                    modifier = Modifier.weight(1.4f),
+                    value = set.weightKg?.toString().orEmpty(),
+                    onValueChange = { onWeightChanged(set, it) },
+                    label = stringResource(R.string.workout_weight_label),
+                    keyboardType = KeyboardType.Decimal,
+                )
+                AtlasTextField(
                     modifier = Modifier.weight(1f),
                     value = (set.actualReps ?: set.plannedReps).toString(),
                     onValueChange = { onActualRepsChanged(set, it) },
-                    label = { Text(stringResource(R.string.workout_reps_label)) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                )
-                OutlinedTextField(
-                    modifier = Modifier.weight(1f),
-                    value = set.weightKg?.toString().orEmpty(),
-                    onValueChange = { onWeightChanged(set, it) },
-                    label = { Text(stringResource(R.string.workout_weight_label)) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    label = stringResource(R.string.workout_reps_label),
+                    keyboardType = KeyboardType.Number,
                 )
             }
         }
@@ -381,17 +418,23 @@ private fun RestTimerOverlay(
     onSkipRest: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
+    val colors = MaterialTheme.colorScheme
     Surface(
         modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.scrim.copy(alpha = 0.72f),
+        color = colors.scrim.copy(alpha = 0.82f),
     ) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Card {
+            PremiumCard {
                 Column(
                     modifier = Modifier.padding(spacing.xl),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(spacing.md),
+                    verticalArrangement = Arrangement.spacedBy(spacing.lg),
                 ) {
+                    Text(
+                        text = stringResource(R.string.workout_rest_title),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = colors.onSurfaceVariant,
+                    )
                     val restDescription = stringResource(R.string.workout_rest_progress_cd, timer.remainingSeconds)
                     Box(
                         modifier = Modifier.semantics {
@@ -401,25 +444,29 @@ private fun RestTimerOverlay(
                         contentAlignment = Alignment.Center,
                     ) {
                         CircularProgressIndicator(
+                            progress = { 1f },
+                            modifier = Modifier.size(208.dp),
+                            strokeWidth = 12.dp,
+                            color = colors.surfaceVariant,
+                            trackColor = colors.surfaceVariant,
+                        )
+                        CircularProgressIndicator(
                             progress = { timer.progress },
-                            modifier = Modifier.size(156.dp),
-                            strokeWidth = 6.dp,
+                            modifier = Modifier.size(208.dp),
+                            strokeWidth = 12.dp,
+                            color = colors.primary,
+                            trackColor = androidx.compose.ui.graphics.Color.Transparent,
                         )
                         Text(
                             text = timer.remainingSeconds.toString(),
-                            style = MaterialTheme.typography.headlineLarge,
+                            style = MaterialTheme.typography.displayMedium,
+                            color = colors.onSurface,
                         )
                     }
-                    Text(
-                        text = stringResource(R.string.workout_rest_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    OutlinedButton(
-                        modifier = Modifier.heightIn(min = spacing.minTouchTarget),
+                    AtlasSecondaryButton(
                         onClick = onSkipRest,
-                    ) {
-                        Text(stringResource(R.string.action_skip))
-                    }
+                        text = stringResource(R.string.action_skip),
+                    )
                 }
             }
         }
@@ -525,8 +572,9 @@ private fun RestFeedbackEffect(
     settings: RestTimerFeedbackSettings,
 ) {
     val context = LocalContext.current
-    LaunchedEffect(restTimer?.id) {
+    LaunchedEffect(restTimer?.id, restTimer?.remainingSeconds) {
         if (restTimer == null) return@LaunchedEffect
+        if (restTimer.remainingSeconds != 0) return@LaunchedEffect
         if (settings.vibrationEnabled) {
             val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                 context.getSystemService(VibratorManager::class.java).defaultVibrator
@@ -557,4 +605,8 @@ private fun formatElapsed(seconds: Long): String {
     val minutes = seconds / 60
     val remainingSeconds = seconds % 60
     return "%02d:%02d".format(minutes, remainingSeconds)
+}
+
+private fun ActiveWorkoutExercise.allSetsCompleted(): Boolean {
+    return sets.isNotEmpty() && sets.all { it.completed }
 }

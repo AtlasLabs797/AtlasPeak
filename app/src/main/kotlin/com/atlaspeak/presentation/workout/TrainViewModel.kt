@@ -374,7 +374,7 @@ class TrainViewModel @Inject constructor(
 
 data class TrainUiState(
     val isLoading: Boolean = true,
-    val selectedTab: TrainTab = TrainTab.Exercises,
+    val selectedTab: TrainTab = TrainTab.Routines,
     val muscleGroups: List<MuscleGroup> = emptyList(),
     val exercises: List<Exercise> = emptyList(),
     val routines: List<Routine> = emptyList(),

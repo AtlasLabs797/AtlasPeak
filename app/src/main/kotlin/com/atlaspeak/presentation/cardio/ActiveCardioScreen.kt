@@ -20,12 +20,9 @@ import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Route
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,7 +39,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.atlaspeak.R
 import com.atlaspeak.domain.model.cardio.CardioMode
+import com.atlaspeak.presentation.component.AtlasPrimaryButton
+import com.atlaspeak.presentation.component.AtlasSecondaryButton
 import com.atlaspeak.presentation.component.PremiumBackground
+import com.atlaspeak.presentation.component.PremiumCard
 import com.atlaspeak.presentation.theme.LocalSpacing
 
 @Composable
@@ -130,23 +130,17 @@ fun ActiveCardioScreen(
                     )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
-                    OutlinedButton(
-                        modifier = Modifier
-                            .weight(1f)
-                            .heightIn(min = spacing.minTouchTarget),
+                    AtlasSecondaryButton(
+                        modifier = Modifier.weight(1f),
                         onClick = onCancelCardio,
-                    ) {
-                        Text(stringResource(R.string.action_cancel))
-                    }
-                    Button(
-                        modifier = Modifier
-                            .weight(1f)
-                            .heightIn(min = spacing.minTouchTarget),
+                        text = stringResource(R.string.action_cancel),
+                    )
+                    AtlasPrimaryButton(
+                        modifier = Modifier.weight(1f),
                         onClick = onCompleteCardio,
                         enabled = !state.completionInProgress,
-                    ) {
-                        Text(stringResource(R.string.cardio_finish_action))
-                    }
+                        text = stringResource(R.string.cardio_finish_action),
+                    )
                 }
             }
         }
@@ -157,7 +151,7 @@ fun ActiveCardioScreen(
 private fun CardioHeaderCard(state: ActiveCardioUiState) {
     val spacing = LocalSpacing.current
     val session = state.session ?: return
-    Card {
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -242,7 +236,7 @@ private fun MetricCard(
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
-    Card(modifier = modifier.heightIn(min = 104.dp)) {
+    PremiumCard(modifier = modifier.fillMaxWidth().heightIn(min = 104.dp)) {
         Column(
             modifier = Modifier.padding(spacing.card),
             verticalArrangement = Arrangement.spacedBy(spacing.xs),
@@ -271,7 +265,7 @@ private fun ManualDistanceCard(
     onSpeedChange: (String) -> Unit,
 ) {
     val spacing = LocalSpacing.current
-    Card {
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()

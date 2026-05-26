@@ -58,7 +58,7 @@
 | 21 | **Clave backup ligada al dispositivo (Keystore)** | Clave de backup derivada de passphrase de backup — restaurable en nuevo dispositivo |
 | 22 | **Sin network_security_config.xml** | Añadida configuración: solo HTTPS, sin cleartext |
 | 23 | **i18n en Fase 16 (demasiado tarde)** | Movida a Fase 1 — strings.xml desde el inicio |
-| 24 | **Sin FLAG_SECURE en pantallas sensibles** | Añadido en rutas con salud/entrenamiento, perfil y backup |
+| 24 | **Sin FLAG_SECURE en pantallas sensibles** | Obsoleto por SEC-026: las capturas quedan permitidas en toda la app |
 | 25 | **Biometría sin especificar nivel** | Obsoleto: sin gate local, biometría no se usa en v1 |
 | 26 | **Sin WearableListenerService en manifest** | Conservado en el diseño v2; no se declara en v1 |
 | 27 | **Export a almacenamiento público** | Corregido: export a almacenamiento privado + share via ShareSheet |
@@ -296,7 +296,7 @@ Reloj → Teléfono (MessageClient — eventos puntuales):
 - **DB local:** encriptada con SQLCipher. La clave de cifrado se genera aleatoriamente, se almacena cifrada en Android Keystore (nunca en texto plano).
 - **Contraseña/passphrase solo para backups cifrados:** se introduce en la pantalla de Backup al crear/restaurar copias y deriva la clave AES-256-GCM con PBKDF2-HMAC-SHA256 600.000 iteraciones.
 - **Sin biometría de desbloqueo local** en v1 tras retirar el gate de entrada. No hay permiso, dependencia ni flujo visible de desbloqueo.
-- `FLAG_SECURE` activo en rutas con salud/entrenamiento, perfil y backup.
+- Capturas de pantalla permitidas en toda la app por decision de producto (SEC-026).
 - **Riesgo aceptado:** si alguien usa el móvil ya desbloqueado, puede abrir Atlas Peak y ver/exportar datos. La defensa pasa a ser el bloqueo del dispositivo.
 
 **Escenario de pérdida de backup:**
@@ -397,121 +397,108 @@ plugins {
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp)
     alias(libs.plugins.hilt)
-    alias(libs.plugins.kotlinx.serialization)
+    alias(libs.plugins.kotlin.serialization)
 }
 
 dependencies {
 
+    // Las versiones viven solo en gradle/libs.versions.toml.
     // ── Compose BOM ─────────────────────────────────────────────────────────
-    implementation(platform("androidx.compose:compose-bom:2024.12.01"))
-    implementation("androidx.compose.ui:ui")
-    implementation("androidx.compose.ui:ui-graphics")
-    implementation("androidx.compose.ui:ui-tooling-preview")
-    implementation("androidx.compose.material3:material3")
-    implementation("androidx.compose.material:material-icons-extended")
-    debugImplementation("androidx.compose.ui:ui-tooling")
-    debugImplementation("androidx.compose.ui:ui-test-manifest")
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.compose.ui)
+    implementation(libs.androidx.compose.ui.graphics)
+    implementation(libs.androidx.compose.ui.tooling.preview)
+    implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.material.icons.extended)
+    debugImplementation(libs.androidx.compose.ui.tooling)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 
     // ── Lifecycle + ViewModel ────────────────────────────────────────────────
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
-    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
-    implementation("androidx.lifecycle:lifecycle-service:2.8.7")  // para ForegroundService
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.lifecycle.service)  // para ForegroundService
 
     // ── Navigation ───────────────────────────────────────────────────────────
-    implementation("androidx.navigation:navigation-compose:2.8.5")
+    implementation(libs.androidx.navigation.compose)
 
     // ── Room + SQLCipher ─────────────────────────────────────────────────────
-    implementation("androidx.room:room-runtime:2.6.1")
-    implementation("androidx.room:room-ktx:2.6.1")
-    ksp("androidx.room:room-compiler:2.6.1")
+    implementation(libs.androidx.room.runtime)
+    implementation(libs.androidx.room.ktx)
+    ksp(libs.androidx.room.compiler)
     // SQLCipher: cifrado transparente sobre SQLite
-    implementation("net.zetetic:sqlcipher-android:4.5.7")
-    implementation("androidx.sqlite:sqlite-ktx:2.4.0")
+    implementation(libs.sqlcipher.android)
+    implementation(libs.androidx.sqlite.ktx)
 
     // ── Hilt ─────────────────────────────────────────────────────────────────
-    implementation("com.google.dagger:hilt-android:2.52")
-    ksp("com.google.dagger:hilt-compiler:2.52")
-    implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
-    implementation("androidx.hilt:hilt-work:1.2.0")
-    ksp("androidx.hilt:hilt-compiler:1.2.0")
+    implementation(libs.hilt.android)
+    ksp(libs.hilt.compiler)
+    implementation(libs.androidx.hilt.navigation.compose)
+    implementation(libs.androidx.hilt.work)
+    ksp(libs.androidx.hilt.compiler)
 
     // ── Health Connect (v2.2: artifact renombrado + estable) ─────────────────
     // El grupo cambió de androidx.health a androidx.health.connect y ya hay 1.1.0 estable.
-    implementation("androidx.health.connect:connect-client:1.1.0")
+    implementation(libs.androidx.health.connect.client)
 
     // ── Vico Charts (v2.2: estable 2.x; antes era 2.0.0-beta.2) ──────────────
-    implementation("com.patrykandpatrick.vico:compose-m3:2.4.3")
+    implementation(libs.vico.compose.m3)
 
     // ── Cifrado ──────────────────────────────────────────────────────────────
-    implementation("androidx.security:security-crypto:1.1.0-alpha06")
+    implementation(libs.androidx.security.crypto)
     // EncryptedSharedPreferences + acceso al Keystore
 
     // ── Google Drive OAuth ───────────────────────────────────────────────────
-    implementation("com.google.android.gms:play-services-auth:21.5.1") // AuthorizationClient para Drive
+    implementation(libs.play.services.auth) // AuthorizationClient para Drive
 
     // ── Google Drive REST API v3 (via Retrofit, sin Google API Client library) ─
     // Se consume directamente con Retrofit + bearer token OAuth2
-    implementation("com.squareup.retrofit2:retrofit:2.11.0")
-    implementation("com.squareup.retrofit2:converter-kotlinx-serialization:2.11.0")
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
-    implementation("com.squareup.okhttp3:logging-interceptor:4.12.0")
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.converter.kotlinx)
+    implementation(libs.okhttp)
+    implementation(libs.okhttp.logging)
     // DriveApiService envia Authorization: Bearer {access_token} obtenido por AuthorizationClient
 
     // ── Kotlinx Serialization ────────────────────────────────────────────────
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
+    implementation(libs.kotlinx.serialization.json)
 
     // ── WorkManager ──────────────────────────────────────────────────────────
-    implementation("androidx.work:work-runtime-ktx:2.10.0")
+    implementation(libs.androidx.work.runtime.ktx)
 
     // ── Location + Maps ──────────────────────────────────────────────────────
-    implementation("com.google.android.gms:play-services-location:21.3.0")
-    implementation("com.google.maps.android:maps-compose:6.1.2")
-    implementation("com.google.android.gms:play-services-maps:19.0.0")
+    implementation(libs.play.services.location)
+    implementation(libs.maps.compose)
+    implementation(libs.play.services.maps)
 
     // Wear OS queda diferido a v2: no incluir play-services-wearable en v1.
 
     // ── Splash Screen API ────────────────────────────────────────────────────
-    implementation("androidx.core:core-splashscreen:1.0.1")
+    implementation(libs.androidx.core.splashscreen)
 
     // ── DataStore (ajustes y preferencias) ───────────────────────────────────
-    implementation("androidx.datastore:datastore-preferences:1.1.1")
+    implementation(libs.androidx.datastore.preferences)
 
     // ── Coroutines ────────────────────────────────────────────────────────────
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
+    implementation(libs.kotlinx.coroutines.android)
 
     // ── Testing ──────────────────────────────────────────────────────────────
-    testImplementation("org.junit.jupiter:junit-jupiter:5.11.3")
-    testImplementation("io.mockk:mockk:1.13.13")
-    testImplementation("androidx.room:room-testing:2.6.1")
-    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
-    testImplementation("app.cash.turbine:turbine:1.2.0")  // testing de Flows
-    androidTestImplementation(platform("androidx.compose:compose-bom:2024.12.01"))
-    androidTestImplementation("androidx.compose.ui:ui-test-junit4")
-    androidTestImplementation("io.mockk:mockk-android:1.13.13")
-    androidTestImplementation("androidx.test.ext:junit:1.2.1")
-    androidTestImplementation("androidx.work:work-testing:2.10.0")
+    testImplementation(libs.junit.jupiter)
+    testImplementation(libs.mockk)
+    testImplementation(libs.androidx.room.testing)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.turbine)  // testing de Flows
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation(libs.mockk.android)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.work.testing)
 }
 ```
 
 ### 3.3 DEPENDENCIAS MÓDULO WEAR (v2, diferido)
 
 No se incluyen en v1. Mantener este bloque solo como referencia cuando se reactive el modulo
-`wear/` en v2.
-
-```kotlin
-dependencies {
-    implementation("androidx.wear.compose:compose-material3:1.0.0-alpha30")
-    implementation("androidx.wear.compose:compose-navigation:1.4.0")
-    implementation("androidx.wear.compose:compose-foundation:1.4.0")
-    implementation("com.google.android.gms:play-services-wearable:18.2.0")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
-    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
-
-    // Hilt en Wear
-    implementation("com.google.dagger:hilt-android:2.52")
-    ksp("com.google.dagger:hilt-compiler:2.52")
-}
-```
+`wear/` en v2. Las dependencias Wear deben añadirse primero a `gradle/libs.versions.toml` y
+despues consumirse como aliases `libs.*`; no hardcodear versiones aqui ni en Gradle.
 
 ### 3.4 PERMISOS AndroidManifest.xml
 
@@ -1102,7 +1089,7 @@ Flujo inicial:
 | Entrada a la app | Sin contraseña local | `Launch` navega a `Home` tras onboarding |
 | Passphrase backup | PBKDF2-HMAC-SHA256, 600.000 iter, salt 16B en archivo | Solo cifra/restaura backups |
 | Biometría | No usada en v1 para desbloqueo | Sin gate local no aporta UX |
-| Pantallas sensibles | `FLAG_SECURE` | Rutas con salud/entrenamiento, Perfil y Backup |
+| Pantallas sensibles | Capturas permitidas | `FLAG_SECURE` desactivado por SEC-026; rutas sensibles siguen clasificadas para auditoria |
 
 ### 7.2 Cifrado Local
 
@@ -1174,7 +1161,7 @@ la propia marca de exito del backup anterior.
 |------------|-------------------|
 | Sin contraseña para abrir la app | Decisión de producto: fricción cero; se confía en el bloqueo del dispositivo |
 | Backup no restaurable si se olvida la passphrase | Documentado y advertido en UI. No hay solución sin comprometer cifrado |
-| FLAG_SECURE impide screenshots en rutas sensibles | Aplicado a rutas con salud/entrenamiento; `Launch` queda fuera |
+| Capturas permitidas en rutas sensibles | Decision de producto (SEC-026); facilita uso personal/QA, pero el usuario puede exponer datos si comparte capturas |
 
 ---
 
@@ -1481,7 +1468,7 @@ jobs:
 - Verificar que no hay logs sensibles en builds release
 - `OkHttp logging interceptor` solo en debug
 - Revisión completa de permisos en manifest (eliminar cualquier permiso no usado)
-- Test de `FLAG_SECURE` en todas las pantallas marcadas
+- Test de politica de capturas: `FLAG_SECURE` no debe reintroducirse sin decision explicita
 - Verificar que el keystore de release está correctamente configurado y NO en el repo
 
 **FASE 15 — Testing (3 semanas)**
@@ -1537,4 +1524,4 @@ jobs:
 
 ---
 
-*Fin del documento — ATLAS PEAK Spec v2.1 — Mayo 2026*
+*Fin del documento — ATLAS PEAK Spec v2.2 — Mayo 2026*

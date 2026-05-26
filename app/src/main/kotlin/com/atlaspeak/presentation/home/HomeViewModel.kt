@@ -10,7 +10,10 @@ import com.atlaspeak.domain.model.dashboard.DashboardSnapshot
 import com.atlaspeak.domain.model.dashboard.DashboardWidget
 import com.atlaspeak.domain.usecase.dashboard.DashboardUseCase
 import com.atlaspeak.domain.usecase.healthconnect.SyncHealthConnectUseCase
+import com.atlaspeak.domain.usecase.planning.WeeklyPlanUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.time.Instant
+import java.time.ZoneId
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -23,6 +26,7 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val dashboardUseCase: DashboardUseCase,
+    private val weeklyPlanUseCase: WeeklyPlanUseCase,
     private val syncHealthConnectUseCase: SyncHealthConnectUseCase,
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(HomeUiState())
@@ -46,11 +50,13 @@ class HomeViewModel @Inject constructor(
             mutableState.update { it.copy(isLoading = it.snapshot == null, errorMessageRes = null) }
             try {
                 val snapshot = dashboardUseCase.snapshot(filters)
+                val todayWorkout = todayWorkout()
                 mutableState.update {
                     if (it.filters == filters) {
                         it.copy(
                             isLoading = false,
                             snapshot = snapshot,
+                            todayWorkout = todayWorkout,
                             errorMessageRes = null,
                         )
                     } else {
@@ -79,13 +85,34 @@ class HomeViewModel @Inject constructor(
             }
         }
     }
+
+    private suspend fun todayWorkout(): TodayWorkoutUiState? {
+        val today = Instant.ofEpochMilli(System.currentTimeMillis())
+            .atZone(ZoneId.systemDefault())
+            .dayOfWeek
+            .value
+        val day = weeklyPlanUseCase.plan().firstOrNull { it.dayOfWeek == today } ?: return null
+        if (day.isRestDay || day.routineId == null || day.routineName == null) return null
+        return TodayWorkoutUiState(
+            routineId = day.routineId,
+            routineName = day.routineName,
+            completed = day.completedThisWeek,
+        )
+    }
 }
 
 data class HomeUiState(
     val isLoading: Boolean = true,
     val filters: DashboardFilters = DashboardFilters(),
     val snapshot: DashboardSnapshot? = null,
+    val todayWorkout: TodayWorkoutUiState? = null,
     @StringRes val errorMessageRes: Int? = null,
+)
+
+data class TodayWorkoutUiState(
+    val routineId: String,
+    val routineName: String,
+    val completed: Boolean,
 )
 
 private fun DashboardFilters.withPeriod(

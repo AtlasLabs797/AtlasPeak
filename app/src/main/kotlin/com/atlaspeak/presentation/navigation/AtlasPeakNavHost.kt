@@ -15,6 +15,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.navigation
 import androidx.navigation.navArgument
 import com.atlaspeak.R
 import com.atlaspeak.presentation.backup.BackupRestoreRoute
@@ -54,7 +55,7 @@ fun AtlasPeakNavHost(
                     LaunchState.Onboarding -> navController.navigate(AppRoute.Onboarding.route) {
                         popUpTo(AppRoute.Launch.route) { inclusive = true }
                     }
-                    LaunchState.Home -> navController.navigate(AppRoute.Home.route) {
+                    LaunchState.Home -> navController.navigate(AppRoute.AppGraph.route) {
                         popUpTo(AppRoute.Launch.route) { inclusive = true }
                         launchSingleTop = true
                     }
@@ -65,104 +66,116 @@ fun AtlasPeakNavHost(
         composable(AppRoute.Onboarding.route) {
             OnboardingRoute(
                 onCompleted = {
-                    navController.navigate(AppRoute.Home.route) {
+                    navController.navigate(AppRoute.AppGraph.route) {
                         popUpTo(AppRoute.Onboarding.route) { inclusive = true }
                         launchSingleTop = true
                     }
                 },
             )
         }
-        composable(AppRoute.Home.route) {
-            HomeRoute()
-        }
-        composable(AppRoute.Train.route) {
-            TrainRoute(
-                onStartRoutine = { routineId ->
-                    navController.navigate(AppRoute.ActiveWorkout.createRoute(routineId))
-                },
-                onStartCardio = { cardioTypeId, mode ->
-                    navController.navigate(AppRoute.ActiveCardio.createRoute(cardioTypeId, mode))
-                },
-            )
-        }
-        composable(
-            route = AppRoute.ActiveWorkout.route,
-            arguments = listOf(navArgument(AppRoute.ActiveWorkout.ROUTINE_ID) { type = NavType.StringType }),
+        navigation(
+            startDestination = AppRoute.Home.route,
+            route = AppRoute.AppGraph.route,
         ) {
-            ActiveWorkoutRoute(
-                onWorkoutCompleted = { sessionId ->
-                    navController.navigate(AppRoute.WorkoutComplete.createRoute(sessionId)) {
-                        popUpTo(AppRoute.Train.route)
-                    }
-                },
-            )
-        }
-        composable(
-            route = AppRoute.WorkoutComplete.route,
-            arguments = listOf(navArgument(AppRoute.WorkoutComplete.SESSION_ID) { type = NavType.StringType }),
-        ) {
-            WorkoutCompleteRoute(
-                onDone = {
-                    navController.navigate(AppRoute.Train.route) {
-                        popUpTo(AppRoute.Train.route) { inclusive = true }
-                    }
-                },
-            )
-        }
-        composable(
-            route = AppRoute.ActiveCardio.route,
-            arguments = listOf(
-                navArgument(AppRoute.ActiveCardio.CARDIO_TYPE_ID) { type = NavType.StringType },
-                navArgument(AppRoute.ActiveCardio.MODE) { type = NavType.StringType },
-                navArgument(AppRoute.ActiveCardio.TARGET_SECONDS) { type = NavType.IntType },
-            ),
-        ) {
-            ActiveCardioRoute(
-                onCardioCompleted = { sessionId ->
-                    navController.navigate(AppRoute.CardioComplete.createRoute(sessionId)) {
-                        popUpTo(AppRoute.Train.route)
-                    }
-                },
-                onCardioCancelled = {
-                    navController.navigate(AppRoute.Train.route) {
-                        popUpTo(AppRoute.Train.route) { inclusive = true }
-                    }
-                },
-            )
-        }
-        composable(
-            route = AppRoute.CardioComplete.route,
-            arguments = listOf(navArgument(AppRoute.CardioComplete.SESSION_ID) { type = NavType.StringType }),
-        ) {
-            CardioCompleteRoute(
-                onDone = {
-                    navController.navigate(AppRoute.Train.route) {
-                        popUpTo(AppRoute.Train.route) { inclusive = true }
-                    }
-                },
-            )
-        }
-        composable(AppRoute.Progress.route) {
-            ProgressRoute()
-        }
-        composable(AppRoute.Body.route) {
-            BodyCompositionRoute()
-        }
-        composable(AppRoute.Profile.route) {
-            ProfileRoute(
-                onWeeklyPlan = { navController.navigate(AppRoute.WeeklyPlan.route) },
-                onSettings = { navController.navigate(AppRoute.Settings.route) },
-                onBackupRestore = { navController.navigate(AppRoute.BackupRestore.route) },
-            )
-        }
-        composable(AppRoute.WeeklyPlan.route) {
-            WeeklyPlanRoute(onBack = { navController.popBackStack() })
-        }
-        composable(AppRoute.Settings.route) {
-            NotificationSettingsRoute(onBack = { navController.popBackStack() })
-        }
-        composable(AppRoute.BackupRestore.route) {
-            BackupRestoreRoute(onBack = { navController.popBackStack() })
+            composable(AppRoute.Home.route) {
+                HomeRoute(
+                    onStartRoutine = { routineId ->
+                        navController.navigate(AppRoute.ActiveWorkout.createRoute(routineId))
+                    },
+                )
+            }
+            composable(AppRoute.Train.route) {
+                TrainRoute(
+                    onStartRoutine = { routineId ->
+                        navController.navigate(AppRoute.ActiveWorkout.createRoute(routineId))
+                    },
+                    onStartCardio = { cardioTypeId, mode ->
+                        navController.navigate(AppRoute.ActiveCardio.createRoute(cardioTypeId, mode))
+                    },
+                )
+            }
+            composable(
+                route = AppRoute.ActiveWorkout.route,
+                arguments = listOf(navArgument(AppRoute.ActiveWorkout.ROUTINE_ID) { type = NavType.StringType }),
+            ) {
+                ActiveWorkoutRoute(
+                    onWorkoutCompleted = { sessionId ->
+                        navController.navigate(AppRoute.WorkoutComplete.createRoute(sessionId)) {
+                            popUpTo(AppRoute.Train.route)
+                        }
+                    },
+                )
+            }
+            composable(
+                route = AppRoute.WorkoutComplete.route,
+                arguments = listOf(navArgument(AppRoute.WorkoutComplete.SESSION_ID) { type = NavType.StringType }),
+            ) {
+                WorkoutCompleteRoute(
+                    onDone = {
+                        navController.navigate(AppRoute.Train.route) {
+                            popUpTo(AppRoute.AppGraph.route)
+                            launchSingleTop = true
+                        }
+                    },
+                )
+            }
+            composable(
+                route = AppRoute.ActiveCardio.route,
+                arguments = listOf(
+                    navArgument(AppRoute.ActiveCardio.CARDIO_TYPE_ID) { type = NavType.StringType },
+                    navArgument(AppRoute.ActiveCardio.MODE) { type = NavType.StringType },
+                    navArgument(AppRoute.ActiveCardio.TARGET_SECONDS) { type = NavType.IntType },
+                ),
+            ) {
+                ActiveCardioRoute(
+                    onCardioCompleted = { sessionId ->
+                        navController.navigate(AppRoute.CardioComplete.createRoute(sessionId)) {
+                            popUpTo(AppRoute.Train.route)
+                        }
+                    },
+                    onCardioCancelled = {
+                        navController.navigate(AppRoute.Train.route) {
+                            popUpTo(AppRoute.AppGraph.route)
+                            launchSingleTop = true
+                        }
+                    },
+                )
+            }
+            composable(
+                route = AppRoute.CardioComplete.route,
+                arguments = listOf(navArgument(AppRoute.CardioComplete.SESSION_ID) { type = NavType.StringType }),
+            ) {
+                CardioCompleteRoute(
+                    onDone = {
+                        navController.navigate(AppRoute.Train.route) {
+                            popUpTo(AppRoute.AppGraph.route)
+                            launchSingleTop = true
+                        }
+                    },
+                )
+            }
+            composable(AppRoute.Progress.route) {
+                ProgressRoute()
+            }
+            composable(AppRoute.Body.route) {
+                BodyCompositionRoute()
+            }
+            composable(AppRoute.Profile.route) {
+                ProfileRoute(
+                    onWeeklyPlan = { navController.navigate(AppRoute.WeeklyPlan.route) },
+                    onSettings = { navController.navigate(AppRoute.Settings.route) },
+                    onBackupRestore = { navController.navigate(AppRoute.BackupRestore.route) },
+                )
+            }
+            composable(AppRoute.WeeklyPlan.route) {
+                WeeklyPlanRoute(onBack = { navController.popBackStack() })
+            }
+            composable(AppRoute.Settings.route) {
+                NotificationSettingsRoute(onBack = { navController.popBackStack() })
+            }
+            composable(AppRoute.BackupRestore.route) {
+                BackupRestoreRoute(onBack = { navController.popBackStack() })
+            }
         }
     }
 }

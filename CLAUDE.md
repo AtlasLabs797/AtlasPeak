@@ -162,8 +162,8 @@ Aplica en CADA fase, no solo en la 13:
 
 - [ ] ¿Hay algún `Log.d/e/i` con datos sensibles (email, token, password, ubicación)?
       Fuera. El logging interceptor de OkHttp **solo** en `BuildConfig.DEBUG`.
-- [ ] ¿Pantalla con datos personales críticos? → `FLAG_SECURE`
-      (salud/entrenamiento, Perfil, Backup).
+- [ ] ¿Pantalla con datos personales críticos? → las capturas siguen permitidas por SEC-026.
+      No reintroduzcas `FLAG_SECURE` sin decision explicita de producto.
 - [ ] ¿Nueva llamada de red? → solo HTTPS, pasa por `network_security_config.xml`.
 - [ ] ¿Tocaste el backup? → el archivo cifrado **debe** llevar cabecera
       `[versión(1B)][iter(4B)][salt(16B)][IV(12B)][ciphertext+tag]`. Sin salt en el

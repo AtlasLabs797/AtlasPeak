@@ -16,6 +16,8 @@ con tu **Google Drive**, para guardar una copia de seguridad cifrada que solo t�
 
 ## Primeros pasos (la primera vez que abres la app)
 
+Nota: genero y objetivo se eligen con selectores, no escribiendo texto libre.
+
 1. **Bienvenida.** Pulsa "Empezar".
 2. **Cuenta Google (opcional).** Solo sirve para guardar copias de seguridad en tu Drive.
    Puedes saltarlo y activarlo más tarde.
@@ -82,6 +84,13 @@ esa copia no se puede recuperar.
 **Perfil → Exportar.** Saca todo en **JSON** (completo) o **CSV** (por tipo) y compártelo a
 donde quieras. Tus datos son tuyos y portables.
 
+### Actualizar sin perder datos
+Instala el APK nuevo encima del anterior. No desinstales Atlas Peak antes de actualizar: en
+Android, desinstalar borra los datos locales. Si actualizas con cable USB, usa
+`install-adb.bat`; ese script ejecuta `adb install -r` y conserva los datos de la app.
+Si Android dice que la actualizacion no es compatible, el APK esta firmado con otra clave:
+detente y pide un APK firmado con la clave correcta.
+
 ---
 
 ## Notificaciones
@@ -100,6 +109,8 @@ Tres tipos, todos activables/desactivables en **Perfil → Ajustes**:
   permisos y puedes revocarlos cuando quieras desde Health Connect.
 - **Privacidad:** sin publicidad, sin rastreadores, sin compartir datos con nadie. Todo
   vive en tu móvil; la copia de Drive está cifrada y solo tú la abres.
+- **Capturas:** puedes hacer screenshots de cualquier pantalla. Eso es comodo, pero si
+  compartes una captura puedes exponer datos de salud, perfil, entrenamiento o backup.
 
 ---
 

@@ -19,6 +19,8 @@
     <string name="action_retry">Retry</string>
     <string name="action_back">Back</string>
 
+    <string name="onboarding_step_label">Step %1$d of %2$d</string>
+    <string name="onboarding_hero_decoration_cd">Decorative illustration</string>
     <string name="onboarding_welcome_title">Your training, on your device</string>
     <string name="onboarding_welcome_body">Atlas Peak stores your training locally, with no tracking and optional encrypted backup.</string>
     <string name="onboarding_get_started">Get started</string>
@@ -33,6 +35,12 @@
     <string name="onboarding_profile_height">Height cm</string>
     <string name="onboarding_profile_gender">Gender</string>
     <string name="onboarding_profile_goal">Goal</string>
+    <string name="onboarding_gender_male">Male</string>
+    <string name="onboarding_gender_female">Female</string>
+    <string name="onboarding_goal_fat_loss">Lose fat</string>
+    <string name="onboarding_goal_muscle_gain">Build muscle</string>
+    <string name="onboarding_goal_maintenance">Maintain weight</string>
+    <string name="onboarding_goal_endurance">Improve endurance</string>
     <string name="onboarding_notifications_title">Reminders</string>
     <string name="onboarding_notifications_body">Allow notifications for training reminders and summaries.</string>
     <string name="onboarding_health_title">Health Connect</string>
@@ -73,6 +81,7 @@
     <string name="workout_routine_summary">%1$d exercises - %2$d min</string>
     <string name="workout_archive_routine_cd">Archive routine</string>
     <string name="workout_routine_detail_title">Detail</string>
+    <string name="workout_routine_start_title">Ready to train</string>
     <string name="workout_routine_exercise_line">%1$d. %2$s - %3$d x %4$d - %5$d s</string>
     <string name="workout_ordered_exercise">%1$d. %2$s</string>
     <string name="workout_sets_label">Sets</string>
@@ -96,6 +105,8 @@
     <string name="workout_active_progress">%1$d / %2$d exercises</string>
     <string name="workout_active_exercise_sheet">Exercises</string>
     <string name="workout_finish_action">Finish</string>
+    <string name="workout_next_exercise_action">Next</string>
+    <string name="workout_complete_sets_action">Complete sets</string>
     <string name="workout_add_set">Add set</string>
     <string name="workout_set_number">Set %1$d</string>
     <string name="workout_remove_set_cd">Delete set</string>
@@ -199,6 +210,13 @@
     <string name="progress_chart_summary">Chart %1$s with %2$d points, from %3$s to %4$s, latest value %5$.1f.</string>
     <string name="progress_group_summary">%1$d exercises - %2$.1f kg</string>
 
+    <string name="home_greeting_overline">Today</string>
+    <string name="home_greeting_title">Your progress</string>
+    <string name="home_hero_unit_min">min</string>
+    <string name="home_today_workout_title">Today workout</string>
+    <string name="home_today_workout_body">%1$s planned</string>
+    <string name="home_today_workout_start">Start workout</string>
+    <string name="home_today_workout_completed">Completed today</string>
     <string name="home_weekly_minutes_title">Training minutes this week</string>
     <string name="home_widget_volume_title">Total volume</string>
     <string name="home_widget_volume_subtitle">Kg lifted in the period</string>

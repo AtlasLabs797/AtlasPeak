@@ -13,7 +13,7 @@ import dagger.hilt.android.AndroidEntryPoint
  * Única Activity (single-activity + Navigation Compose).
  *
  * Fase 1: montar el tema Material 3 (DESIGN.md) y el NavHost raíz (launch → onboarding → app).
- * Las pantallas con datos de salud/entrenamiento aplican FLAG_SECURE por destino. Ver SECURITY.md.
+ * Las capturas estan permitidas en toda la app por decision de producto. Ver SECURITY.md.
  */
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {

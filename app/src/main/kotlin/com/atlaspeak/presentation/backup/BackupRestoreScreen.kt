@@ -25,13 +25,10 @@ import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.UploadFile
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -55,7 +52,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.atlaspeak.R
 import com.atlaspeak.domain.model.backup.DriveBackup
 import com.atlaspeak.domain.model.backup.SharedBackupExport
+import com.atlaspeak.presentation.component.AtlasPrimaryButton
+import com.atlaspeak.presentation.component.AtlasSecondaryButton
 import com.atlaspeak.presentation.component.PremiumBackground
+import com.atlaspeak.presentation.component.PremiumCard
 import com.atlaspeak.presentation.theme.LocalSpacing
 import java.text.DateFormat
 import java.util.Date
@@ -260,7 +260,7 @@ private fun PasswordCard(
     onAutoBackupChanged: (Boolean) -> Unit,
 ) {
     val spacing = LocalSpacing.current
-    Card {
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -332,7 +332,7 @@ private fun DriveBackupCard(
     onRestoreDriveBackup: (String) -> Unit,
 ) {
     val spacing = LocalSpacing.current
-    Card {
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -341,16 +341,18 @@ private fun DriveBackupCard(
         ) {
             SectionTitle(R.string.backup_drive_title, R.string.backup_drive_body)
             Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
-                Button(onClick = onCreateDriveBackup, modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Filled.CloudUpload, contentDescription = null)
-                    Spacer(Modifier.width(spacing.xs))
-                    Text(stringResource(R.string.backup_drive_create))
-                }
-                OutlinedButton(onClick = onRefreshDrive, modifier = Modifier.weight(1f)) {
-                    Icon(Icons.Filled.CloudDownload, contentDescription = null)
-                    Spacer(Modifier.width(spacing.xs))
-                    Text(stringResource(R.string.backup_drive_refresh))
-                }
+                AtlasPrimaryButton(
+                    modifier = Modifier.weight(1f),
+                    onClick = onCreateDriveBackup,
+                    text = stringResource(R.string.backup_drive_create),
+                    leadingIcon = Icons.Filled.CloudUpload,
+                )
+                AtlasSecondaryButton(
+                    modifier = Modifier.weight(1f),
+                    onClick = onRefreshDrive,
+                    text = stringResource(R.string.backup_drive_refresh),
+                    leadingIcon = Icons.Filled.CloudDownload,
+                )
             }
             if (backups.isEmpty()) {
                 Text(
@@ -403,17 +405,20 @@ private fun BackupFileRow(
                 color = MaterialTheme.colorScheme.error,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
-                Button(onClick = { onRestoreDriveBackup(backup.id) }) {
-                    Text(stringResource(R.string.backup_restore_confirm))
-                }
-                OutlinedButton(onClick = onCancelRestore) {
-                    Text(stringResource(R.string.action_cancel))
-                }
+                AtlasPrimaryButton(
+                    onClick = { onRestoreDriveBackup(backup.id) },
+                    text = stringResource(R.string.backup_restore_confirm),
+                )
+                AtlasSecondaryButton(
+                    onClick = onCancelRestore,
+                    text = stringResource(R.string.action_cancel),
+                )
             }
         } else {
-            OutlinedButton(onClick = { onConfirmRestore(backup.id) }) {
-                Text(stringResource(R.string.backup_restore_action))
-            }
+            AtlasSecondaryButton(
+                onClick = { onConfirmRestore(backup.id) },
+                text = stringResource(R.string.backup_restore_action),
+            )
         }
     }
 }
@@ -425,7 +430,7 @@ private fun ExportCard(
     onExportCsv: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
-    Card {
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -433,21 +438,24 @@ private fun ExportCard(
             verticalArrangement = Arrangement.spacedBy(spacing.md),
         ) {
             SectionTitle(R.string.backup_export_title, R.string.backup_export_body)
-            Button(onClick = onCreateLocalBackup, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Filled.Download, contentDescription = null)
-                Spacer(Modifier.width(spacing.xs))
-                Text(stringResource(R.string.backup_local_create))
-            }
-            OutlinedButton(onClick = onExportJson, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Filled.UploadFile, contentDescription = null)
-                Spacer(Modifier.width(spacing.xs))
-                Text(stringResource(R.string.backup_export_json))
-            }
-            OutlinedButton(onClick = onExportCsv, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Filled.UploadFile, contentDescription = null)
-                Spacer(Modifier.width(spacing.xs))
-                Text(stringResource(R.string.backup_export_csv))
-            }
+            AtlasPrimaryButton(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onCreateLocalBackup,
+                text = stringResource(R.string.backup_local_create),
+                leadingIcon = Icons.Filled.Download,
+            )
+            AtlasSecondaryButton(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onExportJson,
+                text = stringResource(R.string.backup_export_json),
+                leadingIcon = Icons.Filled.UploadFile,
+            )
+            AtlasSecondaryButton(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onExportCsv,
+                text = stringResource(R.string.backup_export_csv),
+                leadingIcon = Icons.Filled.UploadFile,
+            )
         }
     }
 }

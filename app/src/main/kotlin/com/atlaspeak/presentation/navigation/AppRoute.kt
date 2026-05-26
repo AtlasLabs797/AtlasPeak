@@ -5,6 +5,7 @@ import com.atlaspeak.domain.model.cardio.CardioMode
 sealed class AppRoute(val route: String) {
     data object Launch : AppRoute("launch")
     data object Onboarding : AppRoute("onboarding")
+    data object AppGraph : AppRoute("app")
     data object Home : AppRoute("home")
     data object Train : AppRoute("train")
     data object Progress : AppRoute("progress")

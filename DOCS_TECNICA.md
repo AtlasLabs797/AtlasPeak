@@ -107,12 +107,16 @@ Notas de integridad:
 
 - **Entrada a la app:** no hay contraseña local ni pantalla de login enrutable. `AtlasPeakNavHost`
   arranca en `Launch`; si `onboarding_completed=false` navega a `Onboarding`, y si ya está
-  completado navega directo a `Home`.
+  completado navega al grafo autenticado `AppGraph`, cuyo start destination es `Home`.
+  La bottom navigation hace `popUpTo(AppGraph)` sin `saveState/restoreState`: tocar un tab
+  abre siempre su ruta raíz (`Home`, `Train`, `Progress`, `Body` o `Profile`), no una
+  subpantalla restaurada.
 - **Google:** no hay login Google para entrar. Drive usa `AuthorizationClient` con scope
   `drive.appdata`; un ID token Google no es un bearer token valido para Drive y nunca
   desbloquea la DB local.
 - **Biometría:** no se usa para desbloqueo en v1 porque no hay gate local.
-- **`FLAG_SECURE`** en rutas con salud/entrenamiento, Perfil y Backup.
+- **Capturas:** permitidas en toda la app por decision de producto (SEC-026). `SecureScreenEffect`
+  limpia `FLAG_SECURE`; `SensitiveRoutePolicy` solo clasifica rutas sensibles para auditoria.
 - **Red:** solo HTTPS (`network_security_config.xml`, sin cleartext). Drive REST usa
   `Authorization: Bearer {access_token}` obtenido por `AuthorizationClient`; Atlas Peak no
   reutiliza ID tokens como credenciales Drive.
@@ -180,14 +184,15 @@ fase porque las tablas `exercises`, `routines` y `routine_exercises` ya estaban 
 Fase 6 activa cardio dentro del tab `Train` y las pantallas fullscreen:
 
 - `domain.model.cardio` contiene `CardioType`, `CardioMode`, `LocationPoint` y
-  `CardioSession`.
+  `CardioSession`. `CardioType.iconName` viene de `cardio_types.icon_name` para que la UI
+  represente cada tipo con iconografia especifica y no con un icono generico.
 - `CardioUseCase` crea tipos custom, arranca sesiones timer/countdown y completa sesiones
   calculando distancia Haversine, velocidad media/maxima, ruta y calorias estimadas.
 - `RoomCardioRepository` mapea `cardio_types`/`cardio_sessions` y usa `workout_sessions`
   como cabecera comun de sesiones. El historial se ordena por `workout_sessions.start_time`,
   no por UUID.
-- `TrainScreen` muestra tipos predefinidos/custom, edicion/archivado de custom, selector de
-  minutos para countdown e historial/detalle de cardio.
+- `TrainScreen` muestra tipos predefinidos/custom con iconos por tipo, edicion/archivado de
+  custom, selector de minutos para countdown e historial/detalle de cardio.
 - `ActiveCardioScreen` pide `ACCESS_FINE_LOCATION` solo si el tipo usa GPS; si no hay GPS o
   se deniega ubicacion, permite introducir distancia y velocidad media manuales.
 - `CardioCompleteScreen` muestra resumen y, si hay ruta, un mapa con Google Maps Compose.
@@ -232,10 +237,15 @@ Fase 8 reemplaza el placeholder de `Home` por un dashboard local-first:
   pasos, muestras de frecuencia cardiaca y sueño.
 - `RoomDashboardRepository` usa `DashboardDao` sobre las tablas v1 ya creadas en Fase 1, por
   lo que no hay migracion ni bump de schema.
+- `HomeScreen` muestra la rutina planificada para hoy cuando existe, con CTA directo a
+  `ActiveWorkout`.
 - `HomeScreen` muestra minutos de entrenamiento esta semana, volumen, consistencia, tiempo
   total de actividad, peso corporal, pasos diarios, frecuencia cardiaca y sueño con periodos
   independientes por widget.
-- `PeriodSelector` queda como componente compartido para Dashboard y Progreso.
+- `HomeViewModel` combina `DashboardUseCase` con `WeeklyPlanUseCase` para resolver la rutina
+  planificada de hoy sin filtrar entities Room en presentation.
+- `PeriodSelector` queda como componente compartido para Dashboard y Progreso, en variante
+  compacta para no ocupar todo el ancho de las cards.
 
 El widget de frecuencia cardiaca muestra el minimo diario de las muestras importadas en
 `hc_heart_rate_samples`; no se etiqueta como frecuencia en reposo hasta que Fase 10 anada una
@@ -262,8 +272,9 @@ Fase 9 reemplaza el placeholder de `Body` por una pantalla real sobre la tabla v
   Grasa visceral, proteina, masa osea y edad corporal son solo manuales hasta nueva decision
   de producto.
 
-La pantalla esta bajo `FLAG_SECURE` porque muestra datos de salud. Desde Fase 10 la tarjeta
-Health Connect permite sincronizar y volver a pedir permisos si fueron revocados.
+La pantalla muestra datos de salud, pero las capturas estan permitidas por SEC-026. Desde
+Fase 10 la tarjeta Health Connect permite sincronizar y volver a pedir permisos si fueron
+revocados.
 
 ---
 
@@ -313,8 +324,8 @@ Health Connect permite sincronizar y volver a pedir permisos si fueron revocados
 ## 9. Plan semanal y notificaciones
 
 - `ProfileScreen` reemplaza el placeholder y enlaza a `WeeklyPlanScreen`, `SettingsScreen`
-  de notificaciones y backup. Toda la zona autenticada con datos de salud/entrenamiento esta
-  bajo `FLAG_SECURE`.
+  de notificaciones y backup. Toda la zona autenticada puede aparecer en capturas porque
+  `FLAG_SECURE` esta desactivado por SEC-026.
 - `WeeklyPlanUseCase` normaliza siete dias ISO (`1=Lunes ... 7=Domingo`), valida `HH:mm`,
   convierte dias de descanso en filas sin rutina/recordatorio y reprograma notificaciones al
   guardar cada dia.
@@ -406,6 +417,12 @@ en el código.
   `lint` en cada push/PR.
 - Release: AAB firmado con keystore local (`keystore.properties`, fuera del repo). R8/ProGuard
   activo (reglas para Room, Hilt, Retrofit, Kotlinx Serialization, SQLCipher).
+- APK de actualizacion local: `.\gradlew.bat :app:packageReleaseUpdate`. Genera
+  `build/distribution/AtlasPeak-<versionName>-release.apk`, `install-adb.bat`,
+  `SHA256SUMS.txt` y `README-INSTALACION.txt`.
+- Para conservar datos al actualizar deben cumplirse tres cosas: mismo `applicationId`
+  (`com.atlaspeak`), mismo keystore de release y `versionCode` superior. Una build debug usa
+  `com.atlaspeak.debug`; no actualiza la app release.
 - Crash reporting: **Android Vitals** (Play Console), sin SDK.
 
 ---

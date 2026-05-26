@@ -8,9 +8,338 @@
 
 ---
 
+## [Unreleased]
+
+#### 2026-05-26 - Correcciones UI/UX desde capturas de pantalla
+
+**AÃ±adido**
+- Home muestra una card de "Entrenamiento de hoy" cuando el plan semanal tiene rutina para el dia actual, con CTA directo para iniciar la sesion.
+- `CardioType` expone `iconName` y la UI de cardio resuelve iconos distintos para correr, bici, cinta, estatica, eliptica, remo y natacion.
+- Selectores cerrados en onboarding para genero y objetivo, sin teclado para esos campos.
+
+**Cambiado**
+- `PeriodSelector` pasa a una version compacta y discreta, sin ocupar todo el ancho de cada card.
+- `PremiumBackground` deja de usar manchas radiales fijas y usa un fondo vertical mas controlado.
+- `WeeklyMinutesCard` abandona el bloque verde dominante y muestra metrica + barras mini de actividad.
+- `ConsistencyCard` anade barras visuales compactas para leer progreso sin depender solo del texto.
+- Bottom navigation redisenada como barra propia icon-only: mas compacta, con tab activo claro y Entrenar con jerarquia visual.
+- Entrenar abre por defecto en `Rutinas` y coloca el CTA de inicio antes del constructor de rutinas.
+- Launcher icon actualizado de rojo generico a marca dark/lima alineada con el sistema visual actual.
+
+**Corregido**
+- Registrado y resuelto `BUG-038`: entrenamiento activo avanza al siguiente ejercicio al completar sets, cambia el CTA a Siguiente/Completa sets/Finalizar segun estado y dispara sonido/vibracion al terminar el descanso.
+- Registrado y resuelto `BUG-039`: genero y objetivo ya no son texto libre en onboarding.
+- Registrado y resuelto `BUG-040`: los iconos de cardio ya no son todos iguales.
+- Registrado y resuelto `BUG-041`: Home y Entrenar priorizan iniciar la rutina planificada/seleccionada.
+
+**Verificado**
+- `./gradlew.bat :app:compileDebugKotlin --no-daemon --console=plain` pasa.
+- `./gradlew.bat :app:assembleDebug :app:testDebugUnitTest :app:lintDebug --no-daemon --console=plain` pasa.
+
+#### 2026-05-26 - UI/UX premium refinement (Fundación + Onboarding + Entreno + Home + Resto)
+
+**Añadido**
+- Tokens fundacionales: `theme/Motion.kt` (durations + easings), `theme/Elevation.kt`,
+  `theme/Brushes.kt` (heroGradient, subtleSurface, spotlight, accentBorder).
+- Componentes premium reutilizables en `presentation/component/`:
+  - `AtlasPrimaryButton`, `AtlasSecondaryButton`, `AtlasGhostButton` — altura mínima
+    56dp para primaria, shape 16dp consistente, content padding fijo. Aceptan
+    leadingIcon + iconContentDescription.
+  - `AtlasTextField` — wrapper de `OutlinedTextField` con shape large, colors
+    Atlas-consistentes y altura mínima 60dp.
+  - `MetricValue` — número grande tabular + unidad opcional, con variante
+    `emphasized`.
+  - `SectionHeader` — overline opcional + headline + trailing slot.
+  - `EmptyState` — icon badge + título + body + CTA opcional centrados.
+  - `AtlasSlider` — label izquierda + valor en color primary a la derecha + track
+    coloreado con primary.
+  - `StepDots` — indicador animado de pasos (width + color animan) para onboarding.
+- Recursos: `drawable/ic_onboarding_hero.xml` (composición geométrica con anillos
+  concéntricos y ejes, decorativa).
+- Strings nuevos (ES + EN paridad): `onboarding_step_label`,
+  `onboarding_hero_decoration_cd`, `home_greeting_overline`, `home_greeting_title`,
+  `home_hero_unit_min`.
+
+**Cambiado**
+- `PremiumIconBadge` acepta parámetro `size` (default 44.dp).
+- `PeriodSelector` reescrito como segmented pill con track redondeado, transición
+  animada de color cuando cambia la selección.
+- `OnboardingScreen` rediseñado: hero con gradiente + icon flotante, `StepDots` en
+  lugar de `LinearProgressIndicator`, overline "Paso X de Y", `AnimatedContent` con
+  fade-through entre pasos, `PremiumCard` envolviendo inputs, botones via
+  `AtlasPrimaryButton` / `AtlasGhostButton`.
+- `HomeScreen`: greeting con `SectionHeader` ("Hoy / Tu progreso"), `WeeklyMinutesCard`
+  con `AtlasBrushes.heroGradient`, número en `displayMedium` + unidad pequeña, badge
+  redondo. `MetricCard` y `ChartMetricCard` usan `MetricValue` para los headlines.
+- `ActiveWorkoutScreen`: `ProgressCard` usa `PremiumCard` y cronómetro en
+  `headlineSmall` color primary. `SetRow` sustituye `Card` por `Surface` con borde
+  primary cuando completed (feedback visual), peso (`weight 1.4f`) > reps (`weight
+  1f`). `RestTimerOverlay` con anillo 208dp / stroke 12dp + track gris + número en
+  `displayMedium`. Botones via Atlas*.
+- `WorkoutCompleteScreen`: hero header con gradiente + icon CheckCircle, contenido
+  en `PremiumCard`, CTA con `AtlasPrimaryButton`.
+- Resto de pantallas migradas al sistema:
+  `BackupRestoreScreen`, `BodyCompositionScreen`, `WeeklyPlanScreen`,
+  `NotificationSettingsScreen`, `TrainScreen`, `ActiveCardioScreen`,
+  `CardioCompleteScreen`, `ProgressScreen` — `Card`/`ElevatedCard` → `PremiumCard`
+  en contenedores no clickables y CTAs prominentes → `AtlasPrimaryButton` /
+  `AtlasSecondaryButton`.
+
+**Verificado**
+- `./gradlew.bat :app:assembleDebug :app:lintDebug :app:testDebugUnitTest --no-daemon --console=plain` pasa.
+- `StaticUiPolicyTest` sigue verde: cero strings hardcodeados visibles, paridad ES/EN,
+  fonts Poppins/Inter, Home con `PremiumCard(modifier = modifier.fillMaxWidth())` y
+  un card por fila.
+
+#### 2026-05-26 - Auditoria adicional: teclado y chips fantasma
+
+**Corregido**
+- Registrado y resuelto `BUG-036`: el teclado virtual tapaba los `TextField` en
+  onboarding, backup, ajustes, plan semanal y entrenamiento. `MainActivity` corre en
+  `enableEdgeToEdge()` y el `Scaffold` de Material 3 no incluye `WindowInsets.ime` en
+  `contentWindowInsets` por defecto, asi que sin `imePadding()` el contenido se queda
+  debajo del teclado.
+- `AtlasPeakApp.kt` ahora aplica `.fillMaxSize().padding(innerPadding).imePadding()`
+  al `Box` que envuelve el `NavHost`. Un unico cambio cubre todas las pantallas con
+  input.
+- Registrado y resuelto `BUG-037`: el `AssistChip` de etiqueta Health Connect / Manual
+  en `BodyCompositionScreen.kt` tenia `onClick = {}` y daba ripple sin hacer nada. Se
+  marca `enabled = false` para que se vea como badge informativo.
+
+**Verificado**
+- `./gradlew.bat :app:assembleDebug :app:testDebugUnitTest --no-daemon --console=plain` pasa.
+
+#### 2026-05-26 - Fix definitivo de interaccion del menu inferior
+
+**Corregido**
+- Registrado y resuelto `BUG-035`: los taps del menu inferior se perdian aunque la
+  logica de navegacion (BUG-032/033/034) ya estaba bien. La causa real era de layout:
+  el `NavigationBar` Material 3 aplicaba sus `windowInsets` por defecto (system nav
+  bar) ademas del `navigationBarsPadding()` del `Box` envolvente, y la altura forzada
+  a 64dp dejaba los items por debajo de la barra del sistema, fuera del area
+  interactiva.
+- `AtlasPeakApp.kt` deja al `NavigationBar` con su altura por defecto (80dp) y
+  declara `windowInsets = WindowInsets(0, 0, 0, 0)` para que el unico responsable de
+  los insets sea el contenedor exterior. Resultado: los cinco tabs reciben taps y
+  cambian de pantalla de forma fiable en cualquier dispositivo con system nav bar.
+
+**Verificado**
+- `./gradlew.bat :app:testDebugUnitTest --tests com.atlaspeak.presentation.navigation.BottomNavigationPolicyTest --no-daemon --console=plain` pasa.
+- `./gradlew.bat :app:assembleDebug --no-daemon --console=plain` pasa.
+
+## [V-01.05] - 2026-05-25
+
+### Release V-01.05
+
+#### 2026-05-25 - Arreglo definitivo de menu inferior
+
+**Corregido**
+- Registrado y resuelto `BUG-034`: el menu inferior deja de depender de `Home` como raiz
+  global y de `saveState/restoreState`, que podian restaurar stacks inestables.
+- `AtlasPeakNavHost` introduce `AppRoute.AppGraph` como grafo autenticado estable con
+  `Home` como start destination.
+- `AtlasPeakApp` navega tabs con `popUpTo(AppGraph)`, `launchSingleTop`, `saveState = false`
+  y `restoreState = false`, para que cada tab abra siempre su ruta raiz.
+
+**Documentado**
+- `DOCS_TECNICA.md` actualiza el contrato de entrada a la app y navegacion autenticada.
+
+**Verificado**
+- `.\gradlew.bat :app:compileDebugKotlin :app:testDebugUnitTest --tests com.atlaspeak.presentation.navigation.BottomNavigationPolicyTest --no-daemon --console=plain` pasa.
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat :app:assembleDebug :app:testDebugUnitTest :app:lintDebug --no-daemon --console=plain` pasa.
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat :app:packageReleaseUpdate --no-daemon --console=plain --no-build-cache --no-configuration-cache` pasa y regenera `build/distribution/AtlasPeak-V-01.05-release.apk`.
+- `aapt2 dump badging` confirma `package='com.atlaspeak'`, `versionCode='105'`,
+  `versionName='V-01.05'`, `minSdkVersion='31'` y `targetSdkVersion='35'`.
+- `apksigner verify --verbose --print-certs` confirma firma APK Signature Scheme v2 con
+  certificado `CN=Atlas Peak`.
+- SHA-256 vigente: `F47D61AE4DEBF34A7F7E2D1254BE165771E8518B5C5EB14A245F3D3DF169A2F9`.
+- QA runtime en AVD bloqueada: `AtlasPeak_Clean_API35` llega a `adb state=device`, pero no
+  completa `sys.boot_completed` antes de que el proceso del emulador quede inutilizable.
+
+#### 2026-05-25 - Bump de version
+
+**Cambiado**
+- Fijada la version de app en `versionName = "V-01.05"` y `versionCode = 105`.
+
+**Anadido**
+- Copia de distribucion en `build/distribution/AtlasPeak-V-01.05-release.apk`.
+- `build/distribution/install-adb.bat`, `README-INSTALACION.txt` y `SHA256SUMS.txt`
+  regenerados para V-01.05.
+
+**Verificado**
+- `.\gradlew.bat :app:packageReleaseUpdate --no-daemon --console=plain --no-build-cache --no-configuration-cache` pasa.
+- `aapt2 dump badging` confirma `package='com.atlaspeak'`, `versionCode='105'`,
+  `versionName='V-01.05'`, `minSdkVersion='31'` y `targetSdkVersion='35'`.
+- `apksigner verify --verbose --print-certs` confirma firma APK Signature Scheme v2 con
+  certificado `CN=Atlas Peak`.
+- SHA-256: `1453F007CEDF4BB79CB04ABA8BA4B678D992CF1B87898055F468FC0D635E48C1`.
+- Artefacto reemplazado por el paquete regenerado con `BUG-034`; el checksum vigente es
+  `F47D61AE4DEBF34A7F7E2D1254BE165771E8518B5C5EB14A245F3D3DF169A2F9`.
+
+## [V-01.04] - 2026-05-25
+
+### Release V-01.04
+
+#### 2026-05-25 - Comprobacion final con subagentes
+
+**Corregido**
+- `shouldShowBottomBar()` usa allowlist explicita de rutas con chrome; una ruta nueva ya no
+  mostrara la bottom navigation por accidente.
+- `SPEC.md` deja de hardcodear versiones de dependencias fuera de `gradle/libs.versions.toml`
+  y cierra correctamente como spec v2.2.
+- `SECURITY.md` actualiza hallazgos antiguos de `FLAG_SECURE`/contraseña para alinearlos con
+  SEC-025 y SEC-026.
+- Checksums anteriores de V-01.04 quedan marcados como artefactos reemplazados; el checksum
+  vigente es el del ultimo paquete generado.
+
+**Verificado**
+- Revision con subagentes: UI/navegacion, seguridad/release y empaquetado APK.
+- `.\gradlew.bat :app:assembleDebug :app:testDebugUnitTest :app:jacocoDebugDomainDataCoverageVerification :app:compileDebugAndroidTestKotlin :app:lintDebug :app:packageReleaseUpdate --no-daemon --console=plain --no-build-cache --no-configuration-cache` pasa.
+- `aapt2 dump badging` confirma `package='com.atlaspeak'`, `versionCode='104'`,
+  `versionName='V-01.04'`, `minSdkVersion='31'` y `targetSdkVersion='35'`.
+- `apksigner verify --verbose --print-certs` confirma firma APK Signature Scheme v2 con
+  certificado `CN=Atlas Peak`.
+- SHA-256 vigente: `07F03D71658B2DA2C799370C074D56E7DFFC5B62632BC475571F893F3307A8E8`.
+- `adb devices` no muestra ningun movil conectado, por lo que no se instalo fisicamente.
+
+#### 2026-05-25 - Paquete APK de actualizacion verificado
+
+**Verificado**
+- `.\gradlew.bat :app:packageReleaseUpdate --no-daemon --console=plain --no-build-cache --no-configuration-cache` pasa y regenera `build/distribution/AtlasPeak-V-01.04-release.apk`.
+- `aapt2 dump badging` confirma `package='com.atlaspeak'`, `versionCode='104'`,
+  `versionName='V-01.04'`, `minSdkVersion='31'` y `targetSdkVersion='35'`.
+- `apksigner verify --verbose --print-certs` confirma firma APK Signature Scheme v2 con
+  certificado `CN=Atlas Peak`.
+- SHA-256: `17CBFAA8ED7B74E45DF8D0EA9F02BD9B2F05F4A8A4D53D4436A6FEE6D09A4548`.
+- Artefacto reemplazado por el paquete final de esta misma V-01.04; el checksum vigente es
+  `07F03D71658B2DA2C799370C074D56E7DFFC5B62632BC475571F893F3307A8E8`.
+- `adb devices` no muestra ningun movil conectado, por lo que no se instalo fisicamente.
+
+#### 2026-05-25 - Polish Home y navegacion inferior
+
+**Cambiado**
+- La bottom navigation queda explicitamente icon-only (`alwaysShowLabel = false`), conserva
+  `contentDescription` localizado y mantiene el tab Perfil seleccionado en sus subpantallas.
+- La bottom navigation se oculta solo en rutas fullscreen/onboarding y sigue visible en
+  `WeeklyPlan`, `Settings` y `BackupRestore`, alineado con `DESIGN.md`.
+- `Home` queda en lista vertical de una card por fila, con cards a ancho completo, margen de
+  pantalla `spacing.screen`, gap `spacing.cardGap` y padding interno `spacing.card`.
+
+**Verificado**
+- `.\gradlew.bat :app:compileDebugKotlin :app:testDebugUnitTest --tests com.atlaspeak.presentation.navigation.BottomNavigationPolicyTest --tests com.atlaspeak.presentation.StaticUiPolicyTest --no-daemon --console=plain` pasa.
+- `.\gradlew.bat :app:lintDebug --no-daemon --console=plain` pasa.
+- QA runtime bloqueada: `adb devices` no muestra ningun emulador/dispositivo conectado.
+
+#### 2026-05-25 - Tabs inferiores restauradas
+
+**Corregido**
+- Registrado y resuelto `BUG-033`: `Entrenar`, `Progreso`, `Cuerpo` y `Perfil` vuelven a
+  navegar como destinos top-level directos del `NavHost`.
+- Eliminado el wrapper `AppRoute.Main`; `Launch` y `Onboarding` entran directamente en
+  `Home`, y la bottom navigation vuelve a usar `Home` como raiz estable del back stack.
+
+**Cambiado**
+- Version de app subida a `versionName = "V-01.04"` y `versionCode = 104` para que Android
+  acepte la actualizacion sobre V-01.03.
+
+**Verificado**
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat :app:compileDebugKotlin :app:testDebugUnitTest --tests com.atlaspeak.presentation.navigation.BottomNavigationPolicyTest --no-daemon --console=plain` pasa.
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat :app:assembleDebug :app:testDebugUnitTest :app:lintDebug --no-daemon --console=plain` pasa.
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat :app:packageReleaseUpdate --no-daemon --console=plain --no-build-cache --no-configuration-cache` pasa y genera `build/distribution/AtlasPeak-V-01.04-release.apk`.
+- `aapt2 dump badging` confirma `package='com.atlaspeak'`, `versionCode='104'`,
+  `versionName='V-01.04'` y `minSdkVersion='31'`.
+- `apksigner verify --verbose --print-certs` confirma firma APK Signature Scheme v2.
+- SHA-256: `19B6D388F82F6C6DFDA06821D5C63509DD8A07CCA82754AB7CFBB32B5A99DD2B`.
+- Artefacto reemplazado por el paquete verificado posterior de esta misma V-01.04; el
+  checksum vigente es `07F03D71658B2DA2C799370C074D56E7DFFC5B62632BC475571F893F3307A8E8`.
+- QA runtime con AVD no se pudo completar: `AtlasPeak_UserClean_API35` y `AtlasPeak_API35`
+  aparecen en `adb`, pero no completan `sys.boot_completed`, por lo que Android no expone
+  el servicio `package` para instalar.
+
+## [V-01.03] - 2026-05-25
+
+### Release V-01.03
+
+#### 2026-05-25 - Capturas habilitadas
+
+**Cambiado**
+- `SecureScreenEffect` deja de aplicar `FLAG_SECURE` y limpia el flag para permitir capturas
+  en todas las pantallas.
+- `SensitiveRoutePolicyTest` queda alineado: las rutas sensibles se siguen clasificando, pero
+  ya no bloquean screenshots.
+
+**Corregido**
+- `:app:packageReleaseUpdate` queda marcado como no compatible con configuration cache para
+  evitar un falso fallo despues de generar el paquete de distribucion.
+
+**Seguridad**
+- Registrado `SEC-026`: riesgo aceptado de capturas en pantallas con salud, perfil,
+  entrenamiento y backup.
+
+**Documentado**
+- `DOCS_TECNICA.md` y `DOCS_USUARIO.md` explican que las capturas estan permitidas y el riesgo
+  de compartirlas.
+
+**Verificado**
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat :app:testDebugUnitTest --tests com.atlaspeak.presentation.navigation.SensitiveRoutePolicyTest --no-daemon --console=plain` pasa.
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat :app:compileDebugKotlin --no-daemon --console=plain` pasa.
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat :app:packageReleaseUpdate --no-daemon --console=plain` pasa y regenera `build/distribution/AtlasPeak-V-01.03-release.apk`.
+- `aapt2 dump badging` confirma `package='com.atlaspeak'`, `versionCode='103'`,
+  `versionName='V-01.03'` y `minSdkVersion='31'`.
+- `apksigner verify --verbose --print-certs` confirma firma APK Signature Scheme v2.
+- SHA-256: `50BFA2C0805D59B925080CEB5351EB233ADCFDACF939E9D39CE034D61EC46ED3`.
+
+#### 2026-05-25 - Actualizacion sin perdida de datos
+
+**Anadido**
+- Task Gradle `:app:packageReleaseUpdate` para generar un paquete de actualizacion release:
+  APK firmado, `install-adb.bat`, checksum SHA-256 y README de instalacion en
+  `build/distribution/`.
+- `app/build.gradle.kts` centraliza `applicationId`, `versionCode` y `versionName` para que el
+  empaquetado de release use la misma identidad Android que la app instalada.
+
+**Documentado**
+- `DOCS_TECNICA.md` explica las tres condiciones para conservar datos al actualizar:
+  mismo `applicationId`, mismo keystore de release y `versionCode` superior.
+- `DOCS_USUARIO.md` avisa que no se debe desinstalar antes de actualizar y que
+  `install-adb.bat` usa `adb install -r`.
+
+#### 2026-05-25 - Bump de version
+
+**Cambiado**
+- Fijada la version de app en `versionName = "V-01.03"` y `versionCode = 103`.
+
+**Anadido**
+- Copia de distribucion en `build/distribution/AtlasPeak-V-01.03-release.apk`.
+- `build/distribution/install-adb.bat` actualizado para instalar V-01.03 con `adb install -r`.
+- `build/distribution/README-INSTALACION.txt` y `SHA256SUMS.txt` actualizados para V-01.03.
+
+**Verificado**
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat :app:assembleRelease --no-daemon --console=plain --no-build-cache --no-configuration-cache` pasa.
+- `aapt2 dump badging` confirma `package='com.atlaspeak'`, `versionCode='103'`,
+  `versionName='V-01.03'` y `minSdkVersion='31'`.
+- `apksigner verify --verbose --print-certs` confirma firma APK Signature Scheme v2.
+- SHA-256: `50BFA2C0805D59B925080CEB5351EB233ADCFDACF939E9D39CE034D61EC46ED3`.
+- `adb devices` no muestra ningun movil conectado, por lo que no se instalo fisicamente.
+
 ## [V-01.02] - 2026-05-25
 
 ### Release V-01.02
+
+#### 2026-05-25 - APK release instalable para movil
+
+**Anadido**
+- Copia de distribucion en `build/distribution/AtlasPeak-V-01.02-release.apk`.
+- Script local `build/distribution/install-adb.bat` para instalar con `adb install -r`.
+- `build/distribution/README-INSTALACION.txt` con pasos de instalacion y checksum.
+
+**Verificado**
+- `.\gradlew.bat :app:assembleRelease --no-daemon --console=plain --no-build-cache --no-configuration-cache` pasa.
+- `apksigner verify --verbose --print-certs` confirma firma APK Signature Scheme v2.
+- `aapt2 dump badging` confirma `package='com.atlaspeak'`, `versionCode='102'`,
+  `versionName='V-01.02'` y `minSdkVersion='31'`.
+- SHA-256: `4CA1B69E7E781A1263C7940AE75D3DE179AD826BE7336D37E7AFCBC670C5A60C`.
+- `adb devices` no muestra ningun movil conectado, por lo que no se instalo fisicamente.
 
 #### 2026-05-25 - APK release
 

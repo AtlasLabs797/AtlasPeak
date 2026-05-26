@@ -99,7 +99,12 @@ inventado pantalla a pantalla.
 ## 5. Movimiento
 
 - Duración estándar: **200–350ms**. Micro-interacciones (checkbox, toggle): 120–180ms.
-- Curvas Material Motion: `FastOutSlowInEasing` por defecto; `LinearEasing` solo para
+- Tokens en `theme/Motion.kt` (`AtlasMotion`):
+  - `DurationInstant` 80ms · `DurationFast` 140ms · `DurationMedium` 220ms ·
+    `DurationSlow` 320ms · `DurationDeliberate` 480ms.
+  - `StandardEasing` (`FastOutSlowInEasing`) · `EmphasizedEasing` (0.2, 0, 0, 1) ·
+    `DecelerateEasing` (0.05, 0.7, 0.1, 1) · `AccelerateEasing` (0.3, 0, 0.8, 0.15).
+- Curvas Material Motion: `StandardEasing` por defecto; `LinearEasing` solo para
   progreso continuo (cronómetros, anillos).
 - Transiciones entre pantallas: shared axis / fade-through coherente en todo el NavHost.
 - El **rest timer** y los cronómetros de sesión se actualizan a 1Hz visualmente; no animes
@@ -110,19 +115,43 @@ inventado pantalla a pantalla.
 
 ## 6. Componentes recurrentes (contratos de UI)
 
-- **MetricCard:** título (label), valor grande (Poppins), unidad, mini-gráfico opcional,
-  selector de período. Usada en Dashboard y Composición Corporal.
-- **PeriodSelector:** `semana / mes / 3 meses / año / año hasta hoy`. Componente único
+Todos los componentes "atlas" viven en `presentation/component/` y son la fuente única
+de cada patrón. **No reimplementar Card/Button/TextField sueltos**: usa los wrappers.
+
+- **AtlasPrimaryButton / AtlasSecondaryButton / AtlasGhostButton:** botones de la app.
+  Primary = `Button` con primary container, altura mínima 56dp, shape 16dp. Secondary =
+  `OutlinedButton` con borde outline. Ghost = `TextButton` para acciones terciarias
+  (saltar, omitir). Todos aceptan `leadingIcon` opcional + `iconContentDescription`.
+- **AtlasTextField:** wrapper de `OutlinedTextField` con shape large, colores
+  Atlas-consistentes y altura mínima 60dp. Usar siempre que no haya necesidad explícita
+  de `visualTransformation` o `leadingIcon` complejos (en esos casos cae a `OutlinedTextField`
+  estilizado).
+- **AtlasSlider:** label + valor en `titleMedium` color `primary` a la derecha + track
+  con primary. Para configuraciones numéricas (offsets, segundos, intensidad).
+- **PremiumCard / PremiumIconBadge / PremiumBackground:** contenedor neutro con borde
+  outline sutil, badge cuadrado de 44dp por defecto (configurable via `size`), y fondo
+  con gradiente radial para todas las rutas raíz.
+- **PeriodSelector:** segmented pill animado (`AtlasMotion.DurationMedium` +
+  `EmphasizedEasing`). `semana / mes / 3 meses / año / año hasta hoy`. Componente único
   reutilizado en todos los widgets y gráficos. No reimplementar por pantalla.
+- **MetricValue:** número grande tabular (`headlineMedium` o `displaySmall` si
+  `emphasized = true`) + unidad pequeña en `labelLarge` `onSurfaceVariant`. Usar para
+  todo headline numérico de dashboard / progreso / cuerpo.
+- **SectionHeader:** overline (`labelMedium` `onSurfaceVariant`) + título
+  (`headlineSmall`) + slot trailing opcional. Para abrir secciones de pantalla.
+- **EmptyState:** icon badge 72dp + título + body + CTA opcional, centrados.
+- **StepDots:** indicador de pasos animado (ancho + color animados con
+  `EmphasizedEasing`). Onboarding y wizards.
+- **Brushes** (`AtlasBrushes` en `theme/Brushes.kt`): `heroGradient`,
+  `subtleSurface`, `spotlight`, `accentBorder`. Para hero cards y fondos premium.
 - **Chart (Vico):** eje Y izq = peso (kg), eje X = fecha, eje Y der opcional = reps.
   Interactivo: tap muestra el valor exacto del punto. Estilo coherente (mismo grosor de
   línea, mismos colores semánticos) en toda la app.
-- **RestTimerOverlay:** anillo de progreso circular + segundos al centro + botón Skip.
-  Mismo componente en teléfono y (futuro) reloj.
-- **SetRow:** reps planificadas, peso editable, checkbox de completado. Estado claro
-  completado/pendiente.
-- **EmptyState:** ilustración/icono + título + texto + CTA. Toda lista vacía tiene su
-  empty state; nunca una pantalla en blanco.
+- **RestTimerOverlay:** anillo de progreso doble (track gris + progreso primary, stroke
+  12dp, diámetro 208dp) + número en `displayMedium` al centro + botón Skip
+  `AtlasSecondaryButton`. Mismo componente en teléfono y (futuro) reloj.
+- **SetRow:** peso (weight 1.4) > reps (weight 1.0) editables, checkbox de completado,
+  borde primary cuando completed. Estado claro completado/pendiente.
 
 ---
 
@@ -130,6 +159,9 @@ inventado pantalla a pantalla.
 
 - **Bottom navigation de 5 tabs**, siempre visible salvo en pantallas fullscreen:
   `HOME · ENTRENAR · PROGRESO · CUERPO · PERFIL`.
+- En v1 la bottom navigation es **icon-only**: no muestra nombres bajo los iconos.
+  Cada tab conserva `contentDescription` localizado para TalkBack y el estado activo debe
+  quedar claro por color/indicador, no por texto visible.
 - **Fullscreen (ocultan bottom nav):** `ActiveWorkout`, `WorkoutComplete`,
   `ActiveCardio`, `CardioComplete` y Onboarding.
 - Iconografía: Material Icons Extended en v1 (custom icons → post-MVP).

@@ -1,4 +1,5 @@
 import java.util.Properties
+import java.security.MessageDigest
 import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
 import org.gradle.testing.jacoco.tasks.JacocoReport
 
@@ -19,6 +20,23 @@ val secrets = Properties().apply {
 }
 fun secret(key: String, default: String = "") = secrets.getProperty(key, default)
 
+val atlasApplicationId = "com.atlaspeak"
+val atlasVersionCode = 105
+val atlasVersionName = "V-01.05"
+
+fun sha256Hex(file: java.io.File): String {
+    val digest = MessageDigest.getInstance("SHA-256")
+    file.inputStream().use { input ->
+        val buffer = ByteArray(8192)
+        while (true) {
+            val read = input.read(buffer)
+            if (read == -1) break
+            digest.update(buffer, 0, read)
+        }
+    }
+    return digest.digest().joinToString("") { "%02x".format(it) }.uppercase()
+}
+
 // ── Firma de release (LOCAL, gitignored). Ver SPEC.md §8.5 ──────────────────────────────────
 val keystoreFile = rootProject.file("keystore.properties")
 val keystoreProps = Properties().apply {
@@ -30,11 +48,11 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.atlaspeak"
+        applicationId = atlasApplicationId
         minSdk = 31
         targetSdk = 35
-        versionCode = 102
-        versionName = "V-01.02"
+        versionCode = atlasVersionCode
+        versionName = atlasVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -241,6 +259,92 @@ fun debugUnitTestExecutionData() = fileTree(layout.buildDirectory) {
         "jacoco/testDebugUnitTest.exec",
         "outputs/unit_test_code_coverage/debugUnitTest/testDebugUnitTest.exec",
     )
+}
+
+tasks.register("packageReleaseUpdate") {
+    dependsOn("assembleRelease")
+    group = "distribution"
+    description = "Generates a signed release APK update package that preserves installed app data."
+    notCompatibleWithConfigurationCache("Writes release distribution files from project paths during execution.")
+
+    doLast {
+        if (atlasApplicationId != "com.atlaspeak") {
+            throw org.gradle.api.GradleException(
+                "Refusing to package an update for '$atlasApplicationId'. The release app must stay com.atlaspeak.",
+            )
+        }
+        if (!keystoreFile.exists()) {
+            throw org.gradle.api.GradleException(
+                "keystore.properties is required to generate an installable update. Unsigned releases cannot update the installed app.",
+            )
+        }
+
+        val releaseApk = layout.buildDirectory.file("outputs/apk/release/app-release.apk").get().asFile
+        if (!releaseApk.isFile) {
+            throw org.gradle.api.GradleException("Release APK not found: ${releaseApk.absolutePath}")
+        }
+
+        val distributionDir = rootProject.layout.buildDirectory.dir("distribution").get().asFile
+        distributionDir.mkdirs()
+
+        val outputApkName = "AtlasPeak-$atlasVersionName-release.apk"
+        val outputApk = distributionDir.resolve(outputApkName)
+        releaseApk.copyTo(outputApk, overwrite = true)
+
+        val checksum = sha256Hex(outputApk)
+        distributionDir.resolve("SHA256SUMS.txt").writeText("$checksum  $outputApkName\r\n")
+        distributionDir.resolve("install-adb.bat").writeText(
+            """
+            @echo off
+            setlocal
+            set "APK=%~dp0$outputApkName"
+
+            echo Checking connected Android devices...
+            adb devices
+            echo.
+            echo Updating $atlasApplicationId with %APK%
+            echo This uses adb install -r, so Android keeps the existing app data.
+            adb install -r "%APK%"
+            """.trimIndent().replace("\n", "\r\n"),
+        )
+        distributionDir.resolve("README-INSTALACION.txt").writeText(
+            """
+            Atlas Peak $atlasVersionName - APK release/update
+
+            APK:
+              $outputApkName
+
+            Quick update with ADB:
+              1. Enable Developer options on the phone.
+              2. Enable USB debugging.
+              3. Connect the phone by USB and accept the RSA prompt.
+              4. Run:
+                   install-adb.bat
+
+            Manual update:
+              1. Copy $outputApkName to the phone.
+              2. Open the APK from the phone.
+              3. Confirm the update prompt.
+
+            Data preservation rules:
+              - Do not uninstall the old app first. Uninstalling deletes local app data.
+              - This APK updates the existing app only because the package is $atlasApplicationId.
+              - Android keeps data only when the APK is signed with the same release key and has a higher versionCode.
+              - If Android reports INSTALL_FAILED_UPDATE_INCOMPATIBLE, the APK was signed with another key. Stop and rebuild with the original keystore.
+              - Debug builds use a different package and do not update the release app.
+
+            Version:
+              versionName $atlasVersionName
+              versionCode $atlasVersionCode
+
+            SHA-256:
+              $checksum
+            """.trimIndent().replace("\n", "\r\n"),
+        )
+
+        logger.lifecycle("Release update package ready: ${outputApk.absolutePath}")
+        logger.lifecycle("SHA-256: $checksum")
+    }
 }
 
 tasks.register<JacocoReport>("jacocoDebugDomainDataReport") {

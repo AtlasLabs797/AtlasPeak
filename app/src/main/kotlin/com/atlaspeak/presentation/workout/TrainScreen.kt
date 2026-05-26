@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.DirectionsBike
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
@@ -27,6 +28,9 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.PedalBike
+import androidx.compose.material.icons.filled.Pool
+import androidx.compose.material.icons.filled.Rowing
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Button
@@ -67,7 +71,10 @@ import com.atlaspeak.domain.model.cardio.CardioType
 import com.atlaspeak.domain.model.workout.Exercise
 import com.atlaspeak.domain.model.workout.MuscleGroup
 import com.atlaspeak.domain.model.workout.Routine
+import com.atlaspeak.presentation.component.AtlasPrimaryButton
+import com.atlaspeak.presentation.component.AtlasSecondaryButton
 import com.atlaspeak.presentation.component.PremiumBackground
+import com.atlaspeak.presentation.component.PremiumCard
 import com.atlaspeak.presentation.theme.LocalSpacing
 
 @Composable
@@ -366,7 +373,7 @@ private fun CardioTypeEditorCard(
     onCancel: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
-    ElevatedCard {
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(spacing.card),
             verticalArrangement = Arrangement.spacedBy(spacing.sm),
@@ -399,28 +406,19 @@ private fun CardioTypeEditorCard(
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
-            Button(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = spacing.minTouchTarget),
+            AtlasPrimaryButton(
+                modifier = Modifier.fillMaxWidth(),
                 onClick = onSave,
                 enabled = state.newCardioTypeName.isNotBlank(),
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = null)
-                Text(
-                    modifier = Modifier.padding(start = spacing.xs),
-                    text = stringResource(R.string.cardio_save_type),
-                )
-            }
+                text = stringResource(R.string.cardio_save_type),
+                leadingIcon = Icons.Filled.Add,
+            )
             if (state.editingCardioTypeId != null) {
-                OutlinedButton(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = spacing.minTouchTarget),
+                AtlasSecondaryButton(
+                    modifier = Modifier.fillMaxWidth(),
                     onClick = onCancel,
-                ) {
-                    Text(stringResource(R.string.action_cancel))
-                }
+                    text = stringResource(R.string.action_cancel),
+                )
             }
         }
     }
@@ -432,7 +430,7 @@ private fun CardioCountdownCard(
     onValueChange: (String) -> Unit,
 ) {
     val spacing = LocalSpacing.current
-    Card {
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -466,7 +464,7 @@ private fun CardioTypeCard(
     onArchive: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
-    Card {
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -479,7 +477,7 @@ private fun CardioTypeCard(
                 horizontalArrangement = Arrangement.spacedBy(spacing.sm),
             ) {
                 Icon(
-                    imageVector = Icons.AutoMirrored.Filled.DirectionsRun,
+                    imageVector = type.iconVector(),
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                 )
@@ -509,23 +507,17 @@ private fun CardioTypeCard(
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
-                Button(
-                    modifier = Modifier
-                        .weight(1f)
-                        .heightIn(min = spacing.minTouchTarget),
+                AtlasPrimaryButton(
+                    modifier = Modifier.weight(1f),
                     onClick = onStartTimer,
-                ) {
-                    Text(stringResource(R.string.cardio_start_timer))
-                }
-                OutlinedButton(
-                    modifier = Modifier
-                        .weight(1f)
-                        .heightIn(min = spacing.minTouchTarget),
+                    text = stringResource(R.string.cardio_start_timer),
+                )
+                AtlasSecondaryButton(
+                    modifier = Modifier.weight(1f),
                     onClick = onStartCountdown,
                     enabled = countdownSeconds > 0,
-                ) {
-                    Text(stringResource(R.string.cardio_start_countdown))
-                }
+                    text = stringResource(R.string.cardio_start_countdown),
+                )
             }
         }
     }
@@ -579,7 +571,7 @@ private fun CardioSessionCard(
 @Composable
 private fun CardioSessionDetailCard(session: CardioSession) {
     val spacing = LocalSpacing.current
-    ElevatedCard {
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(spacing.card),
             verticalArrangement = Arrangement.spacedBy(spacing.sm),
@@ -680,21 +672,14 @@ private fun RoutineContent(
         contentPadding = PaddingValues(spacing.screen),
         verticalArrangement = Arrangement.spacedBy(spacing.cardGap),
     ) {
-        item {
-            RoutineBuilderCard(
-                state = state,
-                onRoutineNameChanged = onRoutineNameChanged,
-                onRoutineColorChanged = onRoutineColorChanged,
-                onAddExerciseToDraft = onAddExerciseToDraft,
-                onRemoveDraftItem = onRemoveDraftItem,
-                onMoveDraftItem = onMoveDraftItem,
-                onDraftSetsChanged = onDraftSetsChanged,
-                onDraftRepsChanged = onDraftRepsChanged,
-                onDraftWeightChanged = onDraftWeightChanged,
-                onDraftRestChanged = onDraftRestChanged,
-                onCreateRoutine = onCreateRoutine,
-                onCancelRoutineEditing = onCancelRoutineEditing,
-            )
+        state.selectedRoutine?.let { routine ->
+            item {
+                RoutineDetailCard(
+                    routine = routine,
+                    onEdit = { onEditRoutine(routine) },
+                    onStart = { onStartRoutine(routine.id) },
+                )
+            }
         }
         item {
             SectionTitle(R.string.workout_routine_list_title)
@@ -711,14 +696,21 @@ private fun RoutineContent(
                 )
             }
         }
-        state.selectedRoutine?.let { routine ->
-            item {
-                RoutineDetailCard(
-                    routine = routine,
-                    onEdit = { onEditRoutine(routine) },
-                    onStart = { onStartRoutine(routine.id) },
-                )
-            }
+        item {
+            RoutineBuilderCard(
+                state = state,
+                onRoutineNameChanged = onRoutineNameChanged,
+                onRoutineColorChanged = onRoutineColorChanged,
+                onAddExerciseToDraft = onAddExerciseToDraft,
+                onRemoveDraftItem = onRemoveDraftItem,
+                onMoveDraftItem = onMoveDraftItem,
+                onDraftSetsChanged = onDraftSetsChanged,
+                onDraftRepsChanged = onDraftRepsChanged,
+                onDraftWeightChanged = onDraftWeightChanged,
+                onDraftRestChanged = onDraftRestChanged,
+                onCreateRoutine = onCreateRoutine,
+                onCancelRoutineEditing = onCancelRoutineEditing,
+            )
         }
     }
 }
@@ -747,7 +739,7 @@ private fun CustomExerciseCard(
     onCancel: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
-    ElevatedCard(colors = CardDefaults.elevatedCardColors()) {
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(spacing.card),
             verticalArrangement = Arrangement.spacedBy(spacing.sm),
@@ -772,28 +764,19 @@ private fun CustomExerciseCard(
                 includeAll = false,
                 onSelected = { groupId -> if (groupId != null) onGroupChanged(groupId) },
             )
-            Button(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = spacing.minTouchTarget),
+            AtlasPrimaryButton(
+                modifier = Modifier.fillMaxWidth(),
                 onClick = onSave,
                 enabled = state.newExerciseName.isNotBlank() && state.newExerciseGroupId != null,
-            ) {
-                Icon(Icons.Filled.Add, contentDescription = null)
-                Text(
-                    modifier = Modifier.padding(start = spacing.xs),
-                    text = stringResource(R.string.workout_save_exercise),
-                )
-            }
+                text = stringResource(R.string.workout_save_exercise),
+                leadingIcon = Icons.Filled.Add,
+            )
             if (state.editingExerciseId != null) {
-                Button(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = spacing.minTouchTarget),
+                AtlasSecondaryButton(
+                    modifier = Modifier.fillMaxWidth(),
                     onClick = onCancel,
-                ) {
-                    Text(stringResource(R.string.action_cancel))
-                }
+                    text = stringResource(R.string.action_cancel),
+                )
             }
         }
     }
@@ -807,7 +790,7 @@ private fun ExerciseCard(
     onArchive: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
-    Card {
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -875,7 +858,7 @@ private fun RoutineBuilderCard(
     onCancelRoutineEditing: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
-    ElevatedCard {
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(spacing.card),
             verticalArrangement = Arrangement.spacedBy(spacing.sm),
@@ -936,24 +919,18 @@ private fun RoutineBuilderCard(
                     )
                 }
             }
-            Button(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = spacing.minTouchTarget),
+            AtlasPrimaryButton(
+                modifier = Modifier.fillMaxWidth(),
                 onClick = onCreateRoutine,
                 enabled = state.routineName.isNotBlank(),
-            ) {
-                Text(stringResource(R.string.workout_save_routine))
-            }
+                text = stringResource(R.string.workout_save_routine),
+            )
             if (state.editingRoutineId != null) {
-                Button(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = spacing.minTouchTarget),
+                AtlasSecondaryButton(
+                    modifier = Modifier.fillMaxWidth(),
                     onClick = onCancelRoutineEditing,
-                ) {
-                    Text(stringResource(R.string.action_cancel))
-                }
+                    text = stringResource(R.string.action_cancel),
+                )
             }
         }
     }
@@ -1153,36 +1130,27 @@ private fun RoutineDetailCard(
     onStart: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
-    ElevatedCard {
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(spacing.card),
             verticalArrangement = Arrangement.spacedBy(spacing.sm),
         ) {
-            SectionTitle(R.string.workout_routine_detail_title)
+            SectionTitle(R.string.workout_routine_start_title)
             Text(
                 text = routine.name,
                 style = MaterialTheme.typography.titleMedium,
             )
-            Button(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = spacing.minTouchTarget),
+            AtlasPrimaryButton(
+                modifier = Modifier.fillMaxWidth(),
                 onClick = onStart,
-            ) {
-                Text(stringResource(R.string.action_start))
-            }
-            Button(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = spacing.minTouchTarget),
+                text = stringResource(R.string.action_start),
+            )
+            AtlasSecondaryButton(
+                modifier = Modifier.fillMaxWidth(),
                 onClick = onEdit,
-            ) {
-                Icon(Icons.Filled.Edit, contentDescription = null)
-                Text(
-                    modifier = Modifier.padding(start = spacing.xs),
-                    text = stringResource(R.string.action_edit),
-                )
-            }
+                text = stringResource(R.string.action_edit),
+                leadingIcon = Icons.Filled.Edit,
+            )
             if (routine.exercises.isEmpty()) {
                 EmptyState(R.string.workout_routine_draft_empty)
             } else {
@@ -1252,7 +1220,7 @@ private fun WorkoutSessionCard(
 @Composable
 private fun WorkoutSessionDetailCard(session: com.atlaspeak.domain.model.workout.WorkoutSession) {
     val spacing = LocalSpacing.current
-    ElevatedCard {
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(spacing.card),
             verticalArrangement = Arrangement.spacedBy(spacing.sm),
@@ -1340,6 +1308,15 @@ private fun ColorSwatch(hex: String?) {
             .size(16.dp)
             .background(color = color, shape = MaterialTheme.shapes.extraSmall),
     )
+}
+
+private fun CardioType.iconVector() = when (iconName) {
+    "directions_bike" -> Icons.AutoMirrored.Filled.DirectionsBike
+    "pedal_bike" -> Icons.Filled.PedalBike
+    "rowing" -> Icons.Filled.Rowing
+    "pool" -> Icons.Filled.Pool
+    "fitness_center" -> Icons.Filled.FitnessCenter
+    else -> Icons.AutoMirrored.Filled.DirectionsRun
 }
 
 @Composable

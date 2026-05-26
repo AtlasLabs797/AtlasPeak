@@ -237,7 +237,7 @@ class ActiveWorkoutViewModel @Inject constructor(
                 mutableState.update {
                     it.copy(restTimer = RestTimerUiState(timerId, totalSeconds, remaining))
                 }
-                if (remaining > 0) delay(1000)
+                delay(if (remaining > 0) 1000 else 420)
             }
             mutableState.update { it.copy(restTimer = null) }
         }
