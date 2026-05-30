@@ -52,13 +52,13 @@ class WorkoutForegroundService : LifecycleService() {
                 sessionId = requireNotNull(intent.getStringExtra(EXTRA_SESSION_ID)),
                 startedAt = intent.getLongExtra(EXTRA_STARTED_AT, System.currentTimeMillis()),
             )
-            ACTION_STOP -> stopTimer()
+            ACTION_STOP -> stopTimer(clearState = true)
         }
         return START_STICKY
     }
 
     override fun onDestroy() {
-        stopTimer()
+        stopTimer(clearState = !WorkoutTimerRegistry.state.value.failed)
         super.onDestroy()
     }
 
@@ -96,10 +96,12 @@ class WorkoutForegroundService : LifecycleService() {
         }
     }
 
-    private fun stopTimer() {
+    private fun stopTimer(clearState: Boolean) {
         timerJob?.cancel()
         timerJob = null
-        WorkoutTimerRegistry.update(WorkoutTimerState())
+        if (clearState) {
+            WorkoutTimerRegistry.update(WorkoutTimerState())
+        }
         stopForeground(STOP_FOREGROUND_REMOVE)
         stopSelf()
     }

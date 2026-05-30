@@ -16,6 +16,7 @@ import com.atlaspeak.data.db.entity.WorkoutSessionEntity
 import com.atlaspeak.data.db.entity.WorkoutSetEntity
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -69,6 +70,49 @@ class RoomBackupSnapshotStoreInstrumentedTest {
         val snapshot = store.snapshot()
         val poisonedUsers = snapshot.tables.getValue("users").map { row ->
             row + ("unexpected_column" to JsonPrimitive("boom"))
+        }
+        val poisoned = snapshot.copy(tables = snapshot.tables + ("users" to poisonedUsers))
+
+        val result = runCatching { store.restore(poisoned) }
+
+        assertTrue(result.exceptionOrNull() is IllegalArgumentException)
+        assertEquals("Athlete", database.userProfileDao().getProfile()?.displayName)
+    }
+
+    @Test
+    fun restoreRejectsMissingColumnsBeforeWriting() = runTest {
+        insertConnectedRows()
+        val snapshot = store.snapshot()
+        val poisonedUsers = snapshot.tables.getValue("users").map { row -> row - "id" }
+        val poisoned = snapshot.copy(tables = snapshot.tables + ("users" to poisonedUsers))
+
+        val result = runCatching { store.restore(poisoned) }
+
+        assertTrue(result.exceptionOrNull() is IllegalArgumentException)
+        assertEquals("Athlete", database.userProfileDao().getProfile()?.displayName)
+    }
+
+    @Test
+    fun restoreRejectsNonPrimitiveJsonValuesBeforeWriting() = runTest {
+        insertConnectedRows()
+        val snapshot = store.snapshot()
+        val poisonedUsers = snapshot.tables.getValue("users").map { row ->
+            row + ("id" to buildJsonObject { put("nested", JsonPrimitive("user-1")) })
+        }
+        val poisoned = snapshot.copy(tables = snapshot.tables + ("users" to poisonedUsers))
+
+        val result = runCatching { store.restore(poisoned) }
+
+        assertTrue(result.exceptionOrNull() is IllegalArgumentException)
+        assertEquals("Athlete", database.userProfileDao().getProfile()?.displayName)
+    }
+
+    @Test
+    fun restoreRejectsValuesWithWrongSqliteAffinityBeforeWriting() = runTest {
+        insertConnectedRows()
+        val snapshot = store.snapshot()
+        val poisonedUsers = snapshot.tables.getValue("users").map { row ->
+            row + ("created_at" to JsonPrimitive("not-a-number"))
         }
         val poisoned = snapshot.copy(tables = snapshot.tables + ("users" to poisonedUsers))
 

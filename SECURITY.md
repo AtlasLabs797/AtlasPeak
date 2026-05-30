@@ -35,6 +35,24 @@ salvo lo que el propio Google maneja en su OAuth.
 Estos se detectaron al auditar el spec **antes** de escribir código. Los fixes están
 reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de versiones.
 
+### SEC-028 - Hardening de supply chain en CI y Gradle
+- **Estado:** Resuelto
+- **Fecha:** 2026-05-30
+- **Severidad:** Baja
+- **Sintoma:** CI usaba `GITHUB_TOKEN` con permisos implicitos, Actions referenciadas por tags mutables y Gradle Wrapper sin checksum de distribucion. Ademas no habia metadata de verificacion de dependencias.
+- **Causa raiz:** se confiaba en defaults de GitHub/Gradle y en HTTPS, que no fijan integridad de artefactos ni reducen permisos por si solos.
+- **Solucion:** `.github/workflows/ci.yml` declara `permissions: contents: read` y pinnea `actions/checkout`, `actions/setup-java` y `gradle/actions/setup-gradle` a commit SHA. `gradle-wrapper.properties` fija `distributionSha256Sum` para Gradle 8.11.1 y se versiona `gradle/verification-metadata.xml` con SHA-256 de artefactos resueltos.
+- **Prevencion:** cualquier cambio de Action, Gradle o dependencia debe actualizar el SHA/checksum/verification metadata junto al cambio.
+
+### SEC-027 - Restore de backup validaba columnas, pero no forma/tipo de valores
+- **Estado:** Resuelto
+- **Fecha:** 2026-05-30
+- **Severidad:** Media
+- **Sintoma:** un backup descifrado y con passphrase valida podia contener filas con valores JSON anidados, columnas faltantes o tipos incompatibles con la tabla destino.
+- **Causa raiz:** `RoomBackupSnapshotStore.restore()` solo comprobaba set de tablas y columnas desconocidas; los valores restantes se convertian a `ContentValues`, e incluso objetos/arrays JSON podian acabar como string.
+- **Solucion:** antes de borrar o insertar, el restore compara cada fila con `PRAGMA table_info`, exige columnas exactas y rechaza `NULL` en columnas requeridas, JSON no primitivo y valores incompatibles con la afinidad SQLite.
+- **Prevencion:** tests instrumentados nuevos cubren columnas faltantes, JSON no primitivo y tipos incompatibles; los datos existentes se conservan si la validacion falla.
+
 ### SEC-026 - Capturas permitidas en toda la app
 - **Estado:** Aceptado (riesgo conocido)
 - **Fecha:** 2026-05-25

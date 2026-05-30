@@ -10,6 +10,24 @@
 
 ## [Unreleased]
 
+#### 2026-05-30 - Auditoria seguridad/bugs y hardening de supply chain
+
+**Seguridad**
+- Registrado y resuelto `SEC-027`: restore de backup ahora rechaza filas con columnas faltantes, JSON no primitivo, `NULL` en columnas requeridas o tipos incompatibles con la afinidad SQLite antes de escribir.
+- Registrado y resuelto `SEC-028`: CI con `permissions: contents: read`, Actions pinneadas por commit SHA, Gradle Wrapper con `distributionSha256Sum` y dependencias verificadas por `gradle/verification-metadata.xml`.
+- Scan de secretos sobre `app/`: 204 archivos revisados, 0 secretos potenciales. Los archivos locales `secrets.properties`, `keystore.properties`, `local.properties` y `atlas-peak-release.jks` siguen ignorados y no trackeados.
+
+**Corregido**
+- Registrado y resuelto `BUG-042`: `WorkoutForegroundService` conserva el estado `failed` si Android rechaza el foreground service, para que la UI pueda avisar que el cronometro persistente no arranco.
+- Registrado y resuelto `BUG-043`: restore de backup ya no delega la validacion de valores malformados a SQLite/Room.
+
+**Verificado**
+- `./gradlew.bat :app:assembleDebug :app:testDebugUnitTest :app:lintDebug --no-daemon --console=plain` pasa con dependency verification activa.
+- `./gradlew.bat :app:assembleRelease --no-daemon --console=plain` pasa.
+- `./gradlew.bat :app:jacocoDebugDomainDataCoverageVerification --no-daemon --console=plain` pasa.
+- `./gradlew.bat :app:compileDebugAndroidTestKotlin --no-daemon --console=plain` pasa.
+- `./gradlew.bat :app:connectedDebugAndroidTest --no-daemon --console=plain` no se pudo ejecutar: no habia dispositivo/emulador conectado (`No connected devices!`).
+
 #### 2026-05-26 - Correcciones UI/UX desde capturas de pantalla
 
 **AÃ±adido**

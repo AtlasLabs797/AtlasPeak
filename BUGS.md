@@ -24,6 +24,32 @@
 
 ## Entradas
 
+### BUG-043 - Restore de backup aceptaba filas JSON malformadas
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-30
+- **Fase:** Auditoria seguridad/bugs
+- **Severidad:** Media
+- **Sintoma:** un backup descifrado podia contener filas con columnas faltantes, tipos incompatibles o valores JSON anidados; el restore solo rechazaba tablas/columnas desconocidas y dejaba que SQLite/Room lidiaran con el resto.
+- **Causa raiz:** `RoomBackupSnapshotStore.restore()` validaba nombres de tabla y columnas, pero no exigia set exacto de columnas ni compatibilidad entre valor JSON y afinidad SQLite antes de escribir.
+- **Solucion:** `RoomBackupSnapshotStore` valida cada fila contra `PRAGMA table_info`: columnas exactas, `NULL` solo en columnas nullable, valores primitivos y afinidad INTEGER/REAL/TEXT/BLOB/NUMERIC compatible antes de borrar o insertar datos.
+- **Prevencion:** tests instrumentados cubren columnas faltantes, valores JSON no primitivos y tipos incompatibles sin perder los datos existentes.
+- **Fecha resolucion:** 2026-05-30
+
+---
+
+### BUG-042 - El fallo del foreground service de fuerza podia borrarse antes de llegar a la UI
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-05-30
+- **Fase:** Auditoria seguridad/bugs
+- **Severidad:** Media
+- **Sintoma:** si Android rechazaba el `WorkoutForegroundService` por permiso runtime/FGS, el servicio marcaba `failed=true`, llamaba a `stopSelf()` y `onDestroy()` reseteaba inmediatamente `WorkoutTimerRegistry`.
+- **Causa raiz:** el teardown de fuerza siempre limpiaba el estado, a diferencia de cardio, que conserva el estado fallido para que la UI pueda avisar.
+- **Solucion:** `WorkoutForegroundService.onDestroy()` preserva el estado cuando `WorkoutTimerRegistry.state.failed` es true; `ACTION_STOP` sigue limpiando explicitamente.
+- **Prevencion:** `StaticSecurityPolicyTest` bloquea que el servicio vuelva a borrar el fallo antes de que la UI lo observe.
+- **Fecha resolucion:** 2026-05-30
+
+---
+
 ### BUG-041 - Entrenamiento planificado no era accion principal en Home ni Entrenar
 - **Estado:** Resuelto
 - **Fecha deteccion:** 2026-05-26

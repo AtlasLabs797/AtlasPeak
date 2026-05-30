@@ -36,13 +36,12 @@ class RoomBackupSnapshotStore @Inject constructor(
         database.runInTransaction {
             val db = database.openHelper.writableDatabase
             val tableColumns = AppDatabase.TABLE_ORDER.associateWith { table -> db.columnsFor(table) }
+            snapshot.validateAgainst(tableColumns)
             AppDatabase.TABLE_ORDER.asReversed().forEach { table ->
                 db.execSQL("DELETE FROM $table")
             }
             AppDatabase.TABLE_ORDER.forEach { table ->
-                val allowedColumns = tableColumns.getValue(table)
                 snapshot.tables.getValue(table).forEach { row ->
-                    require(row.keys.all { it in allowedColumns }) { "Backup row contains an unknown column" }
                     db.insert(table, SQLiteDatabase.CONFLICT_REPLACE, row.toContentValues())
                 }
             }
@@ -96,15 +95,51 @@ class RoomBackupSnapshotStore @Inject constructor(
             when (value) {
                 JsonNull -> values.putNull(column)
                 is JsonPrimitive -> values.putPrimitive(column, value)
-                else -> values.put(column, value.toString())
+                else -> error("Backup rows must be validated before restore")
             }
         }
         return values
     }
 
+    private fun DatabaseBackupSnapshot.validateAgainst(tableColumns: Map<String, Map<String, ColumnInfo>>) {
+        AppDatabase.TABLE_ORDER.forEach { table ->
+            val columns = tableColumns.getValue(table)
+            val expectedColumnNames = columns.keys
+            tables.getValue(table).forEach { row ->
+                require(row.keys == expectedColumnNames) { "Backup row column set does not match the app schema" }
+                row.forEach { (column, value) ->
+                    value.requireCompatibleWith(table, columns.getValue(column))
+                }
+            }
+        }
+    }
+
+    private fun JsonElement.requireCompatibleWith(table: String, column: ColumnInfo) {
+        when (this) {
+            JsonNull -> require(!column.required) { "Backup row contains null for required column $table.${column.name}" }
+            is JsonPrimitive -> require(isCompatibleWith(column)) { "Backup row value type does not match $table.${column.name}" }
+            else -> throw IllegalArgumentException("Backup row contains a non-primitive value")
+        }
+    }
+
+    private fun JsonPrimitive.isCompatibleWith(column: ColumnInfo): Boolean = when (column.affinity) {
+        SqliteAffinity.INTEGER -> !isJsonString && (booleanOrNull != null || longOrNull != null)
+        SqliteAffinity.REAL -> !isJsonString && booleanOrNull == null && doubleOrNull != null
+        SqliteAffinity.TEXT -> isJsonString
+        SqliteAffinity.BLOB -> isJsonString && content.isBase64()
+        SqliteAffinity.NUMERIC -> !isJsonString && (booleanOrNull != null || doubleOrNull != null || longOrNull != null)
+    }
+
+    private fun String.isBase64(): Boolean = runCatching {
+        android.util.Base64.decode(this, android.util.Base64.NO_WRAP)
+    }.isSuccess
+
+    private val JsonPrimitive.isJsonString: Boolean
+        get() = toString().startsWith("\"")
+
     private fun ContentValues.putPrimitive(column: String, value: JsonPrimitive) {
         when {
-            value.toString().startsWith("\"") -> put(column, value.content)
+            value.isJsonString -> put(column, value.content)
             value.booleanOrNull != null -> put(column, if (value.booleanOrNull == true) 1 else 0)
             value.longOrNull != null -> put(column, value.longOrNull)
             value.doubleOrNull != null -> put(column, value.doubleOrNull)
@@ -112,15 +147,52 @@ class RoomBackupSnapshotStore @Inject constructor(
         }
     }
 
-    private fun SupportSQLiteDatabase.columnsFor(table: String): Set<String> {
+    private fun SupportSQLiteDatabase.columnsFor(table: String): Map<String, ColumnInfo> {
         return query("PRAGMA table_info($table)").use { cursor ->
-            buildSet {
+            buildMap {
                 val nameIndex = cursor.getColumnIndexOrThrow("name")
+                val typeIndex = cursor.getColumnIndexOrThrow("type")
+                val notNullIndex = cursor.getColumnIndexOrThrow("notnull")
+                val primaryKeyIndex = cursor.getColumnIndexOrThrow("pk")
                 while (cursor.moveToNext()) {
-                    add(cursor.getString(nameIndex))
+                    val name = cursor.getString(nameIndex)
+                    put(
+                        name,
+                        ColumnInfo(
+                            name = name,
+                            type = cursor.getString(typeIndex).orEmpty(),
+                            required = cursor.getInt(notNullIndex) != 0 || cursor.getInt(primaryKeyIndex) != 0,
+                        ),
+                    )
                 }
             }
         }
+    }
+
+    private data class ColumnInfo(
+        val name: String,
+        val type: String,
+        val required: Boolean,
+    ) {
+        val affinity: SqliteAffinity
+            get() {
+                val normalized = type.uppercase()
+                return when {
+                    "INT" in normalized -> SqliteAffinity.INTEGER
+                    "CHAR" in normalized || "CLOB" in normalized || "TEXT" in normalized -> SqliteAffinity.TEXT
+                    "BLOB" in normalized || normalized.isBlank() -> SqliteAffinity.BLOB
+                    "REAL" in normalized || "FLOA" in normalized || "DOUB" in normalized -> SqliteAffinity.REAL
+                    else -> SqliteAffinity.NUMERIC
+                }
+            }
+    }
+
+    private enum class SqliteAffinity {
+        INTEGER,
+        REAL,
+        TEXT,
+        BLOB,
+        NUMERIC,
     }
 
     private companion object {

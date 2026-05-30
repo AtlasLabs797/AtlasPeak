@@ -61,6 +61,14 @@ class StaticSecurityPolicyTest {
         )
     }
 
+    @Test
+    fun `workout foreground service preserves failed startup state for the UI`() {
+        val service = mainSource.resolve("kotlin/com/atlaspeak/service/WorkoutForegroundService.kt").toFile().readText()
+
+        assertTrue(service.contains("stopTimer(clearState = !WorkoutTimerRegistry.state.value.failed)"))
+        assertTrue(service.contains("ACTION_STOP -> stopTimer(clearState = true)"))
+    }
+
     private fun countMatches(path: Path, pattern: Regex): Int =
         Files.walk(path).asSequence()
             .filter { Files.isRegularFile(it) && it.name.endsWith(".kt") }
