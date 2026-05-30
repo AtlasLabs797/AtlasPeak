@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fallback para Android <12. Coherente con allowBackup=false / SEC-007. -->
+<full-backup-content>
+    <exclude domain="database" />
+    <exclude domain="sharedpref" />
+    <exclude domain="file" />
+</full-backup-content>
