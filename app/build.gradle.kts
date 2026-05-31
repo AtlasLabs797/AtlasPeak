@@ -21,8 +21,8 @@ val secrets = Properties().apply {
 fun secret(key: String, default: String = "") = secrets.getProperty(key, default)
 
 val atlasApplicationId = "com.atlaspeak"
-val atlasVersionCode = 105
-val atlasVersionName = "V-01.05"
+val atlasVersionCode = 106
+val atlasVersionName = "V-01.06"
 
 fun sha256Hex(file: java.io.File): String {
     val digest = MessageDigest.getInstance("SHA-256")

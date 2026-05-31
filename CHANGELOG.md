@@ -10,6 +10,30 @@
 
 ## [Unreleased]
 
+- Sin cambios pendientes.
+
+## [V-01.06] - 2026-05-31
+
+### Release V-01.06
+
+#### 2026-05-31 - Bump de version
+
+**Cambiado**
+- Fijada la version de app en `versionName = "V-01.06"` y `versionCode = 106`.
+
+**Anadido**
+- Copia de distribucion local en `build/distribution/AtlasPeak-V-01.06-release.apk`.
+- `build/distribution/install-adb.bat`, `README-INSTALACION.txt` y `SHA256SUMS.txt`
+  regenerados para V-01.06.
+
+**Verificado**
+- `.\gradlew.bat clean :app:packageReleaseUpdate --no-daemon --console=plain --no-build-cache --no-configuration-cache` pasa.
+- `build/distribution/README-INSTALACION.txt` confirma `versionName V-01.06` y
+  `versionCode 106`.
+- `aapt2 dump badging` confirma `package='com.atlaspeak'`, `versionCode='106'`,
+  `versionName='V-01.06'`, `minSdkVersion='31'` y `targetSdkVersion='35'`.
+- SHA-256: `EA0CA6DACD367D09C689B3BF3C385419981786DFD06CE308C86BEE426C51C6D2`.
+
 #### 2026-05-30 - Auditoria seguridad/bugs y hardening de supply chain
 
 **Seguridad**
