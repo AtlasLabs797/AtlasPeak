@@ -35,6 +35,15 @@ salvo lo que el propio Google maneja en su OAuth.
 Estos se detectaron al auditar el spec **antes** de escribir código. Los fixes están
 reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de versiones.
 
+### SEC-029 - Export CSV permitia formula injection en hojas de calculo
+- **Estado:** Resuelto
+- **Fecha:** 2026-06-08
+- **Severidad:** Media
+- **Sintoma:** el export manual CSV serializaba texto de tablas exportables, incluido texto importado desde Health Connect como titulo/notas de sueno, sin neutralizar valores que empiezan por `=`, `+`, `-` o `@`. Al abrir el CSV en una hoja de calculo, esas celdas podian evaluarse como formulas.
+- **Causa raiz:** `BackupExportFormatter.escapeCsv()` solo escapaba sintaxis CSV (comillas, coma y saltos de linea), pero confundia CSV valido con CSV seguro para hojas de calculo.
+- **Solucion:** `BackupExportFormatter` antepone apostrofe a celdas textuales cuyo primer caracter significativo sea prefijo de formula. Los primitivos JSON numericos se mantienen como numeros para no romper exportaciones legitimas.
+- **Prevencion:** `BackupExportFormatterTest.csv export neutralizes spreadsheet formulas in text cells` cubre `=`, `+`, `-` y `@` sobre `hc_sleep_sessions`, y comprueba que un numero negativo JSON real no se neutraliza.
+
 ### SEC-028 - Hardening de supply chain en CI y Gradle
 - **Estado:** Resuelto
 - **Fecha:** 2026-05-30

@@ -132,6 +132,8 @@ Notas de integridad:
   grant silencioso de Drive o contrasena guardada, el worker termina sin lanzar UI.
 - **Export manual:** JSON/CSV sin cifrar no exige contraseña tras retirar el gate local; excluye
   `users` y `auth_security` para no compartir restos de auth legada.
+  El CSV neutraliza celdas textuales que puedan interpretarse como formulas en hojas de
+  calculo (`=`, `+`, `-`, `@`) anteponiendo apostrofe en la salida.
   El restore valida tablas y columnas contra el schema actual antes de insertar datos.
 - **Secretos:** `MAPS_API_KEY` y `OAUTH_WEB_CLIENT_ID` en `secrets.properties` (gitignored),
   inyectados via `manifestPlaceholders` y `BuildConfig`. **Sin `google-services.json`.**

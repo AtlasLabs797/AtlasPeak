@@ -10,7 +10,21 @@
 
 ## [Unreleased]
 
-- Sin cambios pendientes.
+### 2026-06-08 - Mitigacion de formula injection en CSV
+
+**Seguridad**
+- Registrado y resuelto `SEC-029` / `BUG-044`: los exports CSV neutralizan celdas de texto
+  que podrian ser interpretadas como formulas por hojas de calculo.
+
+**Corregido**
+- `BackupExportFormatter` antepone apostrofe a valores textuales cuyo primer caracter
+  significativo sea `=`, `+`, `-` o `@`; los primitivos JSON numericos no se convierten
+  en texto.
+
+**Verificado**
+- `.\gradlew.bat --% :app:testDebugUnitTest --tests com.atlaspeak.data.backup.BackupExportFormatterTest --no-daemon --console=plain -Pkotlin.incremental=false -Dkotlin.compiler.execution.strategy=in-process` pasa.
+- `.\gradlew.bat --% :app:testDebugUnitTest --no-daemon --console=plain -Pkotlin.incremental=false -Dkotlin.compiler.execution.strategy=in-process` pasa.
+- `.\gradlew.bat --% :app:lintDebug --no-daemon --console=plain -Pkotlin.incremental=false -Dkotlin.compiler.execution.strategy=in-process` pasa.
 
 ## [V-01.07] - 2026-06-08
 

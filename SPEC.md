@@ -328,6 +328,7 @@ Si el usuario olvida la passphrase usada para cifrar un backup, esa copia no se 
 - Export guarda en almacenamiento privado de la app, luego comparte via Android `ShareSheet` — el usuario elige dónde enviarlo (Drive, email, etc.)
 - Export incluye: rutinas, ejercicios, sesiones, sets, cardio, composición corporal, plan semanal
 - Export JSON/CSV en claro no exige contraseña tras retirar el gate local; el usuario decide dónde compartirlo.
+- Export CSV neutraliza celdas textuales con prefijo de formula de hoja de calculo (`=`, `+`, `-`, `@`) anteponiendo apostrofe en la salida.
 
 ### 2.14 ONBOARDING (PRIMER LANZAMIENTO)
 
@@ -1154,6 +1155,8 @@ la propia marca de exito del backup anterior.
 - El backup cifrado contiene las tablas necesarias para restaurar (`users` incluido). El
   export manual JSON/CSV, al no estar cifrado, excluye `users` y `auth_security`.
 - El export manual en claro no exige reautenticacion local tras retirar el gate de entrada.
+- El export CSV neutraliza celdas textuales con prefijo de formula de hoja de calculo
+  (`=`, `+`, `-`, `@`) anteponiendo apostrofe en la salida.
 
 ### 7.6 Puntos Débiles Conocidos y Aceptados
 

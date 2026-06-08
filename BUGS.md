@@ -24,6 +24,19 @@
 
 ## Entradas
 
+### BUG-044 - Export CSV no neutralizaba formulas de hoja de calculo
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-06-08
+- **Fase:** Auditoria seguridad/backup
+- **Severidad:** Media
+- **Sintoma:** valores textuales exportados a CSV podian empezar por `=`, `+`, `-` o `@`; al abrir el archivo en una hoja de calculo podian evaluarse como formulas.
+- **Causa raiz:** `BackupExportFormatter.escapeCsv()` solo escapaba caracteres de CSV, pero no aplicaba la defensa propia del contexto de consumo: hojas de calculo.
+- **Solucion:** `BackupExportFormatter` neutraliza celdas textuales de formula con apostrofe antes del escapado CSV y mantiene intactos los primitivos JSON numericos.
+- **Prevencion:** test unitario sobre `hc_sleep_sessions` cubre los prefijos peligrosos y un numero negativo legitimo.
+- **Fecha resolucion:** 2026-06-08
+
+---
+
 ### BUG-043 - Restore de backup aceptaba filas JSON malformadas
 - **Estado:** Resuelto
 - **Fecha deteccion:** 2026-05-30

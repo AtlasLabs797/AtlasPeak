@@ -53,4 +53,31 @@ class BackupExportFormatterTest {
             files.getValue("workout_sessions.csv"),
         )
     }
+
+    @Test
+    fun `csv export neutralizes spreadsheet formulas in text cells`() {
+        val snapshot = DatabaseBackupSnapshot(
+            schemaVersion = 2,
+            exportedAt = 1_800_000_000_000,
+            tables = mapOf(
+                "hc_sleep_sessions" to listOf(
+                    mapOf(
+                        "duration_ms" to JsonPrimitive(-42),
+                        "notes" to JsonPrimitive("+SUM(1;2)"),
+                        "provider_record_id" to JsonPrimitive("-cmd"),
+                        "source_package" to JsonPrimitive("@evil.provider"),
+                        "title" to JsonPrimitive("=HYPERLINK(\"https://attacker.invalid\")"),
+                    ),
+                ),
+            ),
+        )
+
+        val files = formatter.csvFiles(snapshot)
+
+        assertEquals(
+            "duration_ms,notes,provider_record_id,source_package,title\r\n" +
+                "-42,'+SUM(1;2),'-cmd,'@evil.provider,\"'=HYPERLINK(\"\"https://attacker.invalid\"\")\"\r\n",
+            files.getValue("hc_sleep_sessions.csv"),
+        )
+    }
 }
