@@ -12,6 +12,15 @@
 
 - Sin cambios pendientes.
 
+## [V-01.07] - 2026-06-08
+
+### Release V-01.07
+
+#### 2026-06-08 - Bump de version
+
+**Cambiado**
+- Fijada la version de app en `versionName = "V-01.07"` y `versionCode = 107`.
+
 ## [V-01.06] - 2026-05-31
 
 ### Release V-01.06
