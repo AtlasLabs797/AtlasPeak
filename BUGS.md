@@ -24,6 +24,19 @@
 
 ## Entradas
 
+### BUG-060 - Crash al cambiar periodos en Progreso
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-06-11
+- **Fase:** Auditoria pre-publicacion
+- **Severidad:** Alta
+- **Sintoma:** al cambiar rapidamente entre Semana, Mes, 3 meses, Ano o Ano actual en Progreso, la app podia cerrarse en el movil.
+- **Causa raiz:** `ProgressViewModel` lanzaba recargas concurrentes sin cancelar la anterior, sin descartar resultados obsoletos y sin capturar excepciones del flujo de carga; ademas los graficos podian recibir valores no finitos.
+- **Solucion:** `ProgressViewModel` cancela el refresh anterior, aplica resultados solo si siguen correspondiendo al filtro actual y convierte fallos en estado de error UI. Los graficos de Progreso, Home y Composicion corporal filtran `NaN`/`Infinity`.
+- **Prevencion:** `ProgressViewModelTest` cubre cambios rapidos de periodo, fallo de carga sin crash y seleccion repetida sin recarga.
+- **Fecha resolucion:** 2026-06-11
+
+---
+
 ### BUG-044 - Export CSV no neutralizaba formulas de hoja de calculo
 - **Estado:** Resuelto
 - **Fecha deteccion:** 2026-06-08

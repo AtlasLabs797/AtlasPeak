@@ -10,6 +10,21 @@
 
 ## [Unreleased]
 
+### 2026-06-11 - Crash al cambiar periodos de Progreso
+
+**Corregido**
+- Registrado y resuelto `BUG-060`: `ProgressViewModel` cancela refreshes obsoletos,
+  descarta resultados de filtros anteriores y convierte fallos de carga en error UI
+  en vez de dejar que una excepcion cierre la app.
+- Los graficos de Progreso, Home y Composicion corporal filtran puntos `NaN`/`Infinity`
+  antes de pasarlos a Vico.
+
+**Verificado**
+- `.\gradlew.bat --% :app:testDebugUnitTest --tests com.atlaspeak.presentation.progress.ProgressViewModelTest --no-daemon --console=plain` pasa.
+- `.\gradlew.bat --% :app:testDebugUnitTest --tests com.atlaspeak.domain.usecase.progress.ProgressUseCaseTest :app:assembleDebug :app:lintDebug --no-daemon --console=plain` pasa.
+- `.\gradlew.bat --% :app:assembleDebug :app:lintDebug --no-daemon --console=plain` pasa tras los ajustes finales del ViewModel.
+- QA en dispositivo no ejecutada: `adb devices` no lista moviles/emuladores conectados.
+
 ### 2026-06-08 - Mitigacion de formula injection en CSV
 
 **Seguridad**

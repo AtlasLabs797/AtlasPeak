@@ -146,6 +146,14 @@ fun ProgressScreen(
                     icon = { Icon(Icons.Filled.Groups, contentDescription = null) },
                 )
             }
+            state.errorMessageRes?.let { messageRes ->
+                Text(
+                    text = stringResource(messageRes),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(horizontal = spacing.screen),
+                )
+            }
             if (state.isLoading) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -591,12 +599,13 @@ private fun ProgressLineChart(
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
-    if (points.isEmpty()) {
+    val validPoints = remember(points) { points.filter { it.value.isFinite() } }
+    if (validPoints.isEmpty()) {
         EmptyState(R.string.progress_chart_empty)
         return
     }
     val modelProducer = remember { CartesianChartModelProducer() }
-    val dateLabels = remember(points) { points.map { it.startedAt.formatDate() } }
+    val dateLabels = remember(validPoints) { validPoints.map { it.startedAt.formatDate() } }
     val bottomFormatter = remember(dateLabels) {
         CartesianValueFormatter { _, value, _ ->
             dateLabels.getOrNull(value.roundToInt()).orEmpty()
@@ -605,20 +614,20 @@ private fun ProgressLineChart(
     val marker = rememberDefaultCartesianMarker(
         label = rememberTextComponent(color = MaterialTheme.colorScheme.onSurface),
     )
-    LaunchedEffect(points) {
+    LaunchedEffect(validPoints) {
         modelProducer.runTransaction {
             lineSeries {
-                series(points.indices.toList(), points.map { it.value })
+                series(validPoints.indices.toList(), validPoints.map { it.value })
             }
         }
     }
     val chartDescription = stringResource(
         R.string.progress_chart_summary,
         title,
-        points.size,
-        points.first().startedAt.formatDate(),
-        points.last().startedAt.formatDate(),
-        points.last().value,
+        validPoints.size,
+        validPoints.first().startedAt.formatDate(),
+        validPoints.last().startedAt.formatDate(),
+        validPoints.last().value,
     )
     CartesianChartHost(
         chart = rememberCartesianChart(
@@ -630,12 +639,12 @@ private fun ProgressLineChart(
         modelProducer = modelProducer,
         modifier = modifier.semantics { contentDescription = chartDescription },
     )
-    if (points.size > 1) {
+    if (validPoints.size > 1) {
         Text(
             text = stringResource(
                 R.string.progress_chart_date_range,
-                points.first().startedAt.formatDate(),
-                points.last().startedAt.formatDate(),
+                validPoints.first().startedAt.formatDate(),
+                validPoints.last().startedAt.formatDate(),
             ),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

@@ -537,8 +537,17 @@ private fun BodyLineChart(
     metricLabel: String,
     modifier: Modifier = Modifier,
 ) {
+    val validPoints = remember(points) { points.filter { it.value.isFinite() } }
+    if (validPoints.isEmpty()) {
+        Text(
+            text = stringResource(R.string.body_chart_empty),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        return
+    }
     val modelProducer = remember { CartesianChartModelProducer() }
-    val labels = remember(points) { points.map { it.timestamp.formatDate() } }
+    val labels = remember(validPoints) { validPoints.map { it.timestamp.formatDate() } }
     val bottomFormatter = remember(labels) {
         CartesianValueFormatter { _, value, _ ->
             labels.getOrNull(value.roundToInt()).orEmpty()
@@ -547,20 +556,20 @@ private fun BodyLineChart(
     val marker = rememberDefaultCartesianMarker(
         label = rememberTextComponent(color = MaterialTheme.colorScheme.onSurface),
     )
-    LaunchedEffect(points) {
+    LaunchedEffect(validPoints) {
         modelProducer.runTransaction {
             lineSeries {
-                series(points.indices.toList(), points.map { it.value })
+                series(validPoints.indices.toList(), validPoints.map { it.value })
             }
         }
     }
     val chartDescription = stringResource(
         R.string.body_chart_summary,
         metricLabel,
-        points.size,
-        points.first().timestamp.formatDate(),
-        points.last().timestamp.formatDate(),
-        points.last().value.formattedValue(points.last().metric),
+        validPoints.size,
+        validPoints.first().timestamp.formatDate(),
+        validPoints.last().timestamp.formatDate(),
+        validPoints.last().value.formattedValue(validPoints.last().metric),
     )
     CartesianChartHost(
         chart = rememberCartesianChart(

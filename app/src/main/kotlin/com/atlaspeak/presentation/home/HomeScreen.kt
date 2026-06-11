@@ -544,8 +544,17 @@ private fun DashboardChart(
     type: DashboardChartType,
     modifier: Modifier = Modifier,
 ) {
+    val validPoints = remember(points) { points.filter { it.value.isFinite() } }
+    if (validPoints.isEmpty()) {
+        Text(
+            text = stringResource(R.string.home_chart_empty),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        return
+    }
     val modelProducer = remember { CartesianChartModelProducer() }
-    val labels = remember(points) { points.map { it.timestamp.formatDate() } }
+    val labels = remember(validPoints) { validPoints.map { it.timestamp.formatDate() } }
     val bottomFormatter = remember(labels) {
         CartesianValueFormatter { _, value, _ ->
             labels.getOrNull(value.roundToInt()).orEmpty()
@@ -554,24 +563,24 @@ private fun DashboardChart(
     val marker = rememberDefaultCartesianMarker(
         label = rememberTextComponent(color = MaterialTheme.colorScheme.onSurface),
     )
-    LaunchedEffect(points, type) {
+    LaunchedEffect(validPoints, type) {
         modelProducer.runTransaction {
             when (type) {
                 DashboardChartType.Line -> lineSeries {
-                    series(points.indices.toList(), points.map { it.value })
+                    series(validPoints.indices.toList(), validPoints.map { it.value })
                 }
                 DashboardChartType.Columns -> columnSeries {
-                    series(points.indices.toList(), points.map { it.value })
+                    series(validPoints.indices.toList(), validPoints.map { it.value })
                 }
             }
         }
     }
     val chartDescription = stringResource(
         R.string.home_chart_summary,
-        points.size,
-        points.firstOrNull()?.timestamp?.formatDate().orEmpty(),
-        points.lastOrNull()?.timestamp?.formatDate().orEmpty(),
-        points.lastOrNull()?.value ?: 0.0,
+        validPoints.size,
+        validPoints.first().timestamp.formatDate(),
+        validPoints.last().timestamp.formatDate(),
+        validPoints.last().value,
     )
     val chart = when (type) {
         DashboardChartType.Line -> rememberCartesianChart(
