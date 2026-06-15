@@ -898,6 +898,13 @@ private fun ActiveWorkoutExercise.allSetsCompleted(): Boolean {
     return sets.isNotEmpty() && sets.all { it.completed }
 }
 
+private fun WorkoutSet.toInputDraft(): WorkoutSetInputDraft {
+    return WorkoutSetInputDraft(
+        weightText = weightKg?.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() }.orEmpty(),
+        repsText = actualReps?.toString().orEmpty(),
+    )
+}
+
 /**
  * Confirma el borrador solo al PERDER el foco: onFocusChanged también se emite al montar el
  * campo (sin foco), y confirmar ahí pisaría con el modelo lo que el usuario está tecleando.

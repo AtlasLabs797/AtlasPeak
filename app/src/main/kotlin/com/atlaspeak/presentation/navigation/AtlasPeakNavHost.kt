@@ -104,6 +104,12 @@ fun AtlasPeakNavHost(
                             popUpTo(AppRoute.Train.route)
                         }
                     },
+                    onWorkoutDiscarded = {
+                        navController.navigate(AppRoute.Train.route) {
+                            popUpTo(AppRoute.AppGraph.route)
+                            launchSingleTop = true
+                        }
+                    },
                 )
             }
             composable(

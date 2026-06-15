@@ -4,6 +4,8 @@ import androidx.room.withTransaction
 import com.atlaspeak.data.db.AppDatabase
 import com.atlaspeak.data.db.entity.UserEntity
 import com.atlaspeak.data.db.entity.UserProfileEntity
+import com.atlaspeak.domain.model.profile.Gender
+import com.atlaspeak.domain.model.profile.Goal
 import com.atlaspeak.domain.model.profile.UserProfile
 import com.atlaspeak.domain.repository.ProfileRepository
 import java.util.UUID
@@ -33,8 +35,8 @@ class RoomProfileRepository @Inject constructor(
                     displayName = profile.displayName,
                     age = profile.age,
                     heightCm = profile.heightCm,
-                    gender = profile.gender,
-                    goalType = profile.goalType,
+                    gender = profile.gender?.storageValue,
+                    goalType = profile.goalType?.storageValue,
                     photoUri = existing?.photoUri,
                     updatedAt = now,
                 ),
@@ -46,7 +48,7 @@ class RoomProfileRepository @Inject constructor(
         displayName = displayName,
         age = age,
         heightCm = heightCm,
-        gender = gender,
-        goalType = goalType,
+        gender = Gender.fromStorageValue(gender),
+        goalType = Goal.fromStorageValue(goalType),
     )
 }

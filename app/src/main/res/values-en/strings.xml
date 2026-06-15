@@ -26,6 +26,7 @@
     <string name="onboarding_step_label">Step %1$d of %2$d</string>
     <string name="onboarding_welcome_title">Your training, on your device</string>
     <string name="onboarding_welcome_body">Atlas Peak stores your training locally, with no tracking and optional encrypted backup.</string>
+    <string name="onboarding_hero_decoration_cd">Visual summary of training and progress</string>
     <string name="onboarding_get_started">Get started</string>
     <string name="onboarding_google_optional">Connect with Google (optional)</string>
     <string name="onboarding_google_title">Google is optional</string>

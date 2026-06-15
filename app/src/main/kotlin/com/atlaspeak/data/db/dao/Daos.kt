@@ -241,6 +241,16 @@ interface SettingsDao {
         dailySummaryTime: String,
         weeklySummaryEnabled: Boolean,
     )
+
+    @Query(
+        """
+        UPDATE app_settings
+        SET rest_sound_enabled = :soundEnabled,
+            rest_vibration_enabled = :vibrationEnabled
+        WHERE id = 1
+        """,
+    )
+    suspend fun updateRestTimerFeedbackSettings(soundEnabled: Boolean, vibrationEnabled: Boolean)
 }
 
 data class WeeklyPlanRow(

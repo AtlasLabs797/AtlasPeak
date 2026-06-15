@@ -39,6 +39,10 @@ class RoomWorkoutRepository @Inject constructor(
         }
     }
 
+    override suspend fun deleteSession(id: String) {
+        database.workoutDao().deleteSession(id)
+    }
+
     override suspend fun upsertSet(set: WorkoutSet) {
         database.workoutDao().upsertSet(set.toEntity())
     }

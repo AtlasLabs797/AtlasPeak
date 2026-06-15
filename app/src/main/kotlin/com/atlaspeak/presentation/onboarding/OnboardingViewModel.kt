@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.atlaspeak.domain.model.onboarding.OnboardingStep
 import com.atlaspeak.domain.model.profile.UserProfile
+import com.atlaspeak.domain.model.profile.Gender
+import com.atlaspeak.domain.model.profile.Goal
 import com.atlaspeak.domain.repository.OnboardingRepository
 import com.atlaspeak.domain.repository.ProfileRepository
 import com.atlaspeak.domain.usecase.planning.NotificationSettingsUseCase
@@ -104,8 +106,8 @@ class OnboardingViewModel @Inject constructor(
         val name = displayName.trim().ifBlank { null }
         val parsedAge = age.toIntOrNull()
         val parsedHeight = heightCm.replace(',', '.').toDoubleOrNull()
-        val parsedGender = gender.trim().ifBlank { null }
-        val parsedGoal = goalType.trim().ifBlank { null }
+        val parsedGender = Gender.fromStorageValue(gender.trim().ifBlank { null })
+        val parsedGoal = Goal.fromStorageValue(goalType.trim().ifBlank { null })
         if (name == null && parsedAge == null && parsedHeight == null && parsedGender == null && parsedGoal == null) {
             return null
         }

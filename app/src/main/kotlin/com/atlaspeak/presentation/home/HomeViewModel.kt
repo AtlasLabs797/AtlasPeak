@@ -11,6 +11,7 @@ import com.atlaspeak.domain.model.dashboard.DashboardWidget
 import com.atlaspeak.domain.usecase.dashboard.DashboardUseCase
 import com.atlaspeak.domain.usecase.healthconnect.SyncHealthConnectUseCase
 import com.atlaspeak.domain.usecase.planning.WeeklyPlanUseCase
+import com.atlaspeak.domain.repository.ProfileRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.Instant
 import java.time.ZoneId
@@ -28,6 +29,7 @@ class HomeViewModel @Inject constructor(
     private val dashboardUseCase: DashboardUseCase,
     private val weeklyPlanUseCase: WeeklyPlanUseCase,
     private val syncHealthConnectUseCase: SyncHealthConnectUseCase,
+    private val profileRepository: ProfileRepository,
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(HomeUiState())
     private var refreshJob: Job? = null
@@ -51,12 +53,14 @@ class HomeViewModel @Inject constructor(
             try {
                 val snapshot = dashboardUseCase.snapshot(filters)
                 val todayWorkout = todayWorkout()
+                val greetingName = profileRepository.getProfile()?.displayName
                 mutableState.update {
                     if (it.filters == filters) {
                         it.copy(
                             isLoading = false,
                             snapshot = snapshot,
                             todayWorkout = todayWorkout,
+                            greetingName = greetingName,
                             errorMessageRes = null,
                         )
                     } else {
@@ -106,6 +110,7 @@ data class HomeUiState(
     val filters: DashboardFilters = DashboardFilters(),
     val snapshot: DashboardSnapshot? = null,
     val todayWorkout: TodayWorkoutUiState? = null,
+    val greetingName: String? = null,
     @StringRes val errorMessageRes: Int? = null,
 )
 

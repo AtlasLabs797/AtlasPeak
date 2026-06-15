@@ -17,4 +17,11 @@ class RoomWorkoutSettingsRepository @Inject constructor(
             vibrationEnabled = settings?.restVibrationEnabled ?: true,
         )
     }
+
+    override suspend fun updateRestTimerFeedbackSettings(settings: RestTimerFeedbackSettings) {
+        database.settingsDao().updateRestTimerFeedbackSettings(
+            soundEnabled = settings.soundEnabled,
+            vibrationEnabled = settings.vibrationEnabled,
+        )
+    }
 }

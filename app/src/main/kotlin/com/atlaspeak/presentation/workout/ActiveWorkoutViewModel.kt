@@ -12,6 +12,7 @@ import com.atlaspeak.domain.model.workout.WorkoutSet
 import com.atlaspeak.domain.repository.WorkoutRepository
 import com.atlaspeak.domain.repository.WorkoutSettingsRepository
 import com.atlaspeak.domain.usecase.workout.CompleteWorkoutSessionUseCase
+import com.atlaspeak.domain.usecase.workout.DiscardWorkoutSessionUseCase
 import com.atlaspeak.domain.usecase.workout.StartWorkoutSessionUseCase
 import com.atlaspeak.presentation.navigation.AppRoute
 import com.atlaspeak.service.WorkoutForegroundService
@@ -33,6 +34,7 @@ class ActiveWorkoutViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val startWorkoutSessionUseCase: StartWorkoutSessionUseCase,
     private val completeWorkoutSessionUseCase: CompleteWorkoutSessionUseCase,
+    private val discardWorkoutSessionUseCase: DiscardWorkoutSessionUseCase,
     private val workoutRepository: WorkoutRepository,
     private val workoutSettingsRepository: WorkoutSettingsRepository,
     @ApplicationContext private val context: Context,
@@ -99,6 +101,42 @@ class ActiveWorkoutViewModel @Inject constructor(
         }
     }
 
+    fun onRepsTextChanged(set: WorkoutSet, value: String) {
+        val sanitized = value.filter { it.isDigit() }.take(3)
+        mutableState.update { state ->
+            state.copy(
+                inputDrafts = state.inputDrafts + (
+                    set.id to (state.inputDrafts[set.id] ?: set.toInputDraft()).copy(repsText = sanitized)
+                    ),
+            )
+        }
+    }
+
+    fun onWeightTextChanged(set: WorkoutSet, value: String) {
+        val sanitized = value.decimalInput()
+        mutableState.update { state ->
+            state.copy(
+                inputDrafts = state.inputDrafts + (
+                    set.id to (state.inputDrafts[set.id] ?: set.toInputDraft()).copy(weightText = sanitized)
+                    ),
+            )
+        }
+    }
+
+    fun onSetInputCommitted(set: WorkoutSet) {
+        val draft = mutableState.value.inputDrafts[set.id] ?: return
+        viewModelScope.launch {
+            workoutRepository.upsertSet(
+                set.copy(
+                    actualReps = draft.repsText.ifBlank { null }?.toIntOrNull(),
+                    weightKg = draft.weightText.ifBlank { null }?.toDoubleOrNull(),
+                ),
+            )
+            mutableState.update { it.copy(inputDrafts = it.inputDrafts - set.id) }
+            reloadSession()
+        }
+    }
+
     fun addSet(exercise: ActiveWorkoutExercise) {
         val sessionId = mutableState.value.session?.id ?: return
         val lastSet = exercise.sets.maxByOrNull { it.setNumber }
@@ -158,6 +196,23 @@ class ActiveWorkoutViewModel @Inject constructor(
             val summary = completeWorkoutSessionUseCase(session.id) ?: return@launch
             ContextCompat.startForegroundService(context, WorkoutForegroundService.stopIntent(context))
             mutableState.update { it.copy(summary = summary, restTimer = null, completedSessionId = session.id) }
+        }
+    }
+
+    fun discardWorkout() {
+        val session = mutableState.value.session ?: return
+        viewModelScope.launch {
+            discardWorkoutSessionUseCase(session.id)
+            ContextCompat.startForegroundService(context, WorkoutForegroundService.stopIntent(context))
+            restJob?.cancel()
+            mutableState.update {
+                it.copy(
+                    session = null,
+                    restTimer = null,
+                    inputDrafts = emptyMap(),
+                    discarded = true,
+                )
+            }
         }
     }
 
@@ -251,6 +306,8 @@ data class ActiveWorkoutUiState(
     val restTimer: RestTimerUiState? = null,
     val summary: com.atlaspeak.domain.model.workout.WorkoutSummary? = null,
     val completedSessionId: String? = null,
+    val discarded: Boolean = false,
+    val inputDrafts: Map<String, WorkoutSetInputDraft> = emptyMap(),
     val timerServiceStartHandled: Boolean = false,
     val restFeedbackSettings: RestTimerFeedbackSettings = RestTimerFeedbackSettings(
         soundEnabled = true,
@@ -273,6 +330,11 @@ data class RestTimerUiState(
     val progress: Float = if (totalSeconds <= 0) 0f else remainingSeconds / totalSeconds.toFloat()
 }
 
+data class WorkoutSetInputDraft(
+    val weightText: String,
+    val repsText: String,
+)
+
 enum class ActiveWorkoutMessage {
     RoutineMissing,
     TimerServiceUnavailable,
@@ -291,4 +353,11 @@ private fun String.decimalInput(): String {
         }
     }
     return builder.toString().take(6)
+}
+
+private fun WorkoutSet.toInputDraft(): WorkoutSetInputDraft {
+    return WorkoutSetInputDraft(
+        weightText = weightKg?.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() }.orEmpty(),
+        repsText = actualReps?.toString().orEmpty(),
+    )
 }

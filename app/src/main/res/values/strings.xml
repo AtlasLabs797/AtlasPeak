@@ -32,6 +32,7 @@
     <string name="onboarding_step_label">Paso %1$d de %2$d</string>
     <string name="onboarding_welcome_title">Tu entrenamiento, en tu dispositivo</string>
     <string name="onboarding_welcome_body">Atlas Peak guarda tus entrenamientos en local, sin tracking y con backup cifrado opcional.</string>
+    <string name="onboarding_hero_decoration_cd">Resumen visual de entrenamiento y progreso</string>
     <string name="onboarding_get_started">Empezar</string>
     <string name="onboarding_google_optional">Conectar con Google (opcional)</string>
     <string name="onboarding_google_title">Google es opcional</string>
