@@ -10,6 +10,33 @@
 
 ## [Unreleased]
 
+### 2026-06-15 - Rediseño UI/UX monocromo Atlas Peak
+
+**Añadido**
+- Tipografias bundladas `Space Grotesk` y `JetBrains Mono` para UI, titulares y cifras
+  tabulares.
+- Componentes de graficas monocromas Compose (`MonochromeSparkline`,
+  `MonochromeAreaChart`, `MonochromeBarChart`) para Home y Progreso.
+
+**Cambiado**
+- Sistema visual reemplazado por la direccion "instrumento OLED": paleta monocroma,
+  tarjetas de bajo contraste, radios compactos, botones blancos/negros y bottom nav flotante.
+- Home rediseñado al flujo editorial del mockup: saludo, carga semanal gigante,
+  carrusel de metricas, sesion de hoy y metricas secundarias.
+- Progreso rediseñado con cabecera editorial, selector segmentado, volumen mensual,
+  fuerza/record y barras de carga semanal.
+- Entrenamiento activo rediseñado como tabla de telemetria: cronometro en vivo,
+  progreso/volumen, filas kg/reps editables, check de set y descanso inline.
+- Flujos restantes heredan los nuevos tokens; los chips de color de rutinas mantienen
+  compatibilidad de dato pero ya no pintan acentos rojo/verde/azul/morado.
+- Tests de politica UI actualizados a las nuevas fuentes y contraste del tema.
+
+**Verificado**
+- `gradle.bat :app:compileDebugKotlin --no-daemon --console=plain` pasa.
+- `gradle.bat :app:testDebugUnitTest --tests com.atlaspeak.presentation.StaticUiPolicyTest --tests com.atlaspeak.presentation.theme.ThemeAccessibilityTest --no-daemon --console=plain` pasa.
+- `gradle.bat :app:testDebugUnitTest :app:assembleDebug :app:lintDebug --no-daemon --console=plain` pasa.
+- `connectedAndroidTest` no ejecutado: `adb devices` no lista emuladores ni moviles conectados.
+
 ### 2026-06-11 - Crash al cambiar periodos de Progreso
 
 **Corregido**
@@ -24,6 +51,44 @@
 - `.\gradlew.bat --% :app:testDebugUnitTest --tests com.atlaspeak.domain.usecase.progress.ProgressUseCaseTest :app:assembleDebug :app:lintDebug --no-daemon --console=plain` pasa.
 - `.\gradlew.bat --% :app:assembleDebug :app:lintDebug --no-daemon --console=plain` pasa tras los ajustes finales del ViewModel.
 - QA en dispositivo no ejecutada: `adb devices` no lista moviles/emuladores conectados.
+
+### 2026-06-10 - Auditoria pre-publicacion: bugs criticos, flujos y UX premium
+
+**Corregido**
+- `BUG-045`..`BUG-059` (ver BUGS.md): crash potencial al finalizar entrenamiento sin
+  servicio en foreground; entrenamiento activo sin salida (BackHandler + dialogo
+  descartar); cancelacion de cardio sin confirmacion; campos peso/reps inutilizables
+  (borradores de texto crudo por set); perdida silenciosa de sets con ejercicios
+  duplicados en rutina (numeracion continua); restart STICKY sin startForeground
+  (`START_NOT_STICKY`); sesion duplicada tras muerte de proceso (`SavedStateHandle`);
+  bucle de navegacion al completar desde Home; notificaciones de servicio sin
+  `contentIntent`; perdida de estado al cambiar de tab (saveState/restoreState);
+  cardio GPS con distancia 0 imposible de guardar; backups schema v1 irrestaurables
+  (`BackupSnapshotUpgrader`); restore sin reprogramar notificaciones; errores pintados
+  en color primary; race en refresh de composicion corporal.
+
+**Anadido**
+- Pantalla de edicion de perfil (`EditProfileScreen`): nombre, edad, altura, genero
+  (con "Otro" y "Prefiero no decir") y objetivo, editables tras el onboarding.
+  Genero/objetivo se persisten como claves estables (no texto localizado), con
+  mapeo best-effort de valores legacy.
+- Toggles de sonido/vibracion del temporizador de descanso en ajustes.
+- Navegacion atras entre pasos del onboarding.
+- Saludo personalizado en Home; fechas en el historial de Entrenar; tamano de
+  archivo en la lista de backups de Drive y aviso SEC-002 al cambiar la passphrase.
+
+**Cambiado**
+- Calorias de cardio usan el ultimo peso corporal registrado (fallback 75 kg).
+- Duraciones legibles ("1 h 24 min") en resumenes, historial y progreso; los
+  `formatElapsed` duplicados consolidados en `core/time/ElapsedClock`.
+- Pulido premium: anillo de descanso animado con cuenta atras destacada, haptica al
+  completar set, contraste del heroe de resumen en tema claro, targets tactiles de
+  48dp en `PeriodSelector`, umbrales de drag en dp, imagen decorativa sin
+  `contentDescription`.
+- Ortografia espanola corregida en todo `values/strings.xml` (~40 tildes/enes).
+
+**Verificado**
+- `.\gradlew.bat --% :app:assembleDebug :app:testDebugUnitTest :app:lintDebug --no-daemon --console=plain` pasa.
 
 ### 2026-06-08 - Mitigacion de formula injection en CSV
 

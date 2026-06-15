@@ -6,7 +6,6 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.ui.graphics.Color
 
 enum class ThemeMode {
     SYSTEM,
@@ -15,41 +14,41 @@ enum class ThemeMode {
 }
 
 internal val AtlasPeakLightColorScheme = lightColorScheme(
-    primary = AtlasPeakGreen,
-    onPrimary = Color.White,
-    primaryContainer = Color(0xFFDFF5B0),
-    onPrimaryContainer = Color(0xFF17210A),
-    secondary = Color(0xFF5C6255),
-    onSecondary = Color.White,
-    background = AtlasPeakCanvas,
-    onBackground = Color(0xFF171914),
-    surface = Color(0xFFFFFCF4),
-    onSurface = Color(0xFF171914),
-    surfaceVariant = Color(0xFFE9E6DC),
-    onSurfaceVariant = Color(0xFF4D5248),
-    outline = Color(0xFFC8C5BA),
-    error = Color(0xFFBA1A1A),
-    onError = Color.White,
-    surfaceTint = AtlasPeakGreen,
+    primary = AtlasLightColors.ink,
+    onPrimary = AtlasLightColors.onAccent,
+    primaryContainer = AtlasLightColors.surface3,
+    onPrimaryContainer = AtlasLightColors.ink,
+    secondary = AtlasLightColors.ink2,
+    onSecondary = AtlasLightColors.onAccent,
+    background = AtlasLightColors.ground,
+    onBackground = AtlasLightColors.ink,
+    surface = AtlasLightColors.surface,
+    onSurface = AtlasLightColors.ink,
+    surfaceVariant = AtlasLightColors.surface2,
+    onSurfaceVariant = AtlasLightColors.ink2,
+    outline = AtlasLightColors.lineStrong,
+    error = AtlasLightColors.risk,
+    onError = AtlasLightColors.ink,
+    surfaceTint = AtlasLightColors.ink,
 )
 
 internal val AtlasPeakDarkColorScheme = darkColorScheme(
-    primary = AtlasPeakLime,
-    onPrimary = Color(0xFF172100),
-    primaryContainer = Color(0xFF314600),
-    onPrimaryContainer = Color(0xFFE9FF9A),
-    secondary = Color(0xFFC8CBBB),
-    onSecondary = Color(0xFF2D3128),
-    background = AtlasPeakInk,
-    onBackground = Color(0xFFEDEFE5),
-    surface = Color(0xFF151812),
-    onSurface = Color(0xFFEDEFE5),
-    surfaceVariant = Color(0xFF23271F),
-    onSurfaceVariant = Color(0xFFD0D5C7),
-    outline = Color(0xFF464B40),
-    error = Color(0xFFFFB4AB),
-    onError = Color(0xFF690005),
-    surfaceTint = AtlasPeakLime,
+    primary = AtlasDarkColors.ink,
+    onPrimary = AtlasDarkColors.onAccent,
+    primaryContainer = AtlasDarkColors.surface3,
+    onPrimaryContainer = AtlasDarkColors.ink,
+    secondary = AtlasDarkColors.ink2,
+    onSecondary = AtlasDarkColors.onAccent,
+    background = AtlasDarkColors.ground,
+    onBackground = AtlasDarkColors.ink,
+    surface = AtlasDarkColors.surface,
+    onSurface = AtlasDarkColors.ink,
+    surfaceVariant = AtlasDarkColors.surface2,
+    onSurfaceVariant = AtlasDarkColors.ink2,
+    outline = AtlasDarkColors.lineStrong,
+    error = AtlasDarkColors.risk,
+    onError = AtlasDarkColors.onAccent,
+    surfaceTint = AtlasDarkColors.ink,
 )
 
 @Composable
@@ -62,7 +61,11 @@ fun AtlasPeakTheme(
         ThemeMode.LIGHT -> false
         ThemeMode.DARK -> true
     }
-    CompositionLocalProvider(LocalSpacing provides Spacing()) {
+    val atlasColors = if (darkTheme) AtlasDarkColors else AtlasLightColors
+    CompositionLocalProvider(
+        LocalSpacing provides Spacing(),
+        LocalAtlasColors provides atlasColors,
+    ) {
         MaterialTheme(
             colorScheme = if (darkTheme) AtlasPeakDarkColorScheme else AtlasPeakLightColorScheme,
             typography = AtlasPeakTypography,

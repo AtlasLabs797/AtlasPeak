@@ -1,6 +1,7 @@
 package com.atlaspeak.presentation.progress
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -21,6 +23,7 @@ import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -30,14 +33,13 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.PrimaryTabRow
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -57,8 +59,12 @@ import com.atlaspeak.domain.model.workout.WorkoutSession
 import com.atlaspeak.presentation.cardio.CardioRouteMap
 import com.atlaspeak.presentation.component.PeriodSelector
 import com.atlaspeak.presentation.component.PeriodSelectorItem
+import com.atlaspeak.presentation.component.MonochromeAreaChart
+import com.atlaspeak.presentation.component.MonochromeBarChart
 import com.atlaspeak.presentation.component.PremiumBackground
 import com.atlaspeak.presentation.component.PremiumCard
+import com.atlaspeak.presentation.component.formatDurationSeconds
+import com.atlaspeak.presentation.theme.LocalAtlasColors
 import com.atlaspeak.presentation.theme.LocalSpacing
 import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
@@ -104,53 +110,30 @@ fun ProgressScreen(
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     PremiumBackground(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(spacing.screen),
-                verticalArrangement = Arrangement.spacedBy(spacing.sm),
+                    .padding(horizontal = spacing.screen, vertical = spacing.lg),
+                verticalArrangement = Arrangement.spacedBy(spacing.cardGap),
             ) {
-                Text(
-                    text = stringResource(R.string.screen_progress_title),
-                    style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.onBackground,
-                )
+                ProgressHeader()
                 PeriodChips(
                     selectedPeriod = state.selectedPeriod,
                     onPeriodSelected = onPeriodSelected,
                 )
+                if (!state.isLoading) {
+                    StatsOverview(state = state)
+                }
             }
-            PrimaryTabRow(
-                selectedTabIndex = state.selectedTab.ordinal,
-                containerColor = Color.Transparent,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-            ) {
-                Tab(
-                    selected = state.selectedTab == ProgressTab.History,
-                    onClick = { onTabSelected(ProgressTab.History) },
-                    text = { Text(stringResource(R.string.progress_tab_history)) },
-                    icon = { Icon(Icons.Filled.History, contentDescription = null) },
-                )
-                Tab(
-                    selected = state.selectedTab == ProgressTab.Exercises,
-                    onClick = { onTabSelected(ProgressTab.Exercises) },
-                    text = { Text(stringResource(R.string.progress_tab_exercises)) },
-                    icon = { Icon(Icons.Filled.Analytics, contentDescription = null) },
-                )
-                Tab(
-                    selected = state.selectedTab == ProgressTab.MuscleGroups,
-                    onClick = { onTabSelected(ProgressTab.MuscleGroups) },
-                    text = { Text(stringResource(R.string.progress_tab_muscle_groups)) },
-                    icon = { Icon(Icons.Filled.Groups, contentDescription = null) },
-                )
-            }
+            ProgressTabSelector(selected = state.selectedTab, onTabSelected = onTabSelected)
             state.errorMessageRes?.let { messageRes ->
                 Text(
                     text = stringResource(messageRes),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
+                    color = atlasColors.risk,
                     modifier = Modifier.padding(horizontal = spacing.screen),
                 )
             }
@@ -159,7 +142,7 @@ fun ProgressScreen(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
                 ) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(color = atlasColors.ink)
                 }
             } else {
                 when (state.selectedTab) {
@@ -174,6 +157,229 @@ fun ProgressScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ProgressHeader() {
+    val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(spacing.xxs),
+        ) {
+            Text(
+                text = stringResource(R.string.progress_stats_overline).uppercase(),
+                style = MaterialTheme.typography.labelMedium,
+                color = atlasColors.ink3,
+            )
+            Text(
+                text = stringResource(R.string.progress_title_evolution),
+                style = MaterialTheme.typography.headlineMedium,
+                color = atlasColors.ink,
+            )
+        }
+        Icon(
+            imageVector = Icons.Filled.Tune,
+            contentDescription = null,
+            modifier = Modifier.size(24.dp),
+            tint = atlasColors.ink2,
+        )
+    }
+}
+
+@Composable
+private fun ProgressTabSelector(
+    selected: ProgressTab,
+    onTabSelected: (ProgressTab) -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
+    Row(
+        modifier = Modifier
+            .padding(horizontal = spacing.screen)
+            .clip(MaterialTheme.shapes.large)
+            .background(atlasColors.fillSoft)
+            .padding(spacing.xxs),
+        horizontalArrangement = Arrangement.spacedBy(spacing.xxs),
+    ) {
+        ProgressTab.entries.forEach { tab ->
+            val active = selected == tab
+            androidx.compose.material3.Surface(
+                modifier = Modifier.weight(1f),
+                onClick = { onTabSelected(tab) },
+                shape = MaterialTheme.shapes.medium,
+                color = if (active) atlasColors.ink else Color.Transparent,
+                contentColor = if (active) atlasColors.onAccent else atlasColors.ink2,
+                tonalElevation = 0.dp,
+                shadowElevation = 0.dp,
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = spacing.xs, vertical = spacing.sm),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = tab.icon(),
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatsOverview(state: ProgressUiState) {
+    val spacing = LocalSpacing.current
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.cardGap)) {
+        VolumeHero(state.exerciseProgress)
+        StrengthFeature(state.exerciseProgress)
+        WeeklyLoadBars(state.history)
+    }
+}
+
+@Composable
+private fun VolumeHero(exercises: List<ExerciseProgress>) {
+    val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
+    val points = remember(exercises) { volumeSeries(exercises) }
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(spacing.card),
+            verticalArrangement = Arrangement.spacedBy(spacing.sm),
+        ) {
+            Text(
+                text = stringResource(R.string.progress_volume_total_overline).uppercase(),
+                style = MaterialTheme.typography.labelMedium,
+                color = atlasColors.ink3,
+            )
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(
+                    text = formatWhole(points.sumOf { it.toDouble() }),
+                    style = MaterialTheme.typography.displayMedium,
+                    color = atlasColors.ink,
+                )
+                Text(
+                    text = stringResource(R.string.unit_kg),
+                    modifier = Modifier.padding(start = spacing.xs, bottom = 8.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = atlasColors.ink3,
+                )
+            }
+            MonochromeAreaChart(
+                values = points,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(136.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun StrengthFeature(exercises: List<ExerciseProgress>) {
+    val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
+    val strongest = remember(exercises) {
+        exercises.maxByOrNull { it.latestMaxWeightKg ?: 0.0 }
+    }
+    val points = strongest?.points.orEmpty().mapNotNull { it.maxWeightKg?.toFloat() }
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(spacing.card),
+            verticalArrangement = Arrangement.spacedBy(spacing.sm),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.progress_strength_overline).uppercase(),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = atlasColors.ink3,
+                    )
+                    Text(
+                        text = strongest?.exercise?.name ?: stringResource(R.string.progress_metric_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = atlasColors.ink2,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                RecordChip()
+            }
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(
+                    text = strongest?.latestMaxWeightKg?.let { "%.1f".format(Locale.US, it) }
+                        ?: stringResource(R.string.home_value_empty),
+                    style = MaterialTheme.typography.displaySmall,
+                    color = atlasColors.ink,
+                )
+                Text(
+                    text = stringResource(R.string.unit_kg),
+                    modifier = Modifier.padding(start = spacing.xs, bottom = 6.dp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = atlasColors.ink3,
+                )
+            }
+            MonochromeAreaChart(
+                values = points,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(86.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun RecordChip() {
+    val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
+    Row(
+        modifier = Modifier
+            .clip(MaterialTheme.shapes.medium)
+            .background(atlasColors.fillSoft)
+            .padding(horizontal = spacing.sm, vertical = spacing.xs),
+        horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = Icons.Filled.FitnessCenter,
+            contentDescription = null,
+            modifier = Modifier.size(14.dp),
+            tint = atlasColors.ink,
+        )
+        Text(
+            text = stringResource(R.string.progress_record_chip).uppercase(),
+            style = MaterialTheme.typography.labelSmall,
+            color = atlasColors.ink,
+        )
+    }
+}
+
+@Composable
+private fun WeeklyLoadBars(history: List<ProgressHistoryItem>) {
+    val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
+    val bars = remember(history) { weeklyHistoryBars(history) }
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
+        Text(
+            text = stringResource(R.string.progress_weekly_load_overline).uppercase(),
+            style = MaterialTheme.typography.labelMedium,
+            color = atlasColors.ink3,
+        )
+        MonochromeBarChart(
+            values = bars,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(86.dp),
+        )
     }
 }
 
@@ -368,7 +574,12 @@ private fun StrengthDetail(session: WorkoutSession) {
             ?: stringResource(R.string.progress_unknown_strength),
         style = MaterialTheme.typography.titleMedium,
     )
-    Text(stringResource(R.string.workout_complete_duration, session.durationSeconds ?: 0))
+    Text(
+        stringResource(
+            R.string.workout_complete_duration,
+            formatDurationSeconds((session.durationSeconds ?: 0).toLong()),
+        ),
+    )
     Text(stringResource(R.string.workout_complete_volume, session.totalVolumeKg ?: 0.0))
     session.exercises.forEach { exercise ->
         Text(
@@ -399,7 +610,12 @@ private fun StrengthDetail(session: WorkoutSession) {
 private fun CardioDetail(session: com.atlaspeak.domain.model.cardio.CardioSession) {
     SectionTitle(R.string.progress_history_cardio_detail)
     Text(session.cardioTypeName, style = MaterialTheme.typography.titleMedium)
-    Text(stringResource(R.string.cardio_complete_duration, session.durationSeconds ?: 0))
+    Text(
+        stringResource(
+            R.string.cardio_complete_duration,
+            formatDurationSeconds((session.durationSeconds ?: 0).toLong()),
+        ),
+    )
     Text(stringResource(R.string.cardio_complete_distance, session.distanceKm ?: 0.0))
     Text(stringResource(R.string.cardio_complete_avg_speed, session.avgSpeedKmh ?: 0.0))
     Text(stringResource(R.string.cardio_complete_calories, session.caloriesBurned ?: 0))
@@ -703,6 +919,43 @@ private fun Long.formatDate(): String {
     val formatter = DateTimeFormatter.ofPattern("dd MMM", Locale.getDefault())
     return Instant.ofEpochMilli(this).atZone(ZoneId.systemDefault()).format(formatter)
 }
+
+private fun ProgressTab.icon() = when (this) {
+    ProgressTab.History -> Icons.Filled.History
+    ProgressTab.Exercises -> Icons.Filled.Analytics
+    ProgressTab.MuscleGroups -> Icons.Filled.Groups
+}
+
+private fun volumeSeries(exercises: List<ExerciseProgress>): List<Float> {
+    return exercises
+        .flatMap { it.points }
+        .groupBy { it.startedAt }
+        .toSortedMap()
+        .values
+        .map { points -> points.sumOf { it.volumeKg }.toFloat() }
+        .ifEmpty { listOf(0f) }
+}
+
+private fun weeklyHistoryBars(history: List<ProgressHistoryItem>): List<Float> {
+    val byDay = history
+        .groupBy {
+            Instant.ofEpochMilli(it.startedAt)
+                .atZone(ZoneId.systemDefault())
+                .dayOfWeek
+                .value
+        }
+    return (1..7).map { day ->
+        byDay[day].orEmpty().sumOf { item ->
+            when (item) {
+                is ProgressHistoryItem.Strength -> item.session.totalVolumeKg ?: 0.0
+                is ProgressHistoryItem.Cardio -> ((item.durationSeconds ?: 0) / 60.0).coerceAtLeast(0.0)
+            }
+        }.toFloat()
+    }
+}
+
+private fun formatWhole(value: Double): String =
+    "%,d".format(Locale.US, value.roundToInt()).replace(',', ' ')
 
 private data class MetricValue(
     @StringRes val labelRes: Int,

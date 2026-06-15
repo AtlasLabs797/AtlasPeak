@@ -1,11 +1,83 @@
 package com.atlaspeak.presentation.theme
 
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 
-val AtlasPeakGreen = Color(0xFF265C4B)
-val AtlasPeakLime = Color(0xFFD7FF5F)
-val AtlasPeakCoral = Color(0xFFE8504F)
-val AtlasPeakInk = Color(0xFF080A08)
-val AtlasPeakCanvas = Color(0xFFF6F4EE)
-val AtlasSuccess = Color(0xFF22784E)
-val AtlasSuccessDark = Color(0xFF91E6A4)
+val AtlasGround = Color(0xFF0A0A0B)
+val AtlasSurface = Color(0xFF0E0E10)
+val AtlasSurface2 = Color(0xFF131316)
+val AtlasSurface3 = Color(0xFF1A1A1F)
+val AtlasInk = Color(0xFFFAFAFA)
+val AtlasInk2 = Color(0xFF9D9DA6)
+val AtlasInk3 = Color(0xFF67676E)
+val AtlasInk4 = Color(0xFF5E5E66)
+val AtlasOnAccent = Color(0xFF0A0A0B)
+val AtlasRisk = Color(0xFFFF5A4D)
+
+data class AtlasColors(
+    val ground: Color,
+    val surface: Color,
+    val surface2: Color,
+    val surface3: Color,
+    val ink: Color,
+    val ink2: Color,
+    val ink3: Color,
+    val ink4: Color,
+    val onAccent: Color,
+    val line1: Color,
+    val line2: Color,
+    val line3: Color,
+    val lineStrong: Color,
+    val fillSoft: Color,
+    val fillActive: Color,
+    val spark: Color,
+    val grid: Color,
+    val ringTrack: Color,
+    val risk: Color,
+)
+
+val AtlasDarkColors = AtlasColors(
+    ground = AtlasGround,
+    surface = AtlasSurface,
+    surface2 = AtlasSurface2,
+    surface3 = AtlasSurface3,
+    ink = AtlasInk,
+    ink2 = AtlasInk2,
+    ink3 = AtlasInk3,
+    ink4 = AtlasInk4,
+    onAccent = AtlasOnAccent,
+    line1 = Color.White.copy(alpha = 0.08f),
+    line2 = Color.White.copy(alpha = 0.10f),
+    line3 = Color.White.copy(alpha = 0.12f),
+    lineStrong = Color.White.copy(alpha = 0.16f),
+    fillSoft = Color.White.copy(alpha = 0.05f),
+    fillActive = Color.White.copy(alpha = 0.10f),
+    spark = Color.White.copy(alpha = 0.55f),
+    grid = Color.White.copy(alpha = 0.07f),
+    ringTrack = Color.White.copy(alpha = 0.09f),
+    risk = AtlasRisk,
+)
+
+val AtlasLightColors = AtlasColors(
+    ground = Color(0xFFFAFAF8),
+    surface = Color.White,
+    surface2 = Color(0xFFF4F3EF),
+    surface3 = Color(0xFFEFEEE9),
+    ink = AtlasOnAccent,
+    ink2 = Color(0xFF5A5A60),
+    ink3 = Color(0xFF8A8A90),
+    ink4 = Color(0xFFA8A8AE),
+    onAccent = Color(0xFFFAFAFA),
+    line1 = AtlasOnAccent.copy(alpha = 0.08f),
+    line2 = AtlasOnAccent.copy(alpha = 0.12f),
+    line3 = AtlasOnAccent.copy(alpha = 0.16f),
+    lineStrong = AtlasOnAccent.copy(alpha = 0.22f),
+    fillSoft = AtlasOnAccent.copy(alpha = 0.04f),
+    fillActive = AtlasOnAccent.copy(alpha = 0.08f),
+    spark = AtlasOnAccent.copy(alpha = 0.55f),
+    grid = AtlasOnAccent.copy(alpha = 0.08f),
+    ringTrack = AtlasOnAccent.copy(alpha = 0.10f),
+    risk = Color(0xFFE0473B),
+)
+
+val LocalAtlasColors = staticCompositionLocalOf { AtlasDarkColors }

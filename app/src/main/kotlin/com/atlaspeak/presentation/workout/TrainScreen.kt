@@ -75,6 +75,9 @@ import com.atlaspeak.presentation.component.AtlasPrimaryButton
 import com.atlaspeak.presentation.component.AtlasSecondaryButton
 import com.atlaspeak.presentation.component.PremiumBackground
 import com.atlaspeak.presentation.component.PremiumCard
+import com.atlaspeak.presentation.component.formatDayDate
+import com.atlaspeak.presentation.component.formatDurationSeconds
+import com.atlaspeak.presentation.theme.LocalAtlasColors
 import com.atlaspeak.presentation.theme.LocalSpacing
 
 @Composable
@@ -556,9 +559,14 @@ private fun CardioSessionCard(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
+                text = formatDayDate(session.startTime),
+                style = MaterialTheme.typography.labelMedium,
+                color = secondaryTextColor,
+            )
+            Text(
                 text = stringResource(
                     R.string.cardio_history_session_summary,
-                    session.durationSeconds ?: 0,
+                    formatDurationSeconds((session.durationSeconds ?: 0).toLong()),
                     session.distanceKm ?: 0.0,
                 ),
                 style = MaterialTheme.typography.bodySmall,
@@ -578,7 +586,12 @@ private fun CardioSessionDetailCard(session: CardioSession) {
         ) {
             SectionTitle(R.string.cardio_history_detail_title)
             Text(session.cardioTypeName, style = MaterialTheme.typography.titleMedium)
-            Text(stringResource(R.string.cardio_complete_duration, session.durationSeconds ?: 0))
+            Text(
+                stringResource(
+                    R.string.cardio_complete_duration,
+                    formatDurationSeconds((session.durationSeconds ?: 0).toLong()),
+                ),
+            )
             Text(stringResource(R.string.cardio_complete_distance, session.distanceKm ?: 0.0))
             Text(stringResource(R.string.cardio_complete_avg_speed, session.avgSpeedKmh ?: 0.0))
             Text(stringResource(R.string.cardio_complete_calories, session.caloriesBurned ?: 0))
@@ -956,6 +969,9 @@ private fun DraftExerciseCard(
         modifier = Modifier
             .fillMaxWidth()
             .pointerInput(item.key, first, last) {
+                // El umbral se convierte de dp a px aquí: un valor fijo en px era
+                // demasiado sensible en pantallas de alta densidad.
+                val thresholdPx = DRAG_REORDER_THRESHOLD_DP.dp.toPx()
                 detectVerticalDragGestures(
                     onDragCancel = { dragOffset = 0f },
                     onDragEnd = { dragOffset = 0f },
@@ -963,11 +979,11 @@ private fun DraftExerciseCard(
                     change.consume()
                     dragOffset += dragAmount
                     when {
-                        dragOffset <= -DRAG_REORDER_THRESHOLD_PX && !first -> {
+                        dragOffset <= -thresholdPx && !first -> {
                             onMoveUp()
                             dragOffset = 0f
                         }
-                        dragOffset >= DRAG_REORDER_THRESHOLD_PX && !last -> {
+                        dragOffset >= thresholdPx && !last -> {
                             onMoveDown()
                             dragOffset = 0f
                         }
@@ -1096,7 +1112,7 @@ private fun RoutineCard(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(spacing.sm),
         ) {
-            ColorSwatch(routine.colorTag)
+            ColorSwatch(selected = selected)
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(spacing.xxs),
@@ -1205,9 +1221,14 @@ private fun WorkoutSessionCard(
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
+                text = formatDayDate(session.startTime),
+                style = MaterialTheme.typography.labelMedium,
+                color = secondaryTextColor,
+            )
+            Text(
                 text = stringResource(
                     R.string.workout_history_session_summary,
-                    session.durationSeconds ?: 0,
+                    formatDurationSeconds((session.durationSeconds ?: 0).toLong()),
                     session.totalVolumeKg ?: 0.0,
                 ),
                 style = MaterialTheme.typography.bodySmall,
@@ -1293,7 +1314,7 @@ private fun RoutineColorChips(
                     selected = selectedColorTag == colorTag.hex,
                     onClick = { onSelected(colorTag.hex) },
                     label = { Text(stringResource(colorTag.labelRes)) },
-                    leadingIcon = { ColorSwatch(colorTag.hex) },
+                    leadingIcon = { ColorSwatch(selected = selectedColorTag == colorTag.hex) },
                 )
             }
         }
@@ -1301,12 +1322,15 @@ private fun RoutineColorChips(
 }
 
 @Composable
-private fun ColorSwatch(hex: String?) {
-    val color = routineColorTags.firstOrNull { it.hex == hex }?.color ?: MaterialTheme.colorScheme.primary
+private fun ColorSwatch(selected: Boolean) {
+    val atlasColors = LocalAtlasColors.current
     Box(
         modifier = Modifier
             .size(16.dp)
-            .background(color = color, shape = MaterialTheme.shapes.extraSmall),
+            .background(
+                color = if (selected) atlasColors.ink else atlasColors.fillActive,
+                shape = MaterialTheme.shapes.extraSmall,
+            ),
     )
 }
 
@@ -1361,14 +1385,13 @@ private fun MessageText(message: TrainUiMessage?) {
 private data class RoutineColorTag(
     val hex: String,
     @StringRes val labelRes: Int,
-    val color: Color,
 )
 
 private val routineColorTags = listOf(
-    RoutineColorTag("#D32F2F", R.string.workout_color_red, Color(0xFFD32F2F)),
-    RoutineColorTag("#2E7D32", R.string.workout_color_green, Color(0xFF2E7D32)),
-    RoutineColorTag("#1565C0", R.string.workout_color_blue, Color(0xFF1565C0)),
-    RoutineColorTag("#6A1B9A", R.string.workout_color_purple, Color(0xFF6A1B9A)),
+    RoutineColorTag("#D32F2F", R.string.workout_color_red),
+    RoutineColorTag("#2E7D32", R.string.workout_color_green),
+    RoutineColorTag("#1565C0", R.string.workout_color_blue),
+    RoutineColorTag("#6A1B9A", R.string.workout_color_purple),
 )
 
-private const val DRAG_REORDER_THRESHOLD_PX = 56f
+private const val DRAG_REORDER_THRESHOLD_DP = 56

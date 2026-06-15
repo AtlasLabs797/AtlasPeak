@@ -8,6 +8,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.sp
+import com.atlaspeak.presentation.theme.LocalAtlasColors
 import com.atlaspeak.presentation.theme.LocalSpacing
 
 @Composable
@@ -18,6 +20,7 @@ fun MetricValue(
     emphasized: Boolean = false,
 ) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     Row(
         modifier = modifier,
         verticalAlignment = Alignment.Bottom,
@@ -26,11 +29,11 @@ fun MetricValue(
         Text(
             text = value,
             style = if (emphasized) {
-                MaterialTheme.typography.displaySmall
+                MaterialTheme.typography.displayMedium
             } else {
-                MaterialTheme.typography.headlineMedium
+                MaterialTheme.typography.displaySmall
             },
-            color = MaterialTheme.colorScheme.onSurface,
+            color = atlasColors.ink,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -38,7 +41,8 @@ fun MetricValue(
             Text(
                 text = unit,
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = atlasColors.ink3,
+                fontSize = 15.sp,
             )
         }
     }

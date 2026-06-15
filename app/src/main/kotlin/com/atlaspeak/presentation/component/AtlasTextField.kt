@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.atlaspeak.presentation.theme.LocalAtlasColors
 
 @Composable
 fun AtlasTextField(
@@ -24,6 +25,7 @@ fun AtlasTextField(
     supportingText: String? = null,
     isError: Boolean = false,
 ) {
+    val atlasColors = LocalAtlasColors.current
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
@@ -37,10 +39,15 @@ fun AtlasTextField(
         keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
         shape = MaterialTheme.shapes.large,
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor = MaterialTheme.colorScheme.primary,
-            unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.75f),
-            focusedContainerColor = MaterialTheme.colorScheme.surface,
-            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+            focusedBorderColor = atlasColors.ink,
+            unfocusedBorderColor = atlasColors.lineStrong,
+            focusedContainerColor = atlasColors.surface,
+            unfocusedContainerColor = atlasColors.surface,
+            focusedTextColor = atlasColors.ink,
+            unfocusedTextColor = atlasColors.ink,
+            focusedLabelColor = atlasColors.ink2,
+            unfocusedLabelColor = atlasColors.ink3,
+            cursorColor = atlasColors.ink,
         ),
     )
 }
