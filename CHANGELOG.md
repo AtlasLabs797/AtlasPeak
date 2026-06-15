@@ -10,6 +10,22 @@
 
 ## [Unreleased]
 
+### 2026-06-15 - Logo launcher desde marca final
+
+**Cambiado**
+- Reemplazado el foreground del launcher por un PNG generado desde `Logo Atlas Peak.png`,
+  recortado y centrado para adaptive icons sin alterar la silueta de la marca.
+- Aumentado el zoom del launcher para eliminar el borde blanco visible en el icono de app.
+- El fondo del adaptive icon pasa a blanco para respetar el aspecto negro/blanco del logo
+  entregado.
+- Reemplazado `ic_launcher_monochrome` por una version monocroma derivada del mismo logo
+  para launcher tematico y notificaciones.
+
+**Verificado**
+- Preview local del icono compuesto en blanco revisado visualmente.
+- `.\gradlew.bat assembleDebug` no pudo ejecutarse: `JAVA_HOME` apunta a
+  `C:\tmp\atlas-dev-tools\jdk-17.0.19+10`, que no existe, y `java.exe` no esta en `PATH`.
+
 ### 2026-06-15 - Rediseño UI/UX monocromo Atlas Peak
 
 **Añadido**
