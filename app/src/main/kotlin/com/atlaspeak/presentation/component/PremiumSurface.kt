@@ -40,7 +40,7 @@ fun PremiumBackground(
 fun PremiumCard(
     modifier: Modifier = Modifier,
     shape: Shape = MaterialTheme.shapes.large,
-    contentPadding: PaddingValues? = null,
+    contentPadding: PaddingValues = PaddingValues(),
     content: @Composable () -> Unit,
 ) {
     val atlasColors = LocalAtlasColors.current
@@ -53,11 +53,7 @@ fun PremiumCard(
         shadowElevation = 0.dp,
         border = BorderStroke(1.dp, atlasColors.line2),
     ) {
-        if (contentPadding != null) {
-            Box(modifier = Modifier.padding(contentPadding)) {
-                content()
-            }
-        } else {
+        Box(modifier = Modifier.padding(contentPadding)) {
             content()
         }
     }

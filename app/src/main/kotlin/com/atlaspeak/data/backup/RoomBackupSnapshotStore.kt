@@ -130,9 +130,8 @@ class RoomBackupSnapshotStore @Inject constructor(
         SqliteAffinity.NUMERIC -> !isJsonString && (booleanOrNull != null || doubleOrNull != null || longOrNull != null)
     }
 
-    private fun String.isBase64(): Boolean = runCatching {
-        android.util.Base64.decode(this, android.util.Base64.NO_WRAP)
-    }.isSuccess
+    private fun String.isBase64(): Boolean =
+        isNotEmpty() && length % 4 == 0 && all { it in BASE64_CHARS || it == '=' }
 
     private val JsonPrimitive.isJsonString: Boolean
         get() = toString().startsWith("\"")
@@ -174,17 +173,16 @@ class RoomBackupSnapshotStore @Inject constructor(
         val type: String,
         val required: Boolean,
     ) {
-        val affinity: SqliteAffinity
-            get() {
-                val normalized = type.uppercase()
-                return when {
-                    "INT" in normalized -> SqliteAffinity.INTEGER
-                    "CHAR" in normalized || "CLOB" in normalized || "TEXT" in normalized -> SqliteAffinity.TEXT
-                    "BLOB" in normalized || normalized.isBlank() -> SqliteAffinity.BLOB
-                    "REAL" in normalized || "FLOA" in normalized || "DOUB" in normalized -> SqliteAffinity.REAL
-                    else -> SqliteAffinity.NUMERIC
-                }
+        val affinity: SqliteAffinity = run {
+            val normalized = type.uppercase()
+            when {
+                "INT" in normalized -> SqliteAffinity.INTEGER
+                "CHAR" in normalized || "CLOB" in normalized || "TEXT" in normalized -> SqliteAffinity.TEXT
+                "BLOB" in normalized || normalized.isBlank() -> SqliteAffinity.BLOB
+                "REAL" in normalized || "FLOA" in normalized || "DOUB" in normalized -> SqliteAffinity.REAL
+                else -> SqliteAffinity.NUMERIC
             }
+        }
     }
 
     private enum class SqliteAffinity {
@@ -196,6 +194,7 @@ class RoomBackupSnapshotStore @Inject constructor(
     }
 
     private companion object {
+        private const val BASE64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
         val TRACKED_CHANGE_COLUMNS = listOf(
             "user_profile" to "updated_at",
             "exercises" to "created_at",

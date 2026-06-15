@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -26,8 +27,8 @@ fun MonochromeSparkline(
     showEndPoint: Boolean = false,
 ) {
     val atlasColors = LocalAtlasColors.current
+    val normalized = remember(values) { values.filter { it.isFinite() } }
     Canvas(modifier = modifier) {
-        val normalized = values.filter { it.isFinite() }
         if (normalized.isEmpty()) return@Canvas
         val minValue = normalized.minOrNull() ?: 0f
         val maxValue = normalized.maxOrNull() ?: 0f
@@ -113,9 +114,9 @@ fun MonochromeBarChart(
     footer: @Composable (BoxScope.() -> Unit)? = null,
 ) {
     val atlasColors = LocalAtlasColors.current
+    val safeValues = remember(values) { values.map { if (it.isFinite()) max(it, 0f) else 0f } }
     Box(modifier = modifier) {
         Canvas(modifier = Modifier.fillMaxSize()) {
-            val safeValues = values.map { if (it.isFinite()) max(it, 0f) else 0f }
             if (safeValues.isEmpty()) return@Canvas
             val gap = 10.dp.toPx()
             val maxValue = max(safeValues.maxOrNull() ?: 1f, 1f)
