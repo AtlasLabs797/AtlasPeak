@@ -1,6 +1,7 @@
 package com.atlaspeak.domain.usecase.planning
 
 import com.atlaspeak.domain.model.planning.WeeklyPlanDay
+import com.atlaspeak.domain.model.planning.WeeklyPlanDayType
 import com.atlaspeak.domain.model.planning.WeeklyPlanUpdate
 import com.atlaspeak.domain.repository.NotificationScheduler
 import com.atlaspeak.domain.repository.WeeklyPlanRepository
@@ -74,6 +75,33 @@ class WeeklyPlanUseCaseTest {
         val saved = repository.saved.single()
         assertEquals("upper", saved.routineId)
         assertFalse(saved.isRestDay)
+        assertTrue(saved.notificationEnabled)
+        assertEquals("18:00", saved.notificationTime)
+        assertEquals(1, scheduler.rescheduleAllCount)
+    }
+
+    @Test
+    fun `cardio day stores cardio type and default target`() = runTest {
+        assertTrue(
+            useCase.updateDay(
+                WeeklyPlanUpdate(
+                    dayOfWeek = 3,
+                    type = WeeklyPlanDayType.Cardio,
+                    routineId = null,
+                    cardioTypeId = "cardio_static_bike",
+                    cardioTargetDurationSec = null,
+                    isRestDay = false,
+                    notificationEnabled = true,
+                    notificationTime = null,
+                ),
+            ),
+        )
+
+        val saved = repository.saved.single()
+        assertEquals(WeeklyPlanDayType.Cardio, saved.type)
+        assertNull(saved.routineId)
+        assertEquals("cardio_static_bike", saved.cardioTypeId)
+        assertEquals(45 * 60, saved.cardioTargetDurationSec)
         assertTrue(saved.notificationEnabled)
         assertEquals("18:00", saved.notificationTime)
         assertEquals(1, scheduler.rescheduleAllCount)

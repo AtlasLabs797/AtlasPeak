@@ -239,12 +239,13 @@ Fase 8 reemplaza el placeholder de `Home` por un dashboard local-first:
   pasos, muestras de frecuencia cardiaca y sueño.
 - `RoomDashboardRepository` usa `DashboardDao` sobre las tablas v1 ya creadas en Fase 1, por
   lo que no hay migracion ni bump de schema.
-- `HomeScreen` muestra la rutina planificada para hoy cuando existe, con CTA directo a
-  `ActiveWorkout`.
+- `HomeScreen` muestra la sesion planificada para hoy cuando existe: rutina de fuerza o
+  cardio. El CTA arranca `ActiveWorkout` para fuerza o `ActiveCardio` en countdown para
+  cardio planificado.
 - `HomeScreen` muestra minutos de entrenamiento esta semana, volumen, consistencia, tiempo
   total de actividad, peso corporal, pasos diarios, frecuencia cardiaca y sueño con periodos
   independientes por widget.
-- `HomeViewModel` combina `DashboardUseCase` con `WeeklyPlanUseCase` para resolver la rutina
+- `HomeViewModel` combina `DashboardUseCase` con `WeeklyPlanUseCase` para resolver la sesion
   planificada de hoy sin filtrar entities Room en presentation.
 - `PeriodSelector` queda como componente compartido para Dashboard y Progreso, en variante
   compacta para no ocupar todo el ancho de las cards.
@@ -329,11 +330,15 @@ revocados.
   de notificaciones y backup. Toda la zona autenticada puede aparecer en capturas porque
   `FLAG_SECURE` esta desactivado por SEC-026.
 - `WeeklyPlanUseCase` normaliza siete dias ISO (`1=Lunes ... 7=Domingo`), valida `HH:mm`,
-  convierte dias de descanso en filas sin rutina/recordatorio y reprograma notificaciones al
-  guardar cada dia.
-- `RoomWeeklyPlanRepository` usa la tabla `weekly_plan` existente; no hay cambio de schema en
-  Fase 11. La marca visual de completado sale de `workout_sessions.completed` dentro de la
-  semana local actual.
+  soporta dias de fuerza, cardio o descanso, convierte descansos en filas sin sesion/
+  recordatorio y reprograma notificaciones al guardar cada dia.
+- `RoomWeeklyPlanRepository` usa `weekly_plan` v4: `type`, `routine_id`, `cardio_type_id` y
+  `cardio_target_duration_sec` permiten planificar fuerza o cardio sin crear rutinas falsas.
+  La marca visual de completado sale de `workout_sessions.completed` dentro de la semana local
+  actual.
+- El seeder inicial crea un plan por defecto de 5 dias: cuatro rutinas de fuerza
+  tren inferior/superior y un miercoles de cardio de 45 min en bici estatica; usa IDs estables
+  e inserciones `IGNORE` para no sobrescribir planes editados por el usuario.
 - `NotificationSettingsUseCase` y `RoomNotificationSettingsRepository` usan `app_settings`
   para el control global, mensajes motivacionales, resumen diario, hora diaria y resumen semanal.
 - WorkManager usa Hilt: `AtlasPeakApplication` implementa `Configuration.Provider`, inyecta
@@ -360,6 +365,8 @@ revocados.
   `GoogleDriveAccessTokenProvider` solo intenta grant silencioso para el worker.
 - `RoomBackupSnapshotStore` vuelca/restaura las 20 tablas de Room. Restore borra en orden
   inverso de FK e inserta en orden de schema dentro de una transaccion.
+- `BackupSnapshotUpgrader` eleva backups schema v2 a v3 anadiendo las columnas nuevas de
+  planificacion cardio en `weekly_plan` con defaults compatibles (`STRENGTH` y `NULL`).
 - `DriveBackupManager`: snapshot DB completo -> JSON Kotlinx -> ATPK/AES-256-GCM -> upload.
 - `BackupWorker` (WorkManager): diario, con red, solo si auto-backup esta activo, hay token
   Drive silencioso, contrasena guardada y hash estable de snapshot distinto. El hash ignora

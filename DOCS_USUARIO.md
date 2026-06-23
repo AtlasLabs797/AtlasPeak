@@ -132,3 +132,9 @@ solo guarde un archivo cifrado que nadie más puede leer.
 ---
 
 *Atlas Peak — Guía de usuario — se actualiza con cada cambio visible*
+
+---
+
+## Plan por defecto
+
+En una instalacion limpia, Atlas Peak trae un plan base de 5 dias: fuerza lunes, martes, jueves y viernes; cardio el miercoles; descanso sabado y domingo. En Perfil -> Planificacion puedes cambiar cada dia entre fuerza, cardio o descanso; en cardio eliges tipo y minutos objetivo.

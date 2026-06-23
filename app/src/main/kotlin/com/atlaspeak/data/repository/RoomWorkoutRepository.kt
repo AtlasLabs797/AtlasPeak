@@ -89,6 +89,7 @@ class RoomWorkoutRepository @Inject constructor(
                     exerciseName = exerciseNames[exerciseId] ?: exerciseId,
                     orderIndex = routineEntry?.orderIndex ?: 0,
                     restSeconds = routineEntry?.restSeconds ?: 90,
+                    notes = routineEntry?.notes,
                     sets = exerciseSets.sortedBy { it.setNumber }.map { set ->
                         set.toDomain(exerciseNames[exerciseId] ?: exerciseId)
                     },

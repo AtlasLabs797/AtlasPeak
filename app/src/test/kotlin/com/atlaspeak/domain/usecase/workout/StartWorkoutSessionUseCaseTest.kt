@@ -72,6 +72,9 @@ class StartWorkoutSessionUseCaseTest {
 
         override suspend fun session(id: String): WorkoutSession? = sessions.firstOrNull { it.id == id }
         override suspend fun sessions(): List<WorkoutSession> = sessions
+        override suspend fun deleteSession(id: String) {
+            sessions = sessions.filterNot { it.id == id }
+        }
         override suspend fun upsertSet(set: com.atlaspeak.domain.model.workout.WorkoutSet) = Unit
         override suspend fun deleteSet(id: String) = Unit
         override suspend fun maxCompletedWeightBefore(exerciseId: String, before: Long): Double? = null

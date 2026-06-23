@@ -8,6 +8,7 @@ import com.atlaspeak.domain.model.dashboard.DashboardFilters
 import com.atlaspeak.domain.model.dashboard.DashboardPeriod
 import com.atlaspeak.domain.model.dashboard.DashboardSnapshot
 import com.atlaspeak.domain.model.dashboard.DashboardWidget
+import com.atlaspeak.domain.model.planning.WeeklyPlanDayType
 import com.atlaspeak.domain.usecase.dashboard.DashboardUseCase
 import com.atlaspeak.domain.usecase.healthconnect.SyncHealthConnectUseCase
 import com.atlaspeak.domain.usecase.planning.WeeklyPlanUseCase
@@ -96,10 +97,28 @@ class HomeViewModel @Inject constructor(
             .dayOfWeek
             .value
         val day = weeklyPlanUseCase.plan().firstOrNull { it.dayOfWeek == today } ?: return null
-        if (day.isRestDay || day.routineId == null || day.routineName == null) return null
+        if (day.isRestDay) return null
+        if (day.type == WeeklyPlanDayType.Cardio) {
+            val cardioTypeId = day.cardioTypeId ?: return null
+            val cardioTypeName = day.cardioTypeName ?: return null
+            return TodayWorkoutUiState(
+                type = TodayWorkoutType.Cardio,
+                routineId = null,
+                routineName = null,
+                cardioTypeId = cardioTypeId,
+                cardioTypeName = cardioTypeName,
+                cardioTargetDurationSec = day.cardioTargetDurationSec,
+                completed = day.completedThisWeek,
+            )
+        }
+        if (day.routineId == null || day.routineName == null) return null
         return TodayWorkoutUiState(
+            type = TodayWorkoutType.Strength,
             routineId = day.routineId,
             routineName = day.routineName,
+            cardioTypeId = null,
+            cardioTypeName = null,
+            cardioTargetDurationSec = null,
             completed = day.completedThisWeek,
         )
     }
@@ -115,10 +134,21 @@ data class HomeUiState(
 )
 
 data class TodayWorkoutUiState(
-    val routineId: String,
-    val routineName: String,
+    val type: TodayWorkoutType,
+    val routineId: String?,
+    val routineName: String?,
+    val cardioTypeId: String?,
+    val cardioTypeName: String?,
+    val cardioTargetDurationSec: Int?,
     val completed: Boolean,
-)
+) {
+    val title: String = routineName ?: cardioTypeName.orEmpty()
+}
+
+enum class TodayWorkoutType {
+    Strength,
+    Cardio,
+}
 
 private fun DashboardFilters.withPeriod(
     widget: DashboardWidget,

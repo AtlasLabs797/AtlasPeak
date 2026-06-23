@@ -61,7 +61,7 @@ import com.atlaspeak.data.db.entity.WorkoutSetEntity
         HcSleepStageEntity::class,
         HcHeartRateSampleEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -220,6 +220,14 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_user_profile_user_id ON user_profile(user_id)")
                 db.execSQL("UPDATE app_settings SET biometrics_enabled = 0")
                 db.execSQL("UPDATE auth_security SET failed_attempts = 0, locked_until = NULL")
+            }
+        }
+
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE weekly_plan ADD COLUMN type TEXT NOT NULL DEFAULT 'STRENGTH'")
+                db.execSQL("ALTER TABLE weekly_plan ADD COLUMN cardio_type_id TEXT")
+                db.execSQL("ALTER TABLE weekly_plan ADD COLUMN cardio_target_duration_sec INTEGER")
             }
         }
 

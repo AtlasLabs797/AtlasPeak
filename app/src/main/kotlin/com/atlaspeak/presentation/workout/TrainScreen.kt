@@ -1171,17 +1171,26 @@ private fun RoutineDetailCard(
                 EmptyState(R.string.workout_routine_draft_empty)
             } else {
                 routine.exercises.forEach { exercise ->
-                    Text(
-                        text = stringResource(
-                            R.string.workout_routine_exercise_line,
-                            exercise.orderIndex + 1,
-                            exercise.exerciseName,
-                            exercise.sets,
-                            exercise.reps,
-                            exercise.restSeconds,
-                        ),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(spacing.xxs)) {
+                        Text(
+                            text = stringResource(
+                                R.string.workout_routine_exercise_line,
+                                exercise.orderIndex + 1,
+                                exercise.exerciseName,
+                                exercise.sets,
+                                exercise.reps,
+                                exercise.restSeconds,
+                            ),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        exercise.notes?.let { notes ->
+                            Text(
+                                text = notes,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                 }
             }
         }

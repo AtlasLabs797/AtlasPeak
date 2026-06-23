@@ -269,7 +269,10 @@ data class BodyCompositionEntity(
 data class WeeklyPlanEntity(
     @PrimaryKey val id: String,
     @ColumnInfo(name = "day_of_week") val dayOfWeek: Int,
+    val type: String = "STRENGTH",
     @ColumnInfo(name = "routine_id") val routineId: String? = null,
+    @ColumnInfo(name = "cardio_type_id") val cardioTypeId: String? = null,
+    @ColumnInfo(name = "cardio_target_duration_sec") val cardioTargetDurationSec: Int? = null,
     @ColumnInfo(name = "is_rest_day") val isRestDay: Boolean = false,
     @ColumnInfo(name = "notification_enabled") val notificationEnabled: Boolean = true,
     @ColumnInfo(name = "notification_time") val notificationTime: String? = null,

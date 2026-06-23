@@ -55,6 +55,31 @@ class BackupSnapshotUpgraderTest {
     }
 
     @Test
+    fun `schema v2 snapshot gains cardio planning columns`() {
+        val upgraded = upgrader.upgradeToCurrent(
+            snapshot(
+                schemaVersion = 2,
+                bodyCompositionRows = emptyList(),
+                weeklyPlanRows = listOf(
+                    mapOf(
+                        "id" to JsonPrimitive("weekly_plan_1"),
+                        "day_of_week" to JsonPrimitive(1),
+                        "routine_id" to JsonPrimitive("routine-1"),
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(BackupJsonCodec.CURRENT_SCHEMA_VERSION, upgraded.schemaVersion)
+        val row = upgraded.tables.getValue("weekly_plan").single()
+        assertEquals(JsonPrimitive("STRENGTH"), row.getValue("type"))
+        assertEquals(JsonNull, row.getValue("cardio_type_id"))
+        assertEquals(JsonNull, row.getValue("cardio_target_duration_sec"))
+        assertEquals(JsonPrimitive("routine-1"), row.getValue("routine_id"))
+    }
+
+
+    @Test
     fun `current schema snapshot passes through unchanged`() {
         val current = snapshot(
             schemaVersion = BackupJsonCodec.CURRENT_SCHEMA_VERSION,
@@ -85,11 +110,16 @@ class BackupSnapshotUpgraderTest {
     private fun snapshot(
         schemaVersion: Int,
         bodyCompositionRows: List<Map<String, JsonElement>>,
+        weeklyPlanRows: List<Map<String, JsonElement>> = emptyList(),
     ) = DatabaseBackupSnapshot(
         schemaVersion = schemaVersion,
         exportedAt = 1_800_000_000_000,
         tables = AppDatabase.TABLES.associateWith { table ->
-            if (table == "body_composition") bodyCompositionRows else emptyList()
+            when (table) {
+                "body_composition" -> bodyCompositionRows
+                "weekly_plan" -> weeklyPlanRows
+                else -> emptyList()
+            }
         },
     )
 }

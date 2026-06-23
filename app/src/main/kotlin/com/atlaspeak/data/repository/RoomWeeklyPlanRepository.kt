@@ -4,6 +4,7 @@ import com.atlaspeak.data.db.AppDatabase
 import com.atlaspeak.data.db.dao.WeeklyPlanRow
 import com.atlaspeak.data.db.entity.WeeklyPlanEntity
 import com.atlaspeak.domain.model.planning.WeeklyPlanDay
+import com.atlaspeak.domain.model.planning.WeeklyPlanDayType
 import com.atlaspeak.domain.repository.WeeklyPlanRepository
 import java.time.Instant
 import java.time.ZoneId
@@ -30,7 +31,10 @@ class RoomWeeklyPlanRepository @Inject constructor(
             WeeklyPlanEntity(
                 id = PLAN_ID_PREFIX + day.dayOfWeek,
                 dayOfWeek = day.dayOfWeek,
+                type = day.type.toEntityValue(),
                 routineId = day.routineId,
+                cardioTypeId = day.cardioTypeId,
+                cardioTargetDurationSec = day.cardioTargetDurationSec,
                 isRestDay = day.isRestDay,
                 notificationEnabled = day.notificationEnabled,
                 notificationTime = day.notificationTime,
@@ -40,8 +44,12 @@ class RoomWeeklyPlanRepository @Inject constructor(
 
     private fun WeeklyPlanRow.toDomain() = WeeklyPlanDay(
         dayOfWeek = dayOfWeek,
+        type = type.toPlanType(),
         routineId = routineId,
         routineName = routineName,
+        cardioTypeId = cardioTypeId,
+        cardioTypeName = cardioTypeName,
+        cardioTargetDurationSec = cardioTargetDurationSec,
         isRestDay = isRestDay,
         notificationEnabled = notificationEnabled,
         notificationTime = notificationTime,
@@ -54,4 +62,14 @@ class RoomWeeklyPlanRepository @Inject constructor(
     private companion object {
         const val PLAN_ID_PREFIX = "weekly_plan_"
     }
+}
+
+private fun WeeklyPlanDayType.toEntityValue(): String = when (this) {
+    WeeklyPlanDayType.Strength -> "STRENGTH"
+    WeeklyPlanDayType.Cardio -> "CARDIO"
+}
+
+private fun String.toPlanType(): WeeklyPlanDayType = when (this) {
+    "CARDIO" -> WeeklyPlanDayType.Cardio
+    else -> WeeklyPlanDayType.Strength
 }

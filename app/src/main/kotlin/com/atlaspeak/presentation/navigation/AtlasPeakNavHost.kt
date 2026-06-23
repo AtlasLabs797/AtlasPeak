@@ -18,6 +18,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.navArgument
 import com.atlaspeak.R
+import com.atlaspeak.domain.model.cardio.CardioMode
 import com.atlaspeak.presentation.backup.BackupRestoreRoute
 import com.atlaspeak.presentation.body.BodyCompositionRoute
 import com.atlaspeak.presentation.cardio.ActiveCardioRoute
@@ -81,6 +82,14 @@ fun AtlasPeakNavHost(
                 HomeRoute(
                     onStartRoutine = { routineId ->
                         navController.navigate(AppRoute.ActiveWorkout.createRoute(routineId))
+                    },
+                    onStartCardio = { cardioTypeId, targetSeconds ->
+                        navController.navigate(
+                            AppRoute.ActiveCardio.createRoute(
+                                cardioTypeId,
+                                CardioMode.Countdown(targetSeconds.coerceAtLeast(60)),
+                            ),
+                        )
                     },
                 )
             }

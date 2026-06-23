@@ -262,6 +262,7 @@
     <string name="home_today_workout_title">Entrenamiento de hoy</string>
     <string name="home_today_workout_body">%1$s planificado</string>
     <string name="home_today_workout_start">Iniciar entrenamiento</string>
+    <string name="home_today_cardio_start">Iniciar cardio</string>
     <string name="home_today_workout_completed">Completado hoy</string>
     <string name="home_weekly_minutes_title">Minutos de entrenamiento esta semana</string>
     <string name="home_widget_volume_title">Volumen total</string>
@@ -307,8 +308,13 @@
     <string name="weekly_plan_body">La semana empieza en lunes. Los recordatorios se programan con WorkManager y pueden llegar alrededor de la hora elegida.</string>
     <string name="weekly_plan_saved">Plan actualizado.</string>
     <string name="weekly_plan_invalid_time">Usa una hora válida en formato HH:mm.</string>
+    <string name="weekly_plan_type_strength">Fuerza</string>
+    <string name="weekly_plan_type_cardio">Cardio</string>
     <string name="weekly_plan_select_routine">Seleccionar rutina</string>
+    <string name="weekly_plan_select_cardio">Seleccionar cardio</string>
     <string name="weekly_plan_no_routine">Sin rutina</string>
+    <string name="weekly_plan_no_session">Sin sesión</string>
+    <string name="weekly_plan_cardio_minutes">Minutos de cardio</string>
     <string name="weekly_plan_rest_day">Día de descanso</string>
     <string name="weekly_plan_reminder_enabled">Recordatorio</string>
     <string name="weekly_plan_reminder_time">Hora de recordatorio</string>

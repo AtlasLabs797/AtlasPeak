@@ -23,6 +23,6 @@ class BackupJsonCodec @Inject constructor() {
     }
 
     companion object {
-        const val CURRENT_SCHEMA_VERSION = 2
+        const val CURRENT_SCHEMA_VERSION = 3
     }
 }

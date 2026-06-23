@@ -2,6 +2,7 @@ package com.atlaspeak.data.backup
 
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
 
 /**
  * Upgrades snapshots written by older app versions to the current backup schema.
@@ -49,6 +50,16 @@ class BackupSnapshotUpgrader {
                 fromVersion = 1,
                 addedColumns = mapOf(
                     "body_composition" to mapOf("body_water_mass_kg" to JsonNull),
+                ),
+            ),
+            UpgradeStep(
+                fromVersion = 2,
+                addedColumns = mapOf(
+                    "weekly_plan" to mapOf(
+                        "type" to JsonPrimitive("STRENGTH"),
+                        "cardio_type_id" to JsonNull,
+                        "cardio_target_duration_sec" to JsonNull,
+                    ),
                 ),
             ),
         )

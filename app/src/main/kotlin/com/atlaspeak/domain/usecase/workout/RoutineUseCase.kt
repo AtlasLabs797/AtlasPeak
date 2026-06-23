@@ -41,6 +41,7 @@ class RoutineUseCase @Inject constructor(
                         weightKg = input.weightKg,
                         restSeconds = input.restSeconds,
                         orderIndex = index,
+                        notes = input.notes?.trim()?.takeIf { it.isNotBlank() },
                     )
                 },
             ),

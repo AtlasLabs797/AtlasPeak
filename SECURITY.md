@@ -52,6 +52,23 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
 - **Causa raiz:** se confiaba en defaults de GitHub/Gradle y en HTTPS, que no fijan integridad de artefactos ni reducen permisos por si solos.
 - **Solucion:** `.github/workflows/ci.yml` declara `permissions: contents: read` y pinnea `actions/checkout`, `actions/setup-java` y `gradle/actions/setup-gradle` a commit SHA. `gradle-wrapper.properties` fija `distributionSha256Sum` para Gradle 8.11.1 y se versiona `gradle/verification-metadata.xml` con SHA-256 de artefactos resueltos.
 - **Prevencion:** cualquier cambio de Action, Gradle o dependencia debe actualizar el SHA/checksum/verification metadata junto al cambio.
+- **2026-06-23:** agregados checksums SHA-256 faltantes de `compose-bom`, `junit-bom`,
+  `kotlinx-coroutines-bom` y `guava-parent` para mantener `dependencyVerification` activo
+  en unit tests, lint y compilacion androidTest.
+
+### SEC-030 - Compatibilidad de backups con plan semanal v4
+- **Estado:** Resuelto
+- **Fecha:** 2026-06-23
+- **Severidad:** Media
+- **Sintoma:** la migracion Room 3->4 agrega columnas a `weekly_plan` para planificar cardio.
+  Sin upgrade del snapshot, un backup antiguo descifrado correctamente seria rechazado por
+  columnas faltantes antes del restore.
+- **Causa raiz:** el restore valida columnas exactas contra el schema vivo; eso es correcto,
+  pero exige que cada migracion de columnas tenga un paso equivalente en `BackupSnapshotUpgrader`.
+- **Solucion:** `BackupJsonCodec.CURRENT_SCHEMA_VERSION` sube a 3 y `BackupSnapshotUpgrader`
+  rellena `weekly_plan.type = STRENGTH`, `cardio_type_id = NULL` y
+  `cardio_target_duration_sec = NULL` para snapshots v2.
+- **Prevencion:** `BackupSnapshotUpgraderTest.schema v2 snapshot gains cardio planning columns`.
 
 ### SEC-027 - Restore de backup validaba columnas, pero no forma/tipo de valores
 - **Estado:** Resuelto

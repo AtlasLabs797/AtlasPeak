@@ -470,6 +470,13 @@ private fun ExercisePage(
                                 style = MaterialTheme.typography.labelSmall,
                                 color = atlasColors.ink3,
                             )
+                            exercise.notes?.let { notes ->
+                                Text(
+                                    text = notes,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = atlasColors.ink3,
+                                )
+                            }
                         }
                         Icon(
                             imageVector = Icons.Filled.MoreHoriz,

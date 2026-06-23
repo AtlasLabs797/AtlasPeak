@@ -42,6 +42,7 @@ class StartWorkoutSessionUseCase(
                     exerciseName = routineExercise.exerciseName,
                     orderIndex = routineExercise.orderIndex,
                     restSeconds = routineExercise.restSeconds,
+                    notes = routineExercise.notes,
                     sets = (1..routineExercise.sets.coerceAtLeast(1)).map { setNumber ->
                         WorkoutSet(
                             id = UUID.randomUUID().toString(),

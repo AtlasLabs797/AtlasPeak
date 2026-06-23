@@ -41,6 +41,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.atlaspeak.R
+import com.atlaspeak.domain.model.planning.WeeklyPlanDayType
 import com.atlaspeak.presentation.component.AtlasPrimaryButton
 import com.atlaspeak.presentation.component.PremiumBackground
 import com.atlaspeak.presentation.component.PremiumCard
@@ -55,7 +56,10 @@ fun WeeklyPlanRoute(
     WeeklyPlanScreen(
         state = state,
         onBack = onBack,
+        onDayTypeSelected = viewModel::setDayType,
         onRoutineSelected = viewModel::selectRoutine,
+        onCardioTypeSelected = viewModel::selectCardioType,
+        onCardioTargetMinutesChanged = viewModel::setCardioTargetMinutes,
         onRestDayChanged = viewModel::setRestDay,
         onNotificationEnabledChanged = viewModel::setNotificationEnabled,
         onNotificationTimeChanged = viewModel::setNotificationTime,
@@ -67,7 +71,10 @@ fun WeeklyPlanRoute(
 fun WeeklyPlanScreen(
     state: WeeklyPlanUiState,
     onBack: () -> Unit,
+    onDayTypeSelected: (Int, WeeklyPlanDayType) -> Unit,
     onRoutineSelected: (Int, String?) -> Unit,
+    onCardioTypeSelected: (Int, String?) -> Unit,
+    onCardioTargetMinutesChanged: (Int, String) -> Unit,
     onRestDayChanged: (Int, Boolean) -> Unit,
     onNotificationEnabledChanged: (Int, Boolean) -> Unit,
     onNotificationTimeChanged: (Int, String) -> Unit,
@@ -113,7 +120,11 @@ fun WeeklyPlanScreen(
                     WeeklyPlanDayCard(
                         day = state.days[index],
                         routines = state.routines,
+                        cardioTypes = state.cardioTypes,
+                        onDayTypeSelected = { type -> onDayTypeSelected(state.days[index].dayOfWeek, type) },
                         onRoutineSelected = { routineId -> onRoutineSelected(state.days[index].dayOfWeek, routineId) },
+                        onCardioTypeSelected = { cardioTypeId -> onCardioTypeSelected(state.days[index].dayOfWeek, cardioTypeId) },
+                        onCardioTargetMinutesChanged = { minutes -> onCardioTargetMinutesChanged(state.days[index].dayOfWeek, minutes) },
                         onRestDayChanged = { onRestDayChanged(state.days[index].dayOfWeek, it) },
                         onNotificationEnabledChanged = { onNotificationEnabledChanged(state.days[index].dayOfWeek, it) },
                         onNotificationTimeChanged = { onNotificationTimeChanged(state.days[index].dayOfWeek, it) },
@@ -165,7 +176,11 @@ private fun ScreenHeader(
 private fun WeeklyPlanDayCard(
     day: WeeklyPlanDayDraft,
     routines: List<RoutineOption>,
+    cardioTypes: List<CardioTypeOption>,
+    onDayTypeSelected: (WeeklyPlanDayType) -> Unit,
     onRoutineSelected: (String?) -> Unit,
+    onCardioTypeSelected: (String?) -> Unit,
+    onCardioTargetMinutesChanged: (String) -> Unit,
     onRestDayChanged: (Boolean) -> Unit,
     onNotificationEnabledChanged: (Boolean) -> Unit,
     onNotificationTimeChanged: (String) -> Unit,
@@ -199,7 +214,7 @@ private fun WeeklyPlanDayCard(
                         style = MaterialTheme.typography.titleMedium,
                     )
                     Text(
-                        text = day.routineName ?: stringResource(if (day.isRestDay) R.string.weekly_plan_rest_day else R.string.weekly_plan_no_routine),
+                        text = day.plannedName ?: stringResource(if (day.isRestDay) R.string.weekly_plan_rest_day else R.string.weekly_plan_no_session),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -210,13 +225,37 @@ private fun WeeklyPlanDayCard(
                     enabled = false,
                 )
             }
-            RoutineDropdown(
-                selectedRoutineId = day.routineId,
-                selectedRoutineName = day.routineName,
-                routines = routines,
+            PlanTypeDropdown(
+                selectedType = day.type,
                 enabled = !day.isRestDay,
-                onRoutineSelected = onRoutineSelected,
+                onTypeSelected = onDayTypeSelected,
             )
+            if (day.type == WeeklyPlanDayType.Cardio) {
+                CardioDropdown(
+                    selectedCardioTypeId = day.cardioTypeId,
+                    selectedCardioTypeName = day.cardioTypeName,
+                    cardioTypes = cardioTypes,
+                    enabled = !day.isRestDay,
+                    onCardioTypeSelected = onCardioTypeSelected,
+                )
+                OutlinedTextField(
+                    value = day.cardioTargetMinutes,
+                    onValueChange = onCardioTargetMinutesChanged,
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !day.isRestDay && day.cardioTypeId != null,
+                    singleLine = true,
+                    label = { Text(stringResource(R.string.weekly_plan_cardio_minutes)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                )
+            } else {
+                RoutineDropdown(
+                    selectedRoutineId = day.routineId,
+                    selectedRoutineName = day.routineName,
+                    routines = routines,
+                    enabled = !day.isRestDay,
+                    onRoutineSelected = onRoutineSelected,
+                )
+            }
             SettingSwitchRow(
                 labelRes = R.string.weekly_plan_rest_day,
                 checked = day.isRestDay,
@@ -225,14 +264,14 @@ private fun WeeklyPlanDayCard(
             SettingSwitchRow(
                 labelRes = R.string.weekly_plan_reminder_enabled,
                 checked = day.notificationEnabled,
-                enabled = !day.isRestDay && day.routineId != null,
+                enabled = !day.isRestDay && day.hasPlannedSession,
                 onCheckedChange = onNotificationEnabledChanged,
             )
             OutlinedTextField(
                 value = day.notificationTime,
                 onValueChange = onNotificationTimeChanged,
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !day.isRestDay && day.routineId != null && day.notificationEnabled,
+                enabled = !day.isRestDay && day.hasPlannedSession && day.notificationEnabled,
                 singleLine = true,
                 label = { Text(stringResource(R.string.weekly_plan_reminder_time)) },
                 supportingText = { Text(stringResource(R.string.weekly_plan_reminder_best_effort)) },
@@ -243,6 +282,44 @@ private fun WeeklyPlanDayCard(
                 modifier = Modifier.fillMaxWidth(),
                 text = stringResource(R.string.action_save),
             )
+        }
+    }
+}
+
+@Composable
+private fun PlanTypeDropdown(
+    selectedType: WeeklyPlanDayType,
+    enabled: Boolean,
+    onTypeSelected: (WeeklyPlanDayType) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    OutlinedButton(
+        onClick = { expanded = true },
+        enabled = enabled,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(
+            modifier = Modifier.weight(1f),
+            text = stringResource(selectedType.labelRes()),
+        )
+        Icon(
+            imageVector = Icons.Filled.ExpandMore,
+            contentDescription = null,
+        )
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            listOf(WeeklyPlanDayType.Strength, WeeklyPlanDayType.Cardio).forEach { type ->
+                DropdownMenuItem(
+                    text = { Text(stringResource(type.labelRes())) },
+                    onClick = {
+                        expanded = false
+                        onTypeSelected(type)
+                    },
+                    enabled = type != selectedType,
+                )
+            }
         }
     }
 }
@@ -274,7 +351,7 @@ private fun RoutineDropdown(
             onDismissRequest = { expanded = false },
         ) {
             DropdownMenuItem(
-                text = { Text(stringResource(R.string.weekly_plan_no_routine)) },
+                text = { Text(stringResource(R.string.weekly_plan_no_session)) },
                 onClick = {
                     expanded = false
                     onRoutineSelected(null)
@@ -288,6 +365,53 @@ private fun RoutineDropdown(
                         onRoutineSelected(routine.id)
                     },
                     enabled = routine.id != selectedRoutineId,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CardioDropdown(
+    selectedCardioTypeId: String?,
+    selectedCardioTypeName: String?,
+    cardioTypes: List<CardioTypeOption>,
+    enabled: Boolean,
+    onCardioTypeSelected: (String?) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    OutlinedButton(
+        onClick = { expanded = true },
+        enabled = enabled,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(
+            modifier = Modifier.weight(1f),
+            text = selectedCardioTypeName ?: stringResource(R.string.weekly_plan_select_cardio),
+        )
+        Icon(
+            imageVector = Icons.Filled.ExpandMore,
+            contentDescription = null,
+        )
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+        ) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.weekly_plan_no_session)) },
+                onClick = {
+                    expanded = false
+                    onCardioTypeSelected(null)
+                },
+            )
+            cardioTypes.forEach { cardioType ->
+                DropdownMenuItem(
+                    text = { Text(cardioType.name) },
+                    onClick = {
+                        expanded = false
+                        onCardioTypeSelected(cardioType.id)
+                    },
+                    enabled = cardioType.id != selectedCardioTypeId,
                 )
             }
         }
@@ -325,6 +449,12 @@ private fun SettingSwitchRow(
             onCheckedChange = null,
         )
     }
+}
+
+@StringRes
+private fun WeeklyPlanDayType.labelRes(): Int = when (this) {
+    WeeklyPlanDayType.Strength -> R.string.weekly_plan_type_strength
+    WeeklyPlanDayType.Cardio -> R.string.weekly_plan_type_cardio
 }
 
 @StringRes

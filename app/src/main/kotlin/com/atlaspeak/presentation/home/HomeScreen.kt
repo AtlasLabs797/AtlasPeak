@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.DirectionsBike
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FitnessCenter
@@ -66,6 +67,7 @@ import kotlin.math.roundToInt
 @Composable
 fun HomeRoute(
     onStartRoutine: (String) -> Unit,
+    onStartCardio: (String, Int) -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state = viewModel.state.collectAsStateWithLifecycle().value
@@ -76,6 +78,7 @@ fun HomeRoute(
         state = state,
         onPeriodSelected = viewModel::selectPeriod,
         onStartRoutine = onStartRoutine,
+        onStartCardio = onStartCardio,
     )
 }
 
@@ -84,6 +87,7 @@ fun HomeScreen(
     state: HomeUiState,
     onPeriodSelected: (DashboardWidget, DashboardPeriod) -> Unit,
     onStartRoutine: (String) -> Unit,
+    onStartCardio: (String, Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
@@ -118,6 +122,7 @@ fun HomeScreen(
                     errorMessageRes = state.errorMessageRes,
                     onPeriodSelected = onPeriodSelected,
                     onStartRoutine = onStartRoutine,
+                    onStartCardio = onStartCardio,
                 )
             }
         }
@@ -133,6 +138,7 @@ private fun DashboardContent(
     @StringRes errorMessageRes: Int?,
     onPeriodSelected: (DashboardWidget, DashboardPeriod) -> Unit,
     onStartRoutine: (String) -> Unit,
+    onStartCardio: (String, Int) -> Unit,
 ) {
     val spacing = LocalSpacing.current
     val atlasColors = LocalAtlasColors.current
@@ -172,7 +178,15 @@ private fun DashboardContent(
             item {
                 TodayWorkoutCard(
                     workout = workout,
-                    onStartRoutine = { onStartRoutine(workout.routineId) },
+                    onStart = {
+                        if (workout.type == TodayWorkoutType.Cardio) {
+                            val cardioTypeId = workout.cardioTypeId ?: return@TodayWorkoutCard
+                            onStartCardio(cardioTypeId, workout.cardioTargetDurationSec ?: 0)
+                        } else {
+                            val routineId = workout.routineId ?: return@TodayWorkoutCard
+                            onStartRoutine(routineId)
+                        }
+                    },
                 )
             }
         }
@@ -367,7 +381,7 @@ private fun MetricTile(tile: DashboardTile) {
 @Composable
 private fun TodayWorkoutCard(
     workout: TodayWorkoutUiState,
-    onStartRoutine: () -> Unit,
+    onStart: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
@@ -392,21 +406,25 @@ private fun TodayWorkoutCard(
                         color = atlasColors.ink3,
                     )
                     Icon(
-                        imageVector = Icons.Filled.FitnessCenter,
+                        imageVector = if (workout.type == TodayWorkoutType.Cardio) {
+                            Icons.AutoMirrored.Filled.DirectionsBike
+                        } else {
+                            Icons.Filled.FitnessCenter
+                        },
                         contentDescription = null,
                         modifier = Modifier.size(22.dp),
                         tint = atlasColors.ink2,
                     )
                 }
                 Text(
-                    text = workout.routineName,
+                    text = workout.title,
                     style = MaterialTheme.typography.headlineSmall,
                     color = atlasColors.ink,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = stringResource(R.string.home_today_workout_body, workout.routineName),
+                    text = stringResource(R.string.home_today_workout_body, workout.title),
                     style = MaterialTheme.typography.bodySmall,
                     color = atlasColors.ink2,
                     maxLines = 1,
@@ -415,11 +433,13 @@ private fun TodayWorkoutCard(
                 AtlasPrimaryButton(
                     modifier = Modifier.fillMaxWidth(),
                     enabled = !workout.completed,
-                    onClick = onStartRoutine,
+                    onClick = onStart,
                     leadingIcon = Icons.Filled.PlayArrow,
                     text = stringResource(
                         if (workout.completed) {
                             R.string.home_today_workout_completed
+                        } else if (workout.type == TodayWorkoutType.Cardio) {
+                            R.string.home_today_cardio_start
                         } else {
                             R.string.home_today_workout_start
                         },

@@ -251,6 +251,7 @@
     <string name="home_today_workout_title">Today workout</string>
     <string name="home_today_workout_body">%1$s planned</string>
     <string name="home_today_workout_start">Start workout</string>
+    <string name="home_today_cardio_start">Start cardio</string>
     <string name="home_today_workout_completed">Completed today</string>
     <string name="home_weekly_minutes_title">Training minutes this week</string>
     <string name="home_widget_volume_title">Total volume</string>
@@ -296,8 +297,13 @@
     <string name="weekly_plan_body">The week starts on Monday. Reminders use WorkManager and may arrive around the chosen time.</string>
     <string name="weekly_plan_saved">Plan updated.</string>
     <string name="weekly_plan_invalid_time">Use a valid HH:mm time.</string>
+    <string name="weekly_plan_type_strength">Strength</string>
+    <string name="weekly_plan_type_cardio">Cardio</string>
     <string name="weekly_plan_select_routine">Select routine</string>
+    <string name="weekly_plan_select_cardio">Select cardio</string>
     <string name="weekly_plan_no_routine">No routine</string>
+    <string name="weekly_plan_no_session">No session</string>
+    <string name="weekly_plan_cardio_minutes">Cardio minutes</string>
     <string name="weekly_plan_rest_day">Rest day</string>
     <string name="weekly_plan_reminder_enabled">Reminder</string>
     <string name="weekly_plan_reminder_time">Reminder time</string>

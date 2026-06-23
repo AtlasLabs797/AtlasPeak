@@ -70,6 +70,36 @@ class AppDatabaseMigrationTest {
         migrated.close()
     }
 
+    @Test
+    fun migration3To4AddsCardioPlanningColumnsWithoutDroppingPlan() {
+        helper.createDatabase(TEST_DB, 3).apply {
+            insertV3WeeklyPlan()
+            close()
+        }
+
+        val migrated = helper.runMigrationsAndValidate(
+            TEST_DB,
+            4,
+            true,
+            AppDatabase.MIGRATION_3_4,
+        )
+
+        migrated.query(
+            """
+            SELECT type, routine_id, cardio_type_id, cardio_target_duration_sec
+            FROM weekly_plan
+            WHERE day_of_week = 1
+            """.trimIndent(),
+        ).use { cursor ->
+            cursor.moveToFirst()
+            assertEquals("STRENGTH", cursor.getString(0))
+            assertEquals("routine-1", cursor.getString(1))
+            assertNull(cursor.getString(2))
+            assertNull(cursor.getString(3))
+        }
+        migrated.close()
+    }
+
     private fun SupportSQLiteDatabase.insertV1BodyComposition() {
         execSQL(
             """
@@ -126,6 +156,45 @@ class AppDatabaseMigrationTest {
                 'user-1',
                 'Atlas User',
                 1700000000200
+            )
+            """.trimIndent(),
+        )
+    }
+
+    private fun SupportSQLiteDatabase.insertV3WeeklyPlan() {
+        execSQL(
+            """
+            INSERT INTO routines (
+                id,
+                name,
+                created_at,
+                updated_at,
+                is_archived
+            ) VALUES (
+                'routine-1',
+                'Routine 1',
+                1700000000000,
+                1700000000000,
+                0
+            )
+            """.trimIndent(),
+        )
+        execSQL(
+            """
+            INSERT INTO weekly_plan (
+                id,
+                day_of_week,
+                routine_id,
+                is_rest_day,
+                notification_enabled,
+                notification_time
+            ) VALUES (
+                'weekly_plan_1',
+                1,
+                'routine-1',
+                0,
+                1,
+                '18:00'
             )
             """.trimIndent(),
         )

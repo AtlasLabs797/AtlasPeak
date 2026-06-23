@@ -10,6 +10,44 @@
 
 ## [Unreleased]
 
+### 2026-06-23 - Plan por defecto de entrenamiento 5 dias
+
+**Anadido**
+- Instalacion limpia con plan semanal por defecto: fuerza lunes/martes/jueves/viernes,
+  cardio miercoles en bici estatica 45 min y descanso sabado/domingo.
+- Cuatro rutinas seed de fuerza (`Tren inferior/superior A/B`) con ejercicios, series,
+  descansos y notas para rangos, segundos por plancha y superseries.
+- Plan semanal v4 soporta dias de fuerza, cardio o descanso sin disfrazar cardio como rutina.
+
+**Cambiado**
+- Home inicia la sesion planificada de hoy: `ActiveWorkout` para fuerza y `ActiveCardio`
+  countdown para cardio.
+- `routine_exercises.notes` llega al dominio y se muestra en detalle de rutina y entrenamiento activo.
+- Backup schema sube a v3 para restaurar backups antiguos tras las nuevas columnas de `weekly_plan`.
+- `gradle/verification-metadata.xml` incorpora hashes faltantes de BOMs/parents usados por tests/lint.
+
+**Verificado**
+- `.\gradlew.bat --% :app:testDebugUnitTest --tests com.atlaspeak.data.SeedDataTest --tests com.atlaspeak.domain.usecase.planning.WeeklyPlanUseCaseTest --tests com.atlaspeak.data.backup.BackupSnapshotUpgraderTest --no-daemon --no-configuration-cache --console=plain` pasa.
+- `.\gradlew.bat --% :app:assembleDebug :app:lintDebug --no-daemon --no-configuration-cache --console=plain` pasa.
+- `.\gradlew.bat --% :app:compileDebugAndroidTestKotlin --no-daemon --no-configuration-cache --console=plain` pasa.
+- `connectedAndroidTest` no ejecutado: `adb devices` no lista emuladores ni moviles conectados.
+
+### 2026-06-22 - Higiene Git de Skills y remoto GitHub
+
+**Corregido**
+- `Skills/` queda fuera del indice de Git: se conserva como carpeta local de agente, pero
+  no se subira al repositorio.
+- Verificado que `.gitignore` mantiene `Skills/` y que `git ls-files Skills` devuelve
+  cero rutas versionadas.
+- Verificado que el push de `origin` sigue bloqueado con `DISABLED_WRONG_OWNER` para evitar
+  subidas accidentales al owner de GitHub incorrecto.
+
+**Verificado**
+- `git remote show origin` confirma fetch en `https://github.com/AtlasLabs797/AtlasPeak.git`
+  y push desactivado con `DISABLED_WRONG_OWNER`.
+- `Test-Path Skills` devuelve `True`.
+- `git ls-files Skills | Measure-Object` devuelve `Count: 0`.
+
 ### 2026-06-15 - Logo launcher desde marca final
 
 **Cambiado**
