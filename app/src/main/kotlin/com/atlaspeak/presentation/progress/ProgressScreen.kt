@@ -1,6 +1,7 @@
 package com.atlaspeak.presentation.progress
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,7 +16,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Analytics
@@ -24,15 +24,11 @@ import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Tune
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -57,6 +53,8 @@ import com.atlaspeak.domain.model.progress.ProgressHistoryType
 import com.atlaspeak.domain.model.progress.ProgressPeriod
 import com.atlaspeak.domain.model.workout.WorkoutSession
 import com.atlaspeak.presentation.cardio.CardioRouteMap
+import com.atlaspeak.presentation.component.AtlasChip
+import com.atlaspeak.presentation.component.AtlasTextField
 import com.atlaspeak.presentation.component.PeriodSelector
 import com.atlaspeak.presentation.component.PeriodSelectorItem
 import com.atlaspeak.presentation.component.MonochromeAreaChart
@@ -409,14 +407,13 @@ private fun HistoryContent(
         verticalArrangement = Arrangement.spacedBy(spacing.cardGap),
     ) {
         item {
-            OutlinedTextField(
+            AtlasTextField(
                 modifier = Modifier.fillMaxWidth(),
                 value = state.historyQuery,
                 onValueChange = onHistorySearchChanged,
-                label = { Text(stringResource(R.string.progress_history_search)) },
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                label = stringResource(R.string.progress_history_search),
+                keyboardType = KeyboardType.Text,
+                leadingIcon = Icons.Filled.Search,
             )
         }
         item {
@@ -450,10 +447,10 @@ private fun HistoryTypeChips(
     val spacing = LocalSpacing.current
     LazyRow(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
         items(ProgressHistoryType.entries, key = { it.name }) { type ->
-            FilterChip(
+            AtlasChip(
                 selected = selectedType == type,
                 onClick = { onHistoryTypeSelected(type) },
-                label = { Text(stringResource(type.labelRes())) },
+                text = stringResource(type.labelRes()),
             )
         }
     }
@@ -466,26 +463,16 @@ private fun HistoryItemCard(
     onClick: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
-    val cardColors = CardDefaults.cardColors(
-        containerColor = if (selected) {
-            MaterialTheme.colorScheme.primaryContainer
-        } else {
-            MaterialTheme.colorScheme.surface
-        },
-        contentColor = if (selected) {
-            MaterialTheme.colorScheme.onPrimaryContainer
-        } else {
-            MaterialTheme.colorScheme.onSurface
-        },
-    )
-    val secondaryTextColor = if (selected) {
-        MaterialTheme.colorScheme.onPrimaryContainer
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
-    Card(
+    val atlasColors = LocalAtlasColors.current
+    val secondaryTextColor = if (selected) atlasColors.ink else atlasColors.ink3
+    Surface(
         onClick = onClick,
-        colors = cardColors,
+        shape = MaterialTheme.shapes.large,
+        color = if (selected) atlasColors.fillActive else atlasColors.surface,
+        contentColor = atlasColors.ink,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
+        border = BorderStroke(1.dp, if (selected) atlasColors.ink else atlasColors.line2),
     ) {
         Row(
             modifier = Modifier
@@ -501,7 +488,7 @@ private fun HistoryItemCard(
                     Icons.Filled.FitnessCenter
                 },
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = if (selected) atlasColors.ink else atlasColors.ink2,
             )
             Column(
                 modifier = Modifier.weight(1f),
@@ -568,6 +555,7 @@ private fun HistoryDetailCard(item: ProgressHistoryItem) {
 @Composable
 private fun StrengthDetail(session: WorkoutSession) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     SectionTitle(R.string.progress_history_strength_detail)
     Text(
         text = session.routineName?.takeIf { it.isNotBlank() }
@@ -596,18 +584,22 @@ private fun StrengthDetail(session: WorkoutSession) {
                 ),
                 style = MaterialTheme.typography.bodySmall,
                 color = if (set.isPersonalRecord) {
-                    MaterialTheme.colorScheme.primary
+                    atlasColors.ink
                 } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
+                    atlasColors.ink3
                 },
             )
         }
-        HorizontalDivider(modifier = Modifier.padding(vertical = spacing.xs))
+        HorizontalDivider(
+            modifier = Modifier.padding(vertical = spacing.xs),
+            color = atlasColors.line1,
+        )
     }
 }
 
 @Composable
 private fun CardioDetail(session: com.atlaspeak.domain.model.cardio.CardioSession) {
+    val atlasColors = LocalAtlasColors.current
     SectionTitle(R.string.progress_history_cardio_detail)
     Text(session.cardioTypeName, style = MaterialTheme.typography.titleMedium)
     Text(
@@ -625,7 +617,7 @@ private fun CardioDetail(session: com.atlaspeak.domain.model.cardio.CardioSessio
         Text(
             text = stringResource(R.string.cardio_route_not_saved),
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = atlasColors.ink3,
         )
     }
 }
@@ -651,6 +643,7 @@ private fun ExerciseProgressContent(exercises: List<ExerciseProgress>) {
 @Composable
 private fun ExerciseProgressCard(progress: ExerciseProgress) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
@@ -667,7 +660,7 @@ private fun ExerciseProgressCard(progress: ExerciseProgress) {
             Text(
                 text = progress.exercise.muscleGroup.name,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = atlasColors.ink3,
             )
             MetricRow(
                 metrics = listOf(
@@ -711,6 +704,7 @@ private fun MuscleGroupProgressContent(groups: List<MuscleGroupProgress>) {
 @Composable
 private fun MuscleGroupProgressCard(group: MuscleGroupProgress) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
@@ -729,10 +723,10 @@ private fun MuscleGroupProgressCard(group: MuscleGroupProgress) {
                     group.totalVolumeKg,
                 ),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = atlasColors.ink3,
             )
             group.exercises.forEachIndexed { index, progress ->
-                if (index > 0) HorizontalDivider()
+                if (index > 0) HorizontalDivider(color = atlasColors.line1)
                 Text(
                     text = progress.exercise.name,
                     style = MaterialTheme.typography.titleSmall,
@@ -758,6 +752,7 @@ private fun MuscleGroupProgressCard(group: MuscleGroupProgress) {
 @Composable
 private fun MetricRow(metrics: List<MetricValue>) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(spacing.sm),
@@ -770,7 +765,7 @@ private fun MetricRow(metrics: List<MetricValue>) {
                 Text(
                     text = stringResource(metric.labelRes),
                     style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = atlasColors.ink3,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -856,6 +851,7 @@ private fun ProgressLineChart(
         modifier = modifier.semantics { contentDescription = chartDescription },
     )
     if (validPoints.size > 1) {
+        val atlasColors = LocalAtlasColors.current
         Text(
             text = stringResource(
                 R.string.progress_chart_date_range,
@@ -863,7 +859,7 @@ private fun ProgressLineChart(
                 validPoints.last().startedAt.formatDate(),
             ),
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = atlasColors.ink3,
             modifier = Modifier.padding(top = spacing.xxs),
         )
     }
@@ -871,19 +867,21 @@ private fun ProgressLineChart(
 
 @Composable
 private fun SectionTitle(@StringRes titleRes: Int) {
+    val atlasColors = LocalAtlasColors.current
     Text(
         text = stringResource(titleRes),
         style = MaterialTheme.typography.titleMedium,
-        color = MaterialTheme.colorScheme.onSurface,
+        color = atlasColors.ink,
     )
 }
 
 @Composable
 private fun EmptyState(@StringRes textRes: Int) {
+    val atlasColors = LocalAtlasColors.current
     Text(
         text = stringResource(textRes),
         style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        color = atlasColors.ink3,
     )
 }
 

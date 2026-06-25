@@ -43,6 +43,10 @@ Nota: genero y objetivo se eligen con selectores, no escribiendo texto libre.
 
 ## Cómo… (tareas frecuentes)
 
+### Editar tu perfil
+**Perfil → Editar perfil.** Cambia nombre, edad, altura, género y objetivo. Los cambios se
+guardan localmente en el dispositivo.
+
 ### Crear una rutina
 **Entrenar → Rutinas → +**. Ponle nombre y un color, añade ejercicios (de la biblioteca o
 crea los tuyos), define series, repeticiones, peso objetivo y descanso. Arrastra para

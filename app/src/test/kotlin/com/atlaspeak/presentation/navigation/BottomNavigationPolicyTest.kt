@@ -17,14 +17,14 @@ class BottomNavigationPolicyTest {
         .readText()
 
     @Test
-    fun `bottom tabs use the authenticated graph as their stable root`() {
+    fun `bottom tabs use the authenticated graph as their stable root and preserve tab state`() {
         assertEquals(AppRoute.AppGraph.route, bottomNavigationBackStackRootRoute)
         assertTrue(atlasPeakAppSource.contains("navController.navigateToBottomTab(route)"))
         assertTrue(atlasPeakAppSource.contains("popUpTo(bottomNavigationBackStackRootRoute)"))
-        assertTrue(atlasPeakAppSource.contains("saveState = false"))
-        assertTrue(atlasPeakAppSource.contains("restoreState = false"))
-        assertFalse(atlasPeakAppSource.contains("saveState = true"))
-        assertFalse(atlasPeakAppSource.contains("restoreState = true"))
+        assertTrue(atlasPeakAppSource.contains("saveState = true"))
+        assertTrue(atlasPeakAppSource.contains("restoreState = true"))
+        assertFalse(atlasPeakAppSource.contains("saveState = false"))
+        assertFalse(atlasPeakAppSource.contains("restoreState = false"))
         assertFalse(atlasPeakAppSource.contains("findStartDestination"))
     }
 
@@ -52,6 +52,7 @@ class BottomNavigationPolicyTest {
             tabRoutes,
         )
         tabRoutes.forEach { route -> assertTrue(shouldShowBottomBar(route)) }
+        assertTrue(shouldShowBottomBar(AppRoute.EditProfile.route))
         assertTrue(shouldShowBottomBar(AppRoute.WeeklyPlan.route))
         assertTrue(shouldShowBottomBar(AppRoute.Settings.route))
         assertTrue(shouldShowBottomBar(AppRoute.BackupRestore.route))
@@ -69,6 +70,7 @@ class BottomNavigationPolicyTest {
     @Test
     fun `profile subroutes keep profile selected in bottom bar`() {
         assertEquals(AppRoute.Profile.route, selectedBottomTabRoute(AppRoute.Profile.route))
+        assertEquals(AppRoute.Profile.route, selectedBottomTabRoute(AppRoute.EditProfile.route))
         assertEquals(AppRoute.Profile.route, selectedBottomTabRoute(AppRoute.WeeklyPlan.route))
         assertEquals(AppRoute.Profile.route, selectedBottomTabRoute(AppRoute.Settings.route))
         assertEquals(AppRoute.Profile.route, selectedBottomTabRoute(AppRoute.BackupRestore.route))

@@ -27,6 +27,7 @@ import com.atlaspeak.presentation.home.HomeRoute
 import com.atlaspeak.presentation.onboarding.OnboardingRoute
 import com.atlaspeak.presentation.planning.NotificationSettingsRoute
 import com.atlaspeak.presentation.planning.WeeklyPlanRoute
+import com.atlaspeak.presentation.profile.EditProfileRoute
 import com.atlaspeak.presentation.profile.ProfileRoute
 import com.atlaspeak.presentation.progress.ProgressRoute
 import com.atlaspeak.presentation.screen.PlaceholderScreen
@@ -177,10 +178,14 @@ fun AtlasPeakNavHost(
             }
             composable(AppRoute.Profile.route) {
                 ProfileRoute(
+                    onEditProfile = { navController.navigate(AppRoute.EditProfile.route) },
                     onWeeklyPlan = { navController.navigate(AppRoute.WeeklyPlan.route) },
                     onSettings = { navController.navigate(AppRoute.Settings.route) },
                     onBackupRestore = { navController.navigate(AppRoute.BackupRestore.route) },
                 )
+            }
+            composable(AppRoute.EditProfile.route) {
+                EditProfileRoute(onBack = { navController.popBackStack() })
             }
             composable(AppRoute.WeeklyPlan.route) {
                 WeeklyPlanRoute(onBack = { navController.popBackStack() })

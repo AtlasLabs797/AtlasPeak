@@ -34,7 +34,6 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.RocketLaunch
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -67,6 +66,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.atlaspeak.R
 import com.atlaspeak.domain.model.onboarding.OnboardingStep
+import com.atlaspeak.presentation.component.AtlasChip
 import com.atlaspeak.presentation.component.AtlasGhostButton
 import com.atlaspeak.presentation.component.AtlasPrimaryButton
 import com.atlaspeak.presentation.component.AtlasTextField
@@ -75,6 +75,7 @@ import com.atlaspeak.presentation.component.PremiumCard
 import com.atlaspeak.presentation.component.StepDots
 import com.atlaspeak.presentation.theme.AtlasBrushes
 import com.atlaspeak.presentation.theme.AtlasMotion
+import com.atlaspeak.presentation.theme.LocalAtlasColors
 import com.atlaspeak.presentation.theme.LocalSpacing
 
 @Composable
@@ -142,6 +143,7 @@ fun OnboardingScreen(
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     val totalSteps = OnboardingStep.entries.size
     PremiumBackground(modifier = modifier.fillMaxSize()) {
         Column(
@@ -159,7 +161,7 @@ fun OnboardingScreen(
                     totalSteps,
                 ),
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = atlasColors.ink3,
             )
             OnboardingHero(step = state.currentStep)
             AnimatedContent(
@@ -174,12 +176,12 @@ fun OnboardingScreen(
                     Text(
                         text = stringResource(step.titleRes()),
                         style = MaterialTheme.typography.headlineMedium,
-                        color = MaterialTheme.colorScheme.onBackground,
+                        color = atlasColors.ink,
                     )
                     Text(
                         text = stringResource(step.bodyRes()),
                         style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = atlasColors.ink2,
                     )
                     StepBody(
                         state = state,
@@ -214,6 +216,7 @@ fun OnboardingScreen(
 @Composable
 private fun OnboardingHero(step: OnboardingStep) {
     val colors = MaterialTheme.colorScheme
+    val atlasColors = LocalAtlasColors.current
     val decorationCd = stringResource(R.string.onboarding_hero_decoration_cd)
     Box(
         modifier = Modifier
@@ -239,7 +242,7 @@ private fun OnboardingHero(step: OnboardingStep) {
             Icon(
                 imageVector = step.icon(),
                 contentDescription = null,
-                tint = colors.primary,
+                tint = atlasColors.ink,
                 modifier = Modifier.size(48.dp),
             )
         }
@@ -263,7 +266,7 @@ private fun StepBody(
                     modifier = Modifier.padding(spacing.card),
                     text = stringResource(R.string.onboarding_google_status),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = LocalAtlasColors.current.ink2,
                 )
             }
         }
@@ -330,18 +333,19 @@ private fun ChoiceSelector(
     onSelected: (String) -> Unit,
 ) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = atlasColors.ink3,
         )
         LazyRow(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
             items(options, key = { it }) { option ->
-                FilterChip(
+                AtlasChip(
                     selected = selected == option,
                     onClick = { onSelected(option) },
-                    label = { Text(option) },
+                    text = option,
                 )
             }
         }
@@ -358,7 +362,7 @@ private fun OnboardingMessageText(message: OnboardingMessage?) {
     Text(
         text = stringResource(messageRes),
         style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.error,
+        color = LocalAtlasColors.current.risk,
         textAlign = TextAlign.Start,
     )
 }

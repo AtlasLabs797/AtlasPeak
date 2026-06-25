@@ -10,6 +10,36 @@
 
 ## [Unreleased]
 
+### 2026-06-23 - Redisenio completo Monochrome Instrument
+
+**Anadido**
+- Primitivas compartidas `AtlasChip`, `AtlasListRow`, `AtlasSwitchRow`, `AtlasDropdown`,
+  `AtlasDialog`, `AtlasBottomSheet` y soporte de icono/password en `AtlasTextField`.
+- Ruta real `EditProfile` enlazada desde Perfil, con bottom nav visible y Perfil seleccionado
+  en la subpantalla.
+- String i18n `weekly_plan_type_label` en ES/EN para dropdown de tipo de sesion.
+
+**Cambiado**
+- Entrenar, entrenamiento activo, cardio activo/completado, Progreso, Composicion corporal,
+  Perfil, editar perfil, onboarding, plan semanal, ajustes y backup se adaptan al sistema
+  monocromo: chips, campos, dropdowns, dialogs, sheets, filas y estados usan tokens Atlas.
+- Bottom navigation mantiene estado por tab con `saveState=true` y `restoreState=true`;
+  la documentacion tecnica refleja esa politica.
+- Backup conserva password oculto usando `AtlasTextField` con `PasswordVisualTransformation`.
+- `DOCS_USUARIO.md` documenta la edicion de perfil desde Perfil.
+
+**Corregido**
+- `EditProfileScreen` deja de ser pantalla huerfana y queda cubierta por navegacion/politicas.
+- Tests estaticos de bottom nav se alinean con la navegacion real y cubren subrutas de Perfil.
+
+**Verificado**
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat --% :app:compileDebugKotlin --no-daemon --no-configuration-cache --console=plain` pasa.
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat --% :app:testDebugUnitTest --no-daemon --no-configuration-cache --console=plain` pasa.
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat --% :app:lintDebug --no-daemon --no-configuration-cache --console=plain` pasa.
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat --% :app:assembleDebug --no-daemon --no-configuration-cache --console=plain` pasa.
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat --% :app:assembleRelease --no-daemon --no-configuration-cache --console=plain` pasa.
+- `connectedAndroidTest` no ejecutado: `adb devices` no lista emuladores ni moviles conectados.
+
 ### 2026-06-23 - Plan por defecto de entrenamiento 5 dias
 
 **Anadido**

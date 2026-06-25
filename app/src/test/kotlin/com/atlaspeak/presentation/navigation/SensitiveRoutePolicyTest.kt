@@ -18,6 +18,7 @@ class SensitiveRoutePolicyTest {
             AppRoute.Progress.route,
             AppRoute.Body.route,
             AppRoute.Profile.route,
+            AppRoute.EditProfile.route,
             AppRoute.WeeklyPlan.route,
             AppRoute.Settings.route,
             AppRoute.BackupRestore.route,

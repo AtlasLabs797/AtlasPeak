@@ -310,6 +310,7 @@
     <string name="weekly_plan_invalid_time">Usa una hora válida en formato HH:mm.</string>
     <string name="weekly_plan_type_strength">Fuerza</string>
     <string name="weekly_plan_type_cardio">Cardio</string>
+    <string name="weekly_plan_type_label">Tipo de sesion</string>
     <string name="weekly_plan_select_routine">Seleccionar rutina</string>
     <string name="weekly_plan_select_cardio">Seleccionar cardio</string>
     <string name="weekly_plan_no_routine">Sin rutina</string>

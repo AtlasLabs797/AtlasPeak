@@ -29,7 +29,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
@@ -145,7 +144,7 @@ internal fun NavHostController.navigateToBottomTab(tab: BottomTab) {
     // Patrón estándar M3 de bottom navigation: guardar/restaurar el estado de cada pestaña
     // para que cambiar de tab no destruya borradores (rutinas a medias, scroll, etc.).
     navigate(tab.route.route) {
-        popUpTo(graph.findStartDestination().id) {
+        popUpTo(bottomNavigationBackStackRootRoute) {
             saveState = true
         }
         launchSingleTop = true
@@ -159,6 +158,7 @@ internal fun shouldShowBottomBar(route: String?): Boolean {
 
 internal fun selectedBottomTabRoute(route: String?): String? {
     return when (route) {
+        AppRoute.EditProfile.route,
         AppRoute.WeeklyPlan.route,
         AppRoute.Settings.route,
         AppRoute.BackupRestore.route -> AppRoute.Profile.route
@@ -175,6 +175,7 @@ internal val bottomTabs = listOf(
 )
 
 private val bottomNavigationChromeRoutes = bottomTabs.map { it.route.route }.toSet() + setOf(
+    AppRoute.EditProfile.route,
     AppRoute.WeeklyPlan.route,
     AppRoute.Settings.route,
     AppRoute.BackupRestore.route,

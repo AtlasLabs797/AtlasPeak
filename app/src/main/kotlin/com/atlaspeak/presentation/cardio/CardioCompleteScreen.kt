@@ -1,5 +1,6 @@
 package com.atlaspeak.presentation.cardio
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -8,6 +9,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -21,6 +23,8 @@ import com.atlaspeak.domain.model.cardio.CardioSession
 import com.atlaspeak.presentation.component.AtlasPrimaryButton
 import com.atlaspeak.presentation.component.PremiumBackground
 import com.atlaspeak.presentation.component.PremiumCard
+import com.atlaspeak.presentation.component.formatDurationSeconds
+import com.atlaspeak.presentation.theme.LocalAtlasColors
 import com.atlaspeak.presentation.theme.LocalSpacing
 
 @Composable
@@ -38,6 +42,7 @@ fun CardioCompleteScreen(
     onDone: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     val session = state.session
     PremiumBackground(modifier = Modifier.fillMaxSize()) {
         Column(
@@ -50,10 +55,14 @@ fun CardioCompleteScreen(
             Text(
                 text = stringResource(R.string.cardio_complete_title),
                 style = MaterialTheme.typography.headlineMedium,
+                color = atlasColors.ink,
             )
             when {
                 state.isLoading -> CircularProgressIndicator()
-                session == null -> Text(stringResource(R.string.state_empty_title))
+                session == null -> Text(
+                    text = stringResource(R.string.state_empty_title),
+                    color = atlasColors.ink2,
+                )
                 else -> CardioSummary(session)
             }
             AtlasPrimaryButton(
@@ -68,7 +77,8 @@ fun CardioCompleteScreen(
 @Composable
 private fun CardioSummary(session: CardioSession) {
     val spacing = LocalSpacing.current
-    PremiumCard {
+    val atlasColors = LocalAtlasColors.current
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -78,21 +88,49 @@ private fun CardioSummary(session: CardioSession) {
             Text(
                 text = session.cardioTypeName,
                 style = MaterialTheme.typography.titleLarge,
+                color = atlasColors.ink,
             )
-            Text(stringResource(R.string.cardio_complete_duration, session.durationSeconds ?: 0))
-            Text(stringResource(R.string.cardio_complete_distance, session.distanceKm ?: 0.0))
-            Text(stringResource(R.string.cardio_complete_avg_speed, session.avgSpeedKmh ?: 0.0))
-            Text(stringResource(R.string.cardio_complete_max_speed, session.maxSpeedKmh ?: 0.0))
-            Text(stringResource(R.string.cardio_complete_calories, session.caloriesBurned ?: 0))
+            SummaryTile(
+                text = stringResource(
+                    R.string.cardio_complete_duration,
+                    formatDurationSeconds((session.durationSeconds ?: 0).toLong()),
+                ),
+            )
+            SummaryTile(text = stringResource(R.string.cardio_complete_distance, session.distanceKm ?: 0.0))
+            SummaryTile(text = stringResource(R.string.cardio_complete_avg_speed, session.avgSpeedKmh ?: 0.0))
+            SummaryTile(text = stringResource(R.string.cardio_complete_max_speed, session.maxSpeedKmh ?: 0.0))
+            SummaryTile(text = stringResource(R.string.cardio_complete_calories, session.caloriesBurned ?: 0))
             if (session.route.isNotEmpty()) {
                 CardioRouteMap(route = session.route)
             } else {
                 Text(
                     text = stringResource(R.string.cardio_route_not_saved),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = atlasColors.ink2,
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun SummaryTile(text: String) {
+    val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        color = atlasColors.fillSoft,
+        contentColor = atlasColors.ink,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
+        border = BorderStroke(1.dp, atlasColors.line1),
+    ) {
+        Text(
+            text = text,
+            modifier = Modifier.padding(horizontal = spacing.md, vertical = spacing.sm),
+            style = MaterialTheme.typography.labelLarge,
+            color = atlasColors.ink,
+        )
     }
 }

@@ -41,16 +41,13 @@ import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.MoreHoriz
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -87,6 +84,8 @@ import com.atlaspeak.core.time.ElapsedClock
 import com.atlaspeak.domain.model.workout.ActiveWorkoutExercise
 import com.atlaspeak.domain.model.workout.RestTimerFeedbackSettings
 import com.atlaspeak.domain.model.workout.WorkoutSet
+import com.atlaspeak.presentation.component.AtlasBottomSheet
+import com.atlaspeak.presentation.component.AtlasDialog
 import com.atlaspeak.presentation.component.AtlasPrimaryButton
 import com.atlaspeak.presentation.component.AtlasSecondaryButton
 import com.atlaspeak.presentation.component.PremiumBackground
@@ -142,24 +141,24 @@ fun ActiveWorkoutRoute(
     }
 
     if (showExitDialog) {
-        AlertDialog(
+        AtlasDialog(
             onDismissRequest = { showExitDialog = false },
-            title = { Text(stringResource(R.string.workout_exit_dialog_title)) },
-            text = { Text(stringResource(R.string.workout_exit_dialog_body)) },
+            title = stringResource(R.string.workout_exit_dialog_title),
+            message = stringResource(R.string.workout_exit_dialog_body),
             confirmButton = {
-                TextButton(
+                AtlasPrimaryButton(
                     onClick = {
                         showExitDialog = false
                         viewModel.discardWorkout()
                     },
-                ) {
-                    Text(stringResource(R.string.workout_exit_dialog_discard))
-                }
+                    text = stringResource(R.string.workout_exit_dialog_discard),
+                )
             },
             dismissButton = {
-                TextButton(onClick = { showExitDialog = false }) {
-                    Text(stringResource(R.string.workout_exit_dialog_keep))
-                }
+                AtlasSecondaryButton(
+                    onClick = { showExitDialog = false },
+                    text = stringResource(R.string.workout_exit_dialog_keep),
+                )
             },
         )
     }
@@ -298,7 +297,7 @@ fun ActiveWorkoutScreen(
                     }
                 }
                 if (showExerciseSheet) {
-                    ModalBottomSheet(onDismissRequest = { showExerciseSheet = false }) {
+                    AtlasBottomSheet(onDismissRequest = { showExerciseSheet = false }) {
                         ExerciseSheet(
                             exercises = session.exercises,
                             onMoveExercise = onMoveExercise,
@@ -321,7 +320,7 @@ private fun ActiveWorkoutMessageText(message: ActiveWorkoutMessage?) {
     Text(
         text = stringResource(res),
         style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.error,
+        color = LocalAtlasColors.current.risk,
     )
 }
 
@@ -815,6 +814,7 @@ private fun ExerciseSheetRow(
     onMoveExercise: (Int, Int) -> Unit,
 ) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     var dragOffset by remember(exercise.exerciseId) { mutableFloatStateOf(0f) }
     Surface(
         modifier = Modifier
@@ -842,14 +842,22 @@ private fun ExerciseSheetRow(
                 }
             },
         shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = atlasColors.fillSoft,
+        contentColor = atlasColors.ink,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
+        border = BorderStroke(1.dp, atlasColors.line2),
     ) {
         Row(
             modifier = Modifier.padding(spacing.sm),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(spacing.xs),
         ) {
-            Icon(Icons.Filled.DragHandle, contentDescription = null)
+            Icon(
+                Icons.Filled.DragHandle,
+                contentDescription = null,
+                tint = atlasColors.ink3,
+            )
             Text(
                 modifier = Modifier.weight(1f),
                 text = stringResource(R.string.workout_ordered_exercise, index + 1, exercise.exerciseName),
@@ -857,10 +865,18 @@ private fun ExerciseSheetRow(
                 overflow = TextOverflow.Ellipsis,
             )
             IconButton(enabled = !first, onClick = { onMoveExercise(index, -1) }) {
-                Icon(Icons.Filled.ExpandLess, contentDescription = stringResource(R.string.workout_move_exercise_up_cd))
+                Icon(
+                    Icons.Filled.ExpandLess,
+                    contentDescription = stringResource(R.string.workout_move_exercise_up_cd),
+                    tint = if (first) atlasColors.ink4 else atlasColors.ink2,
+                )
             }
             IconButton(enabled = !last, onClick = { onMoveExercise(index, 1) }) {
-                Icon(Icons.Filled.ExpandMore, contentDescription = stringResource(R.string.workout_move_exercise_down_cd))
+                Icon(
+                    Icons.Filled.ExpandMore,
+                    contentDescription = stringResource(R.string.workout_move_exercise_down_cd),
+                    tint = if (last) atlasColors.ink4 else atlasColors.ink2,
+                )
             }
         }
     }

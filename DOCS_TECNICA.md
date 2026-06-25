@@ -108,9 +108,8 @@ Notas de integridad:
 - **Entrada a la app:** no hay contraseña local ni pantalla de login enrutable. `AtlasPeakNavHost`
   arranca en `Launch`; si `onboarding_completed=false` navega a `Onboarding`, y si ya está
   completado navega al grafo autenticado `AppGraph`, cuyo start destination es `Home`.
-  La bottom navigation hace `popUpTo(AppGraph)` sin `saveState/restoreState`: tocar un tab
-  abre siempre su ruta raíz (`Home`, `Train`, `Progress`, `Body` o `Profile`), no una
-  subpantalla restaurada.
+  La bottom navigation es solo iconos, hace `popUpTo(AppGraph)` con `saveState=true` y
+  `restoreState=true`, y restaura el estado de cada tab al volver a seleccionarla.
 - **Google:** no hay login Google para entrar. Drive usa `AuthorizationClient` con scope
   `drive.appdata`; un ID token Google no es un bearer token valido para Drive y nunca
   desbloquea la DB local.
@@ -326,9 +325,9 @@ revocados.
 
 ## 9. Plan semanal y notificaciones
 
-- `ProfileScreen` reemplaza el placeholder y enlaza a `WeeklyPlanScreen`, `SettingsScreen`
-  de notificaciones y backup. Toda la zona autenticada puede aparecer en capturas porque
-  `FLAG_SECURE` esta desactivado por SEC-026.
+- `ProfileScreen` reemplaza el placeholder y enlaza a `EditProfileScreen`,
+  `WeeklyPlanScreen`, `SettingsScreen` de notificaciones y backup. Toda la zona autenticada
+  puede aparecer en capturas porque `FLAG_SECURE` esta desactivado por SEC-026.
 - `WeeklyPlanUseCase` normaliza siete dias ISO (`1=Lunes ... 7=Domingo`), valida `HH:mm`,
   soporta dias de fuerza, cardio o descanso, convierte descansos en filas sin sesion/
   recordatorio y reprograma notificaciones al guardar cada dia.

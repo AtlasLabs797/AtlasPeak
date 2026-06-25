@@ -24,6 +24,32 @@
 
 ## Entradas
 
+### BUG-062 - Politica estatica de bottom nav contradecia la navegacion real
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-06-23
+- **Fase:** Redisenio UI/UX
+- **Severidad:** Media
+- **Sintoma:** `BottomNavigationPolicyTest` fallaba porque esperaba tabs sin `saveState/restoreState`, mientras la app ya conservaba estado de tabs para no perder borradores ni scroll.
+- **Causa raiz:** el test y `DOCS_TECNICA.md` quedaron anclados a una politica anterior despues de cambiar el patron de navegacion.
+- **Solucion:** el test ahora exige `saveState=true`, `restoreState=true`, bottom nav icon-only accesible y subrutas de Perfil con Perfil seleccionado; `DOCS_TECNICA.md` documenta la politica real.
+- **Prevencion:** la politica de bottom nav queda cubierta por test estatico antes de aceptar cambios de navegacion.
+- **Fecha resolucion:** 2026-06-23
+
+---
+
+### BUG-061 - EditProfileScreen estaba implementada pero no era enrutable
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-06-23
+- **Fase:** Redisenio UI/UX
+- **Severidad:** Media
+- **Sintoma:** existian `EditProfileScreen` y `EditProfileViewModel`, pero Perfil no tenia accion para abrirlos y el NavHost no exponia la ruta.
+- **Causa raiz:** la pantalla se habia creado sin integrarla en `AppRoute`, `AtlasPeakNavHost`, bottom navigation chrome routes ni la politica de rutas sensibles.
+- **Solucion:** se anadio `AppRoute.EditProfile`, Perfil enlaza al editor, NavHost registra `EditProfileRoute`, la bottom nav mantiene Perfil seleccionado en esa subruta y `SensitiveRoutePolicy` la clasifica.
+- **Prevencion:** `BottomNavigationPolicyTest` y `SensitiveRoutePolicyTest` cubren `EditProfile` como subruta de Perfil.
+- **Fecha resolucion:** 2026-06-23
+
+---
+
 ### BUG-060 - Crash al cambiar periodos en Progreso
 - **Estado:** Resuelto
 - **Fecha deteccion:** 2026-06-11

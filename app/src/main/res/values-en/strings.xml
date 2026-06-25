@@ -299,6 +299,7 @@
     <string name="weekly_plan_invalid_time">Use a valid HH:mm time.</string>
     <string name="weekly_plan_type_strength">Strength</string>
     <string name="weekly_plan_type_cardio">Cardio</string>
+    <string name="weekly_plan_type_label">Session type</string>
     <string name="weekly_plan_select_routine">Select routine</string>
     <string name="weekly_plan_select_cardio">Select cardio</string>
     <string name="weekly_plan_no_routine">No routine</string>

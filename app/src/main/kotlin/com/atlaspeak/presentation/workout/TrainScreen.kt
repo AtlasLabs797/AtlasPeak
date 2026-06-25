@@ -1,6 +1,7 @@
 package com.atlaspeak.presentation.workout
 
 import androidx.annotation.StringRes
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -13,15 +14,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsBike
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Archive
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
@@ -33,21 +36,11 @@ import androidx.compose.material.icons.filled.Pool
 import androidx.compose.material.icons.filled.Rowing
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.PrimaryTabRow
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -56,7 +49,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
@@ -71,10 +64,13 @@ import com.atlaspeak.domain.model.cardio.CardioType
 import com.atlaspeak.domain.model.workout.Exercise
 import com.atlaspeak.domain.model.workout.MuscleGroup
 import com.atlaspeak.domain.model.workout.Routine
+import com.atlaspeak.presentation.component.AtlasChip
 import com.atlaspeak.presentation.component.AtlasPrimaryButton
 import com.atlaspeak.presentation.component.AtlasSecondaryButton
+import com.atlaspeak.presentation.component.AtlasTextField
 import com.atlaspeak.presentation.component.PremiumBackground
 import com.atlaspeak.presentation.component.PremiumCard
+import com.atlaspeak.presentation.component.PremiumIconBadge
 import com.atlaspeak.presentation.component.formatDayDate
 import com.atlaspeak.presentation.component.formatDurationSeconds
 import com.atlaspeak.presentation.theme.LocalAtlasColors
@@ -166,6 +162,7 @@ fun TrainScreen(
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     PremiumBackground(modifier = modifier.fillMaxSize()) {
         Column(Modifier.fillMaxSize()) {
             Column(
@@ -177,46 +174,23 @@ fun TrainScreen(
                 Text(
                     text = stringResource(R.string.screen_train_title),
                     style = MaterialTheme.typography.headlineMedium,
-                    color = MaterialTheme.colorScheme.onBackground,
+                    color = atlasColors.ink,
                 )
                 MessageText(state.message)
             }
-            PrimaryTabRow(
-                selectedTabIndex = state.selectedTab.ordinal,
-                containerColor = Color.Transparent,
-                contentColor = MaterialTheme.colorScheme.onSurface,
-            ) {
-                Tab(
-                    selected = state.selectedTab == TrainTab.Exercises,
-                    onClick = { onTabSelected(TrainTab.Exercises) },
-                    text = { Text(stringResource(R.string.workout_tab_exercises)) },
-                    icon = { Icon(Icons.Filled.FitnessCenter, contentDescription = null) },
-                )
-                Tab(
-                    selected = state.selectedTab == TrainTab.Routines,
-                    onClick = { onTabSelected(TrainTab.Routines) },
-                    text = { Text(stringResource(R.string.workout_tab_routines)) },
-                    icon = { Icon(Icons.Filled.Timer, contentDescription = null) },
-                )
-                Tab(
-                    selected = state.selectedTab == TrainTab.Cardio,
-                    onClick = { onTabSelected(TrainTab.Cardio) },
-                    text = { Text(stringResource(R.string.workout_tab_cardio)) },
-                    icon = { Icon(Icons.AutoMirrored.Filled.DirectionsRun, contentDescription = null) },
-                )
-                Tab(
-                    selected = state.selectedTab == TrainTab.History,
-                    onClick = { onTabSelected(TrainTab.History) },
-                    text = { Text(stringResource(R.string.workout_tab_history)) },
-                    icon = { Icon(Icons.Filled.History, contentDescription = null) },
-                )
-            }
+            MonochromeTrainTabs(
+                selectedTab = state.selectedTab,
+                onTabSelected = onTabSelected,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = spacing.screen),
+            )
             if (state.isLoading) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
                 ) {
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(color = atlasColors.ink)
                 }
             } else {
                 when (state.selectedTab) {
@@ -267,6 +241,79 @@ fun TrainScreen(
                     )
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun MonochromeTrainTabs(
+    selectedTab: TrainTab,
+    onTabSelected: (TrainTab) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
+    Surface(
+        modifier = modifier,
+        shape = MaterialTheme.shapes.medium,
+        color = atlasColors.fillSoft,
+        contentColor = atlasColors.ink2,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
+        border = BorderStroke(1.dp, atlasColors.line1),
+    ) {
+        LazyRow(
+            modifier = Modifier.padding(spacing.xxs),
+            horizontalArrangement = Arrangement.spacedBy(spacing.xxs),
+        ) {
+            items(trainTabItems, key = { it.tab.name }) { item ->
+                MonochromeTabChip(
+                    selected = selectedTab == item.tab,
+                    onClick = { onTabSelected(item.tab) },
+                    label = stringResource(item.labelRes),
+                    icon = item.icon,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun MonochromeTabChip(
+    selected: Boolean,
+    onClick: () -> Unit,
+    label: String,
+    icon: ImageVector,
+) {
+    val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
+    Surface(
+        onClick = onClick,
+        modifier = Modifier
+            .heightIn(min = 48.dp)
+            .widthIn(min = 92.dp),
+        shape = RoundedCornerShape(50),
+        color = if (selected) atlasColors.ink else androidx.compose.ui.graphics.Color.Transparent,
+        contentColor = if (selected) atlasColors.onAccent else atlasColors.ink2,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = spacing.sm, vertical = spacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp),
+            )
+            Text(
+                text = label,
+                style = if (selected) MaterialTheme.typography.labelLarge else MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
     }
 }
@@ -376,6 +423,7 @@ private fun CardioTypeEditorCard(
     onCancel: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(spacing.card),
@@ -388,25 +436,25 @@ private fun CardioTypeEditorCard(
                     R.string.cardio_edit_type_title
                 },
             )
-            OutlinedTextField(
+            TrainTextField(
                 modifier = Modifier.fillMaxWidth(),
                 value = state.newCardioTypeName,
                 onValueChange = onNameChanged,
-                label = { Text(stringResource(R.string.cardio_type_name_label)) },
-                singleLine = true,
+                label = stringResource(R.string.cardio_type_name_label),
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(spacing.xs),
             ) {
-                Checkbox(
+                MonochromeToggle(
                     checked = state.newCardioTypeHasGps,
                     onCheckedChange = onHasGpsChanged,
                 )
                 Text(
                     text = stringResource(R.string.cardio_type_gps_label),
                     style = MaterialTheme.typography.bodyMedium,
+                    color = LocalAtlasColors.current.ink2,
                 )
             }
             AtlasPrimaryButton(
@@ -446,12 +494,12 @@ private fun CardioCountdownCard(
                 text = stringResource(R.string.cardio_countdown_minutes_label),
                 style = MaterialTheme.typography.titleSmall,
             )
-            OutlinedTextField(
+            TrainTextField(
                 modifier = Modifier.weight(0.6f),
                 value = value,
                 onValueChange = onValueChange,
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                label = stringResource(R.string.cardio_countdown_minutes_label),
+                keyboardType = KeyboardType.Number,
             )
         }
     }
@@ -467,6 +515,7 @@ private fun CardioTypeCard(
     onArchive: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
@@ -479,11 +528,13 @@ private fun CardioTypeCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(spacing.sm),
             ) {
-                Icon(
-                    imageVector = type.iconVector(),
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                )
+                PremiumIconBadge(filled = false) {
+                    Icon(
+                        imageVector = type.iconVector(),
+                        contentDescription = null,
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
                 Column(
                     modifier = Modifier.weight(1f),
                     verticalArrangement = Arrangement.spacedBy(spacing.xxs),
@@ -497,15 +548,23 @@ private fun CardioTypeCard(
                     Text(
                         text = stringResource(if (type.hasGps) R.string.cardio_type_gps_enabled else R.string.cardio_type_manual),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = atlasColors.ink3,
                     )
                 }
                 if (!type.isPreset) {
                     IconButton(onClick = onEdit) {
-                        Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.cardio_edit_type_cd))
+                        Icon(
+                            Icons.Filled.Edit,
+                            contentDescription = stringResource(R.string.cardio_edit_type_cd),
+                            tint = atlasColors.ink2,
+                        )
                     }
                     IconButton(onClick = onArchive) {
-                        Icon(Icons.Filled.Archive, contentDescription = stringResource(R.string.cardio_archive_type_cd))
+                        Icon(
+                            Icons.Filled.Archive,
+                            contentDescription = stringResource(R.string.cardio_archive_type_cd),
+                            tint = atlasColors.ink2,
+                        )
                     }
                 }
             }
@@ -533,18 +592,11 @@ private fun CardioSessionCard(
     onClick: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
-    val cardColors = CardDefaults.cardColors(
-        containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
-        contentColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
-    )
-    val secondaryTextColor = if (selected) {
-        MaterialTheme.colorScheme.onPrimaryContainer
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
-    Card(
+    val atlasColors = LocalAtlasColors.current
+    val secondaryTextColor = if (selected) atlasColors.ink else atlasColors.ink3
+    SelectableTrainCard(
+        selected = selected,
         onClick = onClick,
-        colors = cardColors,
     ) {
         Column(
             modifier = Modifier
@@ -579,6 +631,7 @@ private fun CardioSessionCard(
 @Composable
 private fun CardioSessionDetailCard(session: CardioSession) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(spacing.card),
@@ -598,7 +651,7 @@ private fun CardioSessionDetailCard(session: CardioSession) {
             Text(
                 text = stringResource(if (session.route.isNotEmpty()) R.string.cardio_route_saved else R.string.cardio_route_not_saved),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = atlasColors.ink3,
             )
         }
     }
@@ -733,13 +786,12 @@ private fun SearchField(
     value: String,
     onValueChange: (String) -> Unit,
 ) {
-    OutlinedTextField(
+    TrainTextField(
         modifier = Modifier.fillMaxWidth(),
         value = value,
         onValueChange = onValueChange,
-        label = { Text(stringResource(R.string.workout_search_exercises)) },
-        leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-        singleLine = true,
+        label = stringResource(R.string.workout_search_exercises),
+        leadingIcon = Icons.Filled.Search,
     )
 }
 
@@ -752,6 +804,7 @@ private fun CustomExerciseCard(
     onCancel: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(spacing.card),
@@ -764,12 +817,11 @@ private fun CustomExerciseCard(
                     R.string.workout_edit_exercise_title
                 },
             )
-            OutlinedTextField(
+            TrainTextField(
                 modifier = Modifier.fillMaxWidth(),
                 value = state.newExerciseName,
                 onValueChange = onNameChanged,
-                label = { Text(stringResource(R.string.workout_exercise_name_label)) },
-                singleLine = true,
+                label = stringResource(R.string.workout_exercise_name_label),
             )
             MuscleGroupChips(
                 groups = state.muscleGroups,
@@ -803,6 +855,7 @@ private fun ExerciseCard(
     onArchive: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
@@ -811,11 +864,13 @@ private fun ExerciseCard(
             horizontalArrangement = Arrangement.spacedBy(spacing.sm),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
-                imageVector = Icons.Filled.FitnessCenter,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-            )
+            PremiumIconBadge(filled = false) {
+                Icon(
+                    imageVector = Icons.Filled.FitnessCenter,
+                    contentDescription = null,
+                    modifier = Modifier.size(22.dp),
+                )
+            }
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(spacing.xxs),
@@ -829,12 +884,12 @@ private fun ExerciseCard(
                 Text(
                     text = exercise.muscleGroup.name,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = atlasColors.ink3,
                 )
                 Text(
                     text = stringResource(if (exercise.isPreset) R.string.workout_exercise_preset else R.string.workout_exercise_custom),
                     style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = atlasColors.ink3,
                 )
             }
             if (showArchive) {
@@ -842,12 +897,14 @@ private fun ExerciseCard(
                     Icon(
                         imageVector = Icons.Filled.Edit,
                         contentDescription = stringResource(R.string.workout_edit_exercise_cd),
+                        tint = atlasColors.ink2,
                     )
                 }
                 IconButton(onClick = onArchive) {
                     Icon(
                         imageVector = Icons.Filled.Archive,
                         contentDescription = stringResource(R.string.workout_archive_exercise_cd),
+                        tint = atlasColors.ink2,
                     )
                 }
             }
@@ -871,6 +928,7 @@ private fun RoutineBuilderCard(
     onCancelRoutineEditing: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(spacing.card),
@@ -883,12 +941,11 @@ private fun RoutineBuilderCard(
                     R.string.workout_edit_routine_title
                 },
             )
-            OutlinedTextField(
+            TrainTextField(
                 modifier = Modifier.fillMaxWidth(),
                 value = state.routineName,
                 onValueChange = onRoutineNameChanged,
-                label = { Text(stringResource(R.string.workout_routine_name_label)) },
-                singleLine = true,
+                label = stringResource(R.string.workout_routine_name_label),
             )
             RoutineColorChips(
                 selectedColorTag = state.routineColorTag,
@@ -897,7 +954,7 @@ private fun RoutineBuilderCard(
             Text(
                 text = stringResource(R.string.workout_routine_duration, state.draftDurationMinutes),
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = atlasColors.ink3,
             )
             if (state.draftItems.isEmpty()) {
                 EmptyState(R.string.workout_routine_draft_empty)
@@ -924,11 +981,11 @@ private fun RoutineBuilderCard(
             )
             LazyRow(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
                 items(state.exercises, key = { it.id }) { exercise ->
-                    FilterChip(
+                    MonochromeChip(
                         selected = false,
                         onClick = { onAddExerciseToDraft(exercise) },
-                        label = { Text(exercise.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                        leadingIcon = { Icon(Icons.Filled.Add, contentDescription = null) },
+                        label = exercise.name,
+                        leadingIcon = Icons.Filled.Add,
                     )
                 }
             }
@@ -964,6 +1021,7 @@ private fun DraftExerciseCard(
     onRestChanged: (String) -> Unit,
 ) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     var dragOffset by remember(item.key) { mutableStateOf(0f) }
     Surface(
         modifier = Modifier
@@ -991,7 +1049,11 @@ private fun DraftExerciseCard(
                 }
             },
         shape = MaterialTheme.shapes.medium,
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = atlasColors.fillSoft,
+        contentColor = atlasColors.ink,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
+        border = BorderStroke(1.dp, atlasColors.line2),
     ) {
         Column(
             modifier = Modifier.padding(spacing.sm),
@@ -1013,16 +1075,28 @@ private fun DraftExerciseCard(
                     onClick = onMoveUp,
                     enabled = !first,
                 ) {
-                    Icon(Icons.Filled.ExpandLess, contentDescription = stringResource(R.string.workout_move_exercise_up_cd))
+                    Icon(
+                        Icons.Filled.ExpandLess,
+                        contentDescription = stringResource(R.string.workout_move_exercise_up_cd),
+                        tint = if (first) atlasColors.ink4 else atlasColors.ink2,
+                    )
                 }
                 IconButton(
                     onClick = onMoveDown,
                     enabled = !last,
                 ) {
-                    Icon(Icons.Filled.ExpandMore, contentDescription = stringResource(R.string.workout_move_exercise_down_cd))
+                    Icon(
+                        Icons.Filled.ExpandMore,
+                        contentDescription = stringResource(R.string.workout_move_exercise_down_cd),
+                        tint = if (last) atlasColors.ink4 else atlasColors.ink2,
+                    )
                 }
                 IconButton(onClick = onRemove) {
-                    Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.workout_remove_exercise_cd))
+                    Icon(
+                        Icons.Filled.Delete,
+                        contentDescription = stringResource(R.string.workout_remove_exercise_cd),
+                        tint = atlasColors.risk,
+                    )
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
@@ -1066,13 +1140,12 @@ private fun CompactNumberField(
     modifier: Modifier = Modifier,
     keyboardType: KeyboardType = KeyboardType.Number,
 ) {
-    OutlinedTextField(
+    TrainTextField(
         modifier = modifier,
         value = value,
         onValueChange = onValueChange,
-        label = { Text(stringResource(labelRes), maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        label = stringResource(labelRes),
+        keyboardType = keyboardType,
     )
 }
 
@@ -1084,26 +1157,11 @@ private fun RoutineCard(
     onArchive: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
-    val cardColors = CardDefaults.cardColors(
-        containerColor = if (selected) {
-            MaterialTheme.colorScheme.primaryContainer
-        } else {
-            MaterialTheme.colorScheme.surface
-        },
-        contentColor = if (selected) {
-            MaterialTheme.colorScheme.onPrimaryContainer
-        } else {
-            MaterialTheme.colorScheme.onSurface
-        },
-    )
-    val secondaryTextColor = if (selected) {
-        MaterialTheme.colorScheme.onPrimaryContainer
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
-    Card(
+    val atlasColors = LocalAtlasColors.current
+    val secondaryTextColor = if (selected) atlasColors.ink else atlasColors.ink3
+    SelectableTrainCard(
+        selected = selected,
         onClick = onClick,
-        colors = cardColors,
     ) {
         Row(
             modifier = Modifier
@@ -1133,6 +1191,7 @@ private fun RoutineCard(
                 Icon(
                     imageVector = Icons.Filled.Archive,
                     contentDescription = stringResource(R.string.workout_archive_routine_cd),
+                    tint = atlasColors.ink2,
                 )
             }
         }
@@ -1146,6 +1205,7 @@ private fun RoutineDetailCard(
     onStart: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(spacing.card),
@@ -1187,7 +1247,7 @@ private fun RoutineDetailCard(
                             Text(
                                 text = notes,
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                color = atlasColors.ink3,
                             )
                         }
                     }
@@ -1204,18 +1264,11 @@ private fun WorkoutSessionCard(
     onClick: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
-    val cardColors = CardDefaults.cardColors(
-        containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
-        contentColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
-    )
-    val secondaryTextColor = if (selected) {
-        MaterialTheme.colorScheme.onPrimaryContainer
-    } else {
-        MaterialTheme.colorScheme.onSurfaceVariant
-    }
-    Card(
+    val atlasColors = LocalAtlasColors.current
+    val secondaryTextColor = if (selected) atlasColors.ink else atlasColors.ink3
+    SelectableTrainCard(
+        selected = selected,
         onClick = onClick,
-        colors = cardColors,
     ) {
         Column(
             modifier = Modifier
@@ -1270,7 +1323,7 @@ private fun WorkoutSessionDetailCard(session: com.atlaspeak.domain.model.workout
                             set.weightKg ?: 0.0,
                         ),
                         style = MaterialTheme.typography.bodySmall,
-                        color = if (set.isPersonalRecord) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = if (set.isPersonalRecord) LocalAtlasColors.current.ink else LocalAtlasColors.current.ink3,
                     )
                 }
             }
@@ -1289,18 +1342,18 @@ private fun MuscleGroupChips(
     LazyRow(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
         if (includeAll) {
             item {
-                FilterChip(
+                AtlasChip(
                     selected = selectedGroupId == null,
                     onClick = { onSelected(null) },
-                    label = { Text(stringResource(R.string.workout_filter_all)) },
+                    text = stringResource(R.string.workout_filter_all),
                 )
             }
         }
         items(groups, key = { it.id }) { group ->
-            FilterChip(
+            AtlasChip(
                 selected = selectedGroupId == group.id,
                 onClick = { onSelected(group.id) },
-                label = { Text(group.name) },
+                text = group.name,
             )
         }
     }
@@ -1319,11 +1372,10 @@ private fun RoutineColorChips(
         )
         LazyRow(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
             items(routineColorTags, key = { it.hex }) { colorTag ->
-                FilterChip(
+                MonochromeChip(
                     selected = selectedColorTag == colorTag.hex,
                     onClick = { onSelected(colorTag.hex) },
-                    label = { Text(stringResource(colorTag.labelRes)) },
-                    leadingIcon = { ColorSwatch(selected = selectedColorTag == colorTag.hex) },
+                    label = stringResource(colorTag.labelRes),
                 )
             }
         }
@@ -1343,6 +1395,92 @@ private fun ColorSwatch(selected: Boolean) {
     )
 }
 
+@Composable
+private fun SelectableTrainCard(
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    val atlasColors = LocalAtlasColors.current
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        onClick = onClick,
+        shape = MaterialTheme.shapes.large,
+        color = if (selected) atlasColors.fillActive else atlasColors.surface,
+        contentColor = atlasColors.ink,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
+        border = BorderStroke(1.dp, if (selected) atlasColors.ink else atlasColors.line2),
+    ) {
+        content()
+    }
+}
+
+@Composable
+private fun MonochromeChip(
+    selected: Boolean,
+    onClick: () -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    leadingIcon: ImageVector? = null,
+) {
+    AtlasChip(
+        modifier = modifier,
+        selected = selected,
+        onClick = onClick,
+        text = label,
+        leadingIcon = leadingIcon,
+    )
+}
+
+@Composable
+private fun MonochromeToggle(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    val atlasColors = LocalAtlasColors.current
+    Surface(
+        onClick = { onCheckedChange(!checked) },
+        modifier = Modifier.size(28.dp),
+        shape = RoundedCornerShape(6.dp),
+        color = if (checked) atlasColors.ink else atlasColors.fillSoft,
+        contentColor = if (checked) atlasColors.onAccent else atlasColors.ink3,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
+        border = BorderStroke(1.dp, if (checked) atlasColors.ink else atlasColors.lineStrong),
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            if (checked) {
+                Icon(
+                    imageVector = Icons.Filled.Check,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TrainTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    modifier: Modifier = Modifier,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    leadingIcon: ImageVector? = null,
+) {
+    AtlasTextField(
+        modifier = modifier,
+        value = value,
+        onValueChange = onValueChange,
+        label = label,
+        keyboardType = keyboardType,
+        leadingIcon = leadingIcon,
+    )
+}
+
 private fun CardioType.iconVector() = when (iconName) {
     "directions_bike" -> Icons.AutoMirrored.Filled.DirectionsBike
     "pedal_bike" -> Icons.Filled.PedalBike
@@ -1354,19 +1492,21 @@ private fun CardioType.iconVector() = when (iconName) {
 
 @Composable
 private fun SectionTitle(@StringRes titleRes: Int) {
+    val atlasColors = LocalAtlasColors.current
     Text(
         text = stringResource(titleRes),
         style = MaterialTheme.typography.titleMedium,
-        color = MaterialTheme.colorScheme.onSurface,
+        color = atlasColors.ink,
     )
 }
 
 @Composable
 private fun EmptyState(@StringRes textRes: Int) {
+    val atlasColors = LocalAtlasColors.current
     Text(
         text = stringResource(textRes),
         style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        color = atlasColors.ink3,
     )
 }
 
@@ -1387,13 +1527,26 @@ private fun MessageText(message: TrainUiMessage?) {
     Text(
         text = stringResource(res),
         style = MaterialTheme.typography.bodyMedium,
-        color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+        color = if (isError) LocalAtlasColors.current.risk else LocalAtlasColors.current.ink2,
     )
 }
 
 private data class RoutineColorTag(
     val hex: String,
     @StringRes val labelRes: Int,
+)
+
+private data class TrainTabItem(
+    val tab: TrainTab,
+    @StringRes val labelRes: Int,
+    val icon: ImageVector,
+)
+
+private val trainTabItems = listOf(
+    TrainTabItem(TrainTab.Exercises, R.string.workout_tab_exercises, Icons.Filled.FitnessCenter),
+    TrainTabItem(TrainTab.Routines, R.string.workout_tab_routines, Icons.Filled.Timer),
+    TrainTabItem(TrainTab.Cardio, R.string.workout_tab_cardio, Icons.AutoMirrored.Filled.DirectionsRun),
+    TrainTabItem(TrainTab.History, R.string.workout_tab_history, Icons.Filled.History),
 )
 
 private val routineColorTags = listOf(

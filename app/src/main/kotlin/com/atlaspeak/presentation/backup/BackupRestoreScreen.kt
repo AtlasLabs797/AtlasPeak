@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CloudDownload
@@ -29,8 +28,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -54,8 +51,11 @@ import com.atlaspeak.domain.model.backup.DriveBackup
 import com.atlaspeak.domain.model.backup.SharedBackupExport
 import com.atlaspeak.presentation.component.AtlasPrimaryButton
 import com.atlaspeak.presentation.component.AtlasSecondaryButton
+import com.atlaspeak.presentation.component.AtlasSwitchRow
+import com.atlaspeak.presentation.component.AtlasTextField
 import com.atlaspeak.presentation.component.PremiumBackground
 import com.atlaspeak.presentation.component.PremiumCard
+import com.atlaspeak.presentation.theme.LocalAtlasColors
 import com.atlaspeak.presentation.theme.LocalSpacing
 import java.text.DateFormat
 import java.util.Date
@@ -171,10 +171,11 @@ fun BackupRestoreScreen(
             item { BackupHeader(onBack) }
             if (state.messageRes != null) {
                 item {
+                    val atlasColors = LocalAtlasColors.current
                     Text(
                         text = stringResource(state.messageRes),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = atlasColors.ink2,
                     )
                 }
             }
@@ -222,6 +223,7 @@ fun BackupRestoreScreen(
 @Composable
 private fun BackupHeader(onBack: () -> Unit) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(spacing.sm),
@@ -240,12 +242,12 @@ private fun BackupHeader(onBack: () -> Unit) {
             Text(
                 text = stringResource(R.string.screen_backup_restore_title),
                 style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onBackground,
+                color = atlasColors.ink,
             )
             Text(
                 text = stringResource(R.string.backup_screen_body),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = atlasColors.ink2,
             )
         }
     }
@@ -260,6 +262,7 @@ private fun PasswordCard(
     onAutoBackupChanged: (Boolean) -> Unit,
 ) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
@@ -275,47 +278,31 @@ private fun PasswordCard(
                 Text(
                     text = stringResource(R.string.backup_password_title),
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
+                    color = atlasColors.ink,
                 )
                 Text(
                     text = stringResource(R.string.backup_password_body),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = atlasColors.ink2,
                 )
-                OutlinedTextField(
+                AtlasTextField(
                     value = password,
                     onValueChange = onPasswordChanged,
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(R.string.backup_password_label)) },
-                    singleLine = true,
+                    label = stringResource(R.string.backup_password_label),
                     visualTransformation = PasswordVisualTransformation(),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    keyboardType = KeyboardType.Password,
                 )
-                Row(
+                AtlasSwitchRow(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(spacing.md),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(R.string.backup_auto_title),
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.onSurface,
-                        )
-                        Text(
-                            text = stringResource(
-                                R.string.backup_last_backup,
-                                lastBackupAt?.formatTimestamp() ?: stringResource(R.string.backup_last_never),
-                            ),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Switch(
-                        checked = autoBackupEnabled,
-                        onCheckedChange = onAutoBackupChanged,
-                    )
-                }
+                    title = stringResource(R.string.backup_auto_title),
+                    subtitle = stringResource(
+                        R.string.backup_last_backup,
+                        lastBackupAt?.formatTimestamp() ?: stringResource(R.string.backup_last_never),
+                    ),
+                    checked = autoBackupEnabled,
+                    onCheckedChange = onAutoBackupChanged,
+                )
             }
         }
     }
@@ -358,7 +345,7 @@ private fun DriveBackupCard(
                 Text(
                     text = stringResource(R.string.backup_drive_empty),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = LocalAtlasColors.current.ink3,
                 )
             } else {
                 backups.forEach { backup ->
@@ -384,11 +371,12 @@ private fun BackupFileRow(
     onRestoreDriveBackup: (String) -> Unit,
 ) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
         Text(
             text = backup.name,
             style = MaterialTheme.typography.titleSmall,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = atlasColors.ink,
         )
         Text(
             text = stringResource(
@@ -396,13 +384,13 @@ private fun BackupFileRow(
                 backup.createdTimeMillis?.formatTimestamp() ?: stringResource(R.string.backup_last_never),
             ),
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = atlasColors.ink3,
         )
         if (isPendingRestore) {
             Text(
                 text = stringResource(R.string.backup_restore_confirm_body),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
+                color = atlasColors.risk,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
                 AtlasPrimaryButton(
@@ -463,16 +451,17 @@ private fun ExportCard(
 @Composable
 private fun SectionTitle(titleRes: Int, bodyRes: Int) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
         Text(
             text = stringResource(titleRes),
             style = MaterialTheme.typography.titleMedium,
-            color = MaterialTheme.colorScheme.onSurface,
+            color = atlasColors.ink,
         )
         Text(
             text = stringResource(bodyRes),
             style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = atlasColors.ink2,
         )
     }
 }

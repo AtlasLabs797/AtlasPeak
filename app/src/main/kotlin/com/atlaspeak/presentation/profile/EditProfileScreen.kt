@@ -14,7 +14,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -31,10 +30,14 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.atlaspeak.R
 import com.atlaspeak.domain.model.profile.Gender
 import com.atlaspeak.domain.model.profile.Goal
+import com.atlaspeak.presentation.component.AtlasChip
 import com.atlaspeak.presentation.component.AtlasPrimaryButton
+import com.atlaspeak.presentation.component.AtlasStatusMessage
+import com.atlaspeak.presentation.component.AtlasStatusTone
 import com.atlaspeak.presentation.component.AtlasTextField
 import com.atlaspeak.presentation.component.PremiumBackground
 import com.atlaspeak.presentation.component.PremiumCard
+import com.atlaspeak.presentation.theme.LocalAtlasColors
 import com.atlaspeak.presentation.theme.LocalSpacing
 
 @Composable
@@ -95,10 +98,9 @@ fun EditProfileScreen(
         ) {
             EditProfileHeader(onBack = onBack)
             if (state.loadFailed || state.saveFailed) {
-                Text(
-                    text = stringResource(R.string.error_generic),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.error,
+                AtlasStatusMessage(
+                    message = stringResource(R.string.error_generic),
+                    tone = AtlasStatusTone.Error,
                 )
             }
             PremiumCard(modifier = Modifier.fillMaxWidth()) {
@@ -167,6 +169,7 @@ fun EditProfileScreen(
 @Composable
 private fun EditProfileHeader(onBack: () -> Unit) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(spacing.sm),
@@ -185,12 +188,12 @@ private fun EditProfileHeader(onBack: () -> Unit) {
             Text(
                 text = stringResource(R.string.edit_profile_title),
                 style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onBackground,
+                color = atlasColors.ink,
             )
             Text(
                 text = stringResource(R.string.edit_profile_body),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = atlasColors.ink2,
             )
         }
     }
@@ -204,18 +207,19 @@ private fun <T : Any> EditProfileChoiceSelector(
     onSelected: (T) -> Unit,
 ) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = atlasColors.ink3,
         )
         LazyRow(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
             items(options, key = { it.second }) { (option, optionLabel) ->
-                FilterChip(
+                AtlasChip(
                     selected = selected == option,
                     onClick = { onSelected(option) },
-                    label = { Text(optionLabel) },
+                    text = optionLabel,
                 )
             }
         }
