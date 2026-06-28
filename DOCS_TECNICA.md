@@ -188,18 +188,20 @@ Fase 6 activa cardio dentro del tab `Train` y las pantallas fullscreen:
   `CardioSession`. `CardioType.iconName` viene de `cardio_types.icon_name` para que la UI
   represente cada tipo con iconografia especifica y no con un icono generico.
 - `CardioUseCase` crea tipos custom, arranca sesiones timer/countdown y completa sesiones
-  calculando distancia Haversine, velocidad media/maxima, ruta y calorias estimadas.
+  calculando distancia Haversine, velocidad media/maxima, ruta filtrada y calorias estimadas
+  con el ultimo peso corporal valido.
 - `RoomCardioRepository` mapea `cardio_types`/`cardio_sessions` y usa `workout_sessions`
   como cabecera comun de sesiones. El historial se ordena por `workout_sessions.start_time`,
   no por UUID.
 - `TrainScreen` muestra tipos predefinidos/custom con iconos por tipo, edicion/archivado de
   custom, selector de minutos para countdown e historial/detalle de cardio.
 - `ActiveCardioScreen` pide `ACCESS_FINE_LOCATION` solo si el tipo usa GPS; si no hay GPS o
-  se deniega ubicacion, permite introducir distancia y velocidad media manuales.
+  se deniega ubicacion, permite cerrar con tiempo y distancia manual; la velocidad se deriva
+  si hay distancia y duracion.
 - `CardioCompleteScreen` muestra resumen y, si hay ruta, un mapa con Google Maps Compose.
 
-La estimacion de calorias en Fase 6 usa fallback MET por tipo y peso fijo de 75 kg porque
-la integracion real con `body_composition` llega en Fase 8 y Health Connect en Fase 10.
+La estimacion de calorias usa MET por tipo y el ultimo peso valido de `body_composition`;
+solo cae a 75 kg si no existe ningun peso usable.
 
 ## 6.4 Progreso
 
@@ -304,22 +306,26 @@ revocados.
 
 - Artifact: **`androidx.health.connect:connect-client`** (estable). En Android 14+ es módulo
   del framework (sin setup); en 13 y anteriores se apoya en la app Health Connect.
-- **Lectura:** `READ_STEPS`, `READ_ACTIVE_CALORIES_BURNED`, `READ_SLEEP`, `READ_HEART_RATE`.
+- **Lectura:** `READ_STEPS`, `READ_ACTIVE_CALORIES_BURNED`, `READ_SLEEP`, `READ_HEART_RATE`,
+  `READ_WEIGHT`, `READ_BODY_FAT`, `READ_LEAN_BODY_MASS`, `READ_BODY_WATER_MASS`.
 - **Escritura:** `WRITE_EXERCISE`, `WRITE_WEIGHT`, `WRITE_BODY_FAT`, `WRITE_LEAN_BODY_MASS`,
   `WRITE_BODY_WATER_MASS`.
-- `HealthConnectManager` centraliza permisos, import (→ Room) y export (→ HC records).
+- `HealthConnectManager` centraliza permisos, import (→ Room) y export (→ HC records). La
+  sync es parcial por capacidad: pasos, sueño, cardio, cuerpo y exportación no se bloquean
+  entre sí por un permiso denegado.
 - Importa pasos diarios y calorias activas mediante agregados diarios para evitar doble conteo
   por origen; importa sueño y frecuencia cardiaca como records crudos paginados.
+- Importa composición corporal desde `WeightRecord`, `BodyFatRecord`, `LeanBodyMassRecord` y
+  `BodyWaterMassRecord` hacia `body_composition` con fuente `HEALTH_CONNECT`.
 - Exporta sesiones completadas como `ExerciseSessionRecord`; exporta peso, grasa corporal,
   masa magra y masa de agua corporal con `clientRecordId` estable `atlaspeak:<tipo>:<id>`.
 - Las lecturas rehacen una ventana movil de 30 dias: se borra la cache local del rango y se lee
   de nuevo para reflejar cambios o borrados recientes sin pedir `READ_HEALTH_DATA_HISTORY`.
-  No se piden permisos de lectura corporal.
 - `hc_sync_log` registra último read/write por tipo. **Conflicto:** gana el timestamp más
   reciente; no se sobreescribe lo local si es más nuevo.
-- Báscula inteligente: integración **indirecta**. En v1 Atlas Peak no pide permisos de lectura
-  corporal de Health Connect; solo exporta métricas corporales introducidas en la app. Leer peso
-  o composición desde apps de báscula requiere ampliar permisos y Play Console.
+- Báscula inteligente: integración **indirecta**. Atlas Peak no habla con Xiaomi/Renpho;
+  lee los records corporales que esas apps escriban en Health Connect cuando el usuario
+  concede permisos.
 
 ---
 
@@ -329,12 +335,12 @@ revocados.
   `WeeklyPlanScreen`, `SettingsScreen` de notificaciones y backup. Toda la zona autenticada
   puede aparecer en capturas porque `FLAG_SECURE` esta desactivado por SEC-026.
 - `WeeklyPlanUseCase` normaliza siete dias ISO (`1=Lunes ... 7=Domingo`), valida `HH:mm`,
-  soporta dias de fuerza, cardio o descanso, convierte descansos en filas sin sesion/
-  recordatorio y reprograma notificaciones al guardar cada dia.
-- `RoomWeeklyPlanRepository` usa `weekly_plan` v4: `type`, `routine_id`, `cardio_type_id` y
-  `cardio_target_duration_sec` permiten planificar fuerza o cardio sin crear rutinas falsas.
-  La marca visual de completado sale de `workout_sessions.completed` dentro de la semana local
-  actual.
+  soporta varias sesiones por dia, convierte dias vacios en descanso y reprograma
+  notificaciones al guardar cada dia.
+- `RoomWeeklyPlanRepository` usa `weekly_plan` v5: `order_index`, `type`, `routine_id`,
+  `cardio_type_id` y `cardio_target_duration_sec` permiten planificar fuerza + cardio el
+  mismo dia sin crear rutinas falsas. La marca visual de completado se calcula por clave
+  `(day_of_week, order_index)` dentro de la semana local actual.
 - El seeder inicial crea un plan por defecto de 5 dias: cuatro rutinas de fuerza
   tren inferior/superior y un miercoles de cardio de 45 min en bici estatica; usa IDs estables
   e inserciones `IGNORE` para no sobrescribir planes editados por el usuario.
@@ -345,7 +351,8 @@ revocados.
 - Canales Android separados: `training_reminders`, `motivational_messages` y `summaries`.
   Los canales de foreground services (`active_workout`, `active_cardio`) no se reutilizan.
 - Scheduler: `WorkManagerNotificationScheduler` cancela y recrea trabajos unicos con nombres
-  estables (`training_reminder_1..7`, `daily_summary`, `weekly_summary`, `motivational_message`).
+  estables por dia y orden de sesion (`training_reminder_<dia>_<orden>`, ademas de
+  `daily_summary`, `weekly_summary`, `motivational_message`).
   Usa `OneTimeWorkRequest` para el siguiente disparo y los workers reprograman al terminar.
 - Los horarios son **best-effort**. WorkManager no garantiza una alarma exacta; Atlas Peak no
   solicita `SCHEDULE_EXACT_ALARM` en v1 porque seria friccion innecesaria para recordatorios
@@ -364,19 +371,21 @@ revocados.
   `GoogleDriveAccessTokenProvider` solo intenta grant silencioso para el worker.
 - `RoomBackupSnapshotStore` vuelca/restaura las 20 tablas de Room. Restore borra en orden
   inverso de FK e inserta en orden de schema dentro de una transaccion.
-- `BackupSnapshotUpgrader` eleva backups schema v2 a v3 anadiendo las columnas nuevas de
-  planificacion cardio en `weekly_plan` con defaults compatibles (`STRENGTH` y `NULL`).
+- `BackupJsonCodec.decode()` aplica `BackupSnapshotUpgrader` antes del restore para que
+  snapshots antiguos lleguen al schema actual.
+- `BackupSnapshotUpgrader` eleva backups schema v2->v3 anadiendo las columnas nuevas de
+  planificacion cardio y v3->v4 anadiendo `weekly_plan.order_index = 0`.
 - `DriveBackupManager`: snapshot DB completo -> JSON Kotlinx -> ATPK/AES-256-GCM -> upload.
 - `BackupWorker` (WorkManager): diario, con red, solo si auto-backup esta activo, hay token
   Drive silencioso, contrasena guardada y hash estable de snapshot distinto. El hash ignora
   `app_settings.last_backup_at` para no subir un backup diario solo porque el anterior actualizo
   esa marca.
 - Maximo **5 backups**; tras subir correctamente se lista y borra el mas antiguo sobrante.
-- Restore: listar -> descargar -> leer cabecera -> derivar clave -> descifrar -> validar
-  schema/tablas -> transaccion Room (reemplazo completo de datos).
-- `LocalBackupExportManager` crea archivos en `filesDir/exports` y los comparte con
-  `FileProvider`. El backup local `.enc` es cifrado; JSON/CSV ZIP son exports manuales sin
-  auth secrets.
+- Restore: listar -> descargar -> leer cabecera -> derivar clave -> descifrar -> decode +
+  upgrade de snapshot -> validar schema/tablas -> transaccion Room (reemplazo completo de datos).
+- `LocalBackupExportManager` crea archivos en `filesDir/exports`, limpia exports temporales
+  antiguos y los comparte con `FileProvider`. El backup local `.enc` es cifrado; JSON/CSV ZIP
+  son exports manuales en claro sin auth secrets y la UI exige confirmacion explicita.
 
 ---
 
@@ -384,9 +393,10 @@ revocados.
 
 El GPS aporta **distancia/velocidad**, no calorías. La estimación necesita el **peso** del
 usuario, que NO está en `user_profile` sino en el último registro de `body_composition`.
-Orden de preferencia: (1) Health Connect si hay dato; (2) estimación por MET × peso ×
-duración; (3) fallback por tipo de ejercicio y duración. Documentar la fórmula MET usada
-en el código.
+Orden de preferencia real: (1) último peso válido en `body_composition` (manual o Health
+Connect); (2) fallback de 75 kg si no hay peso. La formula es `MET x peso_kg x horas`.
+La distancia/ruta no inventa calorias; solo alimenta distancia, velocidad y validacion de
+outliers.
 
 ---
 
@@ -423,8 +433,10 @@ en el código.
 - Versiones **solo** en `gradle/libs.versions.toml` (version catalog).
 - CI (GitHub Actions): `assembleDebug` + `test` + `jacocoDebugDomainDataCoverageVerification` +
   `lint` en cada push/PR.
-- Release: AAB firmado con keystore local (`keystore.properties`, fuera del repo). R8/ProGuard
-  activo (reglas para Room, Hilt, Retrofit, Kotlinx Serialization, SQLCipher).
+- Release: AAB firmado con keystore local fuera del repo. Gradle busca
+  `ATLAS_PEAK_KEYSTORE_PROPERTIES` y después `keystore.properties` en la raiz solo como
+  fallback local. R8/ProGuard activo (reglas para Room, Hilt, Retrofit, Kotlinx Serialization,
+  SQLCipher).
 - APK de actualizacion local: `.\gradlew.bat :app:packageReleaseUpdate`. Genera
   `build/distribution/AtlasPeak-<versionName>-release.apk`, `install-adb.bat`,
   `SHA256SUMS.txt` y `README-INSTALACION.txt`.

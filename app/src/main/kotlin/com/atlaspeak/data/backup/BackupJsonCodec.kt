@@ -5,7 +5,11 @@ import javax.inject.Inject
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
-class BackupJsonCodec @Inject constructor() {
+class BackupJsonCodec @Inject constructor(
+    private val upgrader: BackupSnapshotUpgrader,
+) {
+    constructor() : this(BackupSnapshotUpgrader())
+
     private val json = Json {
         encodeDefaults = true
         explicitNulls = true
@@ -19,10 +23,12 @@ class BackupJsonCodec @Inject constructor() {
         require(snapshot.formatVersion == DatabaseBackupSnapshot.FORMAT_VERSION) { "Unsupported backup format" }
         require(snapshot.schemaVersion <= CURRENT_SCHEMA_VERSION) { "Unsupported future schema" }
         require(snapshot.tables.keys == AppDatabase.TABLES) { "Backup table set does not match the app schema" }
-        return snapshot
+        return upgrader.upgradeToCurrent(snapshot).also { upgraded ->
+            require(upgraded.schemaVersion == CURRENT_SCHEMA_VERSION) { "Backup schema upgrade failed" }
+        }
     }
 
     companion object {
-        const val CURRENT_SCHEMA_VERSION = 3
+        const val CURRENT_SCHEMA_VERSION = 4
     }
 }

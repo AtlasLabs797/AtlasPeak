@@ -1,6 +1,7 @@
 package com.atlaspeak.domain.usecase.healthconnect
 
 import com.atlaspeak.domain.model.healthconnect.HealthConnectAvailability
+import com.atlaspeak.domain.model.healthconnect.HealthConnectCapability
 import com.atlaspeak.domain.model.healthconnect.HealthConnectSyncResult
 import com.atlaspeak.domain.repository.HealthConnectRepository
 import kotlinx.coroutines.test.runTest
@@ -39,6 +40,23 @@ class SyncHealthConnectUseCaseTest {
 
         assertFalse(result.successful)
         assertTrue(result.missingPermissions)
+    }
+
+    @Test
+    fun `sync reports partial success when some capabilities ran`() = runTest {
+        repository.result = HealthConnectSyncResult(
+            availability = HealthConnectAvailability.Available,
+            missingPermissions = true,
+            importedRecords = 3,
+            completedCapabilities = setOf(HealthConnectCapability.BodyCompositionRead),
+            skippedCapabilities = setOf(HealthConnectCapability.Sleep),
+        )
+
+        val result = useCase()
+
+        assertFalse(result.successful)
+        assertTrue(result.partiallySuccessful)
+        assertEquals(3, result.importedRecords)
     }
 
     @Test

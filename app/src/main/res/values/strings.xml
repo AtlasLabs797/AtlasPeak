@@ -22,6 +22,8 @@
     <string name="action_continue">Continuar</string>
     <string name="action_retry">Reintentar</string>
     <string name="action_back">Volver</string>
+    <string name="action_undo">Deshacer</string>
+    <string name="action_confirm">Confirmar</string>
 
     <!-- Duraciones legibles -->
     <string name="duration_hours_minutes">%1$d h %2$d min</string>
@@ -56,7 +58,7 @@
     <string name="onboarding_notifications_title">Recordatorios</string>
     <string name="onboarding_notifications_body">Permite notificaciones para avisos de entrenamiento y resúmenes.</string>
     <string name="onboarding_health_title">Health Connect</string>
-    <string name="onboarding_health_body">Atlas Peak podrá leer pasos, sueño y frecuencia cardíaca, y escribir entrenamientos cuando esta fase esté activa.</string>
+    <string name="onboarding_health_body">Atlas Peak podra leer pasos, calorias activas, sueno, frecuencia cardiaca y composicion corporal. Tambien puede escribir entrenamientos y metricas corporales.</string>
     <string name="onboarding_health_unavailable">Health Connect no está disponible en este dispositivo. Puedes seguir y activarlo más tarde.</string>
     <string name="onboarding_location_title">GPS para cardio</string>
     <string name="onboarding_location_body">La ubicación solo se usa para registrar rutas de cardio al aire libre.</string>
@@ -136,6 +138,12 @@
     <string name="workout_table_done">✓</string>
     <string name="symbol_check">✓</string>
     <string name="workout_remove_set_cd">Eliminar set</string>
+    <string name="workout_set_deleted">Set eliminado.</string>
+    <string name="workout_delete_set_confirm_title">Eliminar set?</string>
+    <string name="workout_delete_set_confirm_body">Este set tiene datos registrados. Puedes deshacerlo despues, pero mejor confirmar antes de borrarlo.</string>
+    <string name="workout_delete_set_confirm">Eliminar set</string>
+    <string name="workout_weight_series_cd">Peso serie %1$d</string>
+    <string name="workout_reps_series_cd">Repeticiones serie %1$d</string>
     <string name="workout_rest_title">Descanso</string>
     <string name="workout_rest_active">Descanso activo</string>
     <string name="workout_rest_next_set">Siguiente: Serie %1$d - %2$.0f kg</string>
@@ -195,8 +203,8 @@
     <string name="cardio_manual_distance_title">Entrada manual</string>
     <string name="cardio_manual_distance_body">Usa estos campos para máquinas sin GPS o si deniegas ubicación.</string>
     <string name="cardio_manual_distance_label">Distancia km</string>
-    <string name="cardio_manual_speed_label">Velocidad media km/h</string>
-    <string name="cardio_manual_metrics_required">Introduce distancia y velocidad media para guardar esta sesión.</string>
+    <string name="cardio_manual_speed_label">Velocidad media km/h opcional</string>
+    <string name="cardio_manual_metrics_required">Introduce una distancia valida. La velocidad se calcula si dejas el campo vacio.</string>
     <string name="cardio_location_permission_denied">Sin permiso de ubicación: se guardará como entrada manual.</string>
     <string name="cardio_tracker_unavailable">El tracker persistente no pudo arrancar por permisos del dispositivo.</string>
     <string name="cardio_complete_title">Cardio completado</string>
@@ -264,6 +272,7 @@
     <string name="home_today_workout_start">Iniciar entrenamiento</string>
     <string name="home_today_cardio_start">Iniciar cardio</string>
     <string name="home_today_workout_completed">Completado hoy</string>
+    <string name="home_today_cardio_incomplete">Plan incompleto: falta duracion objetivo.</string>
     <string name="home_weekly_minutes_title">Minutos de entrenamiento esta semana</string>
     <string name="home_widget_volume_title">Volumen total</string>
     <string name="home_widget_volume_subtitle">Kg levantados en el periodo</string>
@@ -292,6 +301,9 @@
 
     <!-- Perfil / plan semanal / notificaciones -->
     <string name="profile_subtitle">Planificación, permisos y copias de seguridad.</string>
+    <string name="profile_section_profile">Perfil</string>
+    <string name="profile_section_settings">Ajustes</string>
+    <string name="profile_section_data">Datos</string>
     <string name="profile_edit_no_name">Tu perfil</string>
     <string name="profile_edit_body">Nombre, edad, altura, género y objetivo.</string>
     <string name="edit_profile_title">Editar perfil</string>
@@ -320,6 +332,10 @@
     <string name="weekly_plan_reminder_enabled">Recordatorio</string>
     <string name="weekly_plan_reminder_time">Hora de recordatorio</string>
     <string name="weekly_plan_reminder_best_effort">Android puede ajustar la hora exacta para ahorrar batería.</string>
+    <string name="weekly_plan_session_title">Sesion %1$d</string>
+    <string name="weekly_plan_add_strength">Anadir fuerza</string>
+    <string name="weekly_plan_add_cardio">Anadir cardio</string>
+    <string name="weekly_plan_remove_session_cd">Eliminar sesion planificada</string>
     <string name="weekday_monday">Lunes</string>
     <string name="weekday_tuesday">Martes</string>
     <string name="weekday_wednesday">Miércoles</string>
@@ -399,6 +415,9 @@
     <string name="backup_restore_failed">No se pudo restaurar. Comprueba la contraseña y el archivo.</string>
     <string name="backup_export_title">Export manual</string>
     <string name="backup_export_body">Los exports manuales van en claro y no piden contraseña. Compártelos solo donde confíes.</string>
+    <string name="backup_cleartext_export_title">Export sin cifrar</string>
+    <string name="backup_cleartext_export_body">Este archivo incluye datos deportivos y personales en claro. Exportalo solo si sabes donde va a terminar.</string>
+    <string name="backup_cleartext_export_confirm">Exportar en claro</string>
     <string name="backup_local_create">Compartir backup cifrado</string>
     <string name="backup_local_created">Backup cifrado creado.</string>
     <string name="backup_export_json">Compartir JSON</string>
@@ -443,7 +462,7 @@
     <string name="body_value_percent">%1$.1f%%</string>
     <string name="body_value_integer">%1$d</string>
     <string name="health_rationale_title">Permisos de Health Connect</string>
-    <string name="health_rationale_body">Atlas Peak lee pasos, calorías activas, sueño y frecuencia cardíaca para mostrar progreso y dashboard. Escribe entrenamientos completados y las métricas corporales que introduces manualmente. Los datos se guardan en este dispositivo, sin tracking ni backend propio, y puedes revocar el acceso desde Health Connect cuando quieras.</string>
+    <string name="health_rationale_body">Atlas Peak lee pasos, calorias activas, sueno, frecuencia cardiaca y composicion corporal para mostrar progreso y dashboard. Escribe entrenamientos completados y las metricas corporales que introduces manualmente. Los datos se guardan en este dispositivo, sin tracking ni backend propio, y puedes revocar el acceso desde Health Connect cuando quieras.</string>
 
     <string name="error_generic">Algo salió mal. Inténtalo de nuevo.</string>
     <string name="error_no_connection">Sin conexión a internet.</string>

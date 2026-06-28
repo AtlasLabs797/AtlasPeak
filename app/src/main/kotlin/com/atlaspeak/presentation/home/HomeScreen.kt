@@ -117,7 +117,7 @@ fun HomeScreen(
                 DashboardContent(
                     greetingName = state.greetingName,
                     snapshot = state.snapshot,
-                    todayWorkout = state.todayWorkout,
+                    todayWorkouts = state.todayWorkouts,
                     filters = state.filters,
                     errorMessageRes = state.errorMessageRes,
                     onPeriodSelected = onPeriodSelected,
@@ -133,7 +133,7 @@ fun HomeScreen(
 private fun DashboardContent(
     greetingName: String?,
     snapshot: DashboardSnapshot,
-    todayWorkout: TodayWorkoutUiState?,
+    todayWorkouts: List<TodayWorkoutUiState>,
     filters: DashboardFilters,
     @StringRes errorMessageRes: Int?,
     onPeriodSelected: (DashboardWidget, DashboardPeriod) -> Unit,
@@ -174,21 +174,24 @@ private fun DashboardContent(
                 onPeriodSelected = onPeriodSelected,
             )
         }
-        todayWorkout?.let { workout ->
-            item {
-                TodayWorkoutCard(
-                    workout = workout,
-                    onStart = {
-                        if (workout.type == TodayWorkoutType.Cardio) {
-                            val cardioTypeId = workout.cardioTypeId ?: return@TodayWorkoutCard
-                            onStartCardio(cardioTypeId, workout.cardioTargetDurationSec ?: 0)
-                        } else {
-                            val routineId = workout.routineId ?: return@TodayWorkoutCard
-                            onStartRoutine(routineId)
-                        }
-                    },
-                )
-            }
+        items(
+            items = todayWorkouts,
+            key = { workout -> "${workout.type}_${workout.orderIndex}_${workout.title}" },
+        ) { workout ->
+            TodayWorkoutCard(
+                workout = workout,
+                onStart = {
+                    if (!workout.canStart) return@TodayWorkoutCard
+                    if (workout.type == TodayWorkoutType.Cardio) {
+                        val cardioTypeId = workout.cardioTypeId ?: return@TodayWorkoutCard
+                        val targetSeconds = workout.cardioTargetDurationSec ?: return@TodayWorkoutCard
+                        onStartCardio(cardioTypeId, targetSeconds)
+                    } else {
+                        val routineId = workout.routineId ?: return@TodayWorkoutCard
+                        onStartRoutine(routineId)
+                    }
+                },
+            )
         }
         item {
             SecondaryMetrics(snapshot = snapshot)
@@ -424,15 +427,16 @@ private fun TodayWorkoutCard(
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = stringResource(R.string.home_today_workout_body, workout.title),
+                    text = workout.statusMessageRes?.let { stringResource(it) }
+                        ?: stringResource(R.string.home_today_workout_body, workout.title),
                     style = MaterialTheme.typography.bodySmall,
-                    color = atlasColors.ink2,
+                    color = if (workout.statusMessageRes != null) atlasColors.risk else atlasColors.ink2,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 AtlasPrimaryButton(
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = !workout.completed,
+                    enabled = !workout.completed && workout.canStart,
                     onClick = onStart,
                     leadingIcon = Icons.Filled.PlayArrow,
                     text = stringResource(

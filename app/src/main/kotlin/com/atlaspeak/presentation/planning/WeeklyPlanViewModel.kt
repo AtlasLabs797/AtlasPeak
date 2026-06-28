@@ -7,12 +7,14 @@ import com.atlaspeak.R
 import com.atlaspeak.domain.model.cardio.CardioType
 import com.atlaspeak.domain.model.planning.WeeklyPlanUpdate
 import com.atlaspeak.domain.model.planning.WeeklyPlanDayType
+import com.atlaspeak.domain.model.planning.WeeklyPlanSessionUpdate
 import com.atlaspeak.domain.model.workout.Routine
 import com.atlaspeak.domain.usecase.planning.WeeklyPlanUseCase
 import com.atlaspeak.domain.usecase.cardio.CardioUseCase
 import com.atlaspeak.domain.usecase.workout.RoutineUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -42,16 +44,22 @@ class WeeklyPlanViewModel @Inject constructor(
                 val days = weeklyPlanUseCase.plan().map { day ->
                     WeeklyPlanDayDraft(
                         dayOfWeek = day.dayOfWeek,
-                        type = day.type,
-                        routineId = day.routineId,
-                        routineName = day.routineName,
-                        cardioTypeId = day.cardioTypeId,
-                        cardioTypeName = day.cardioTypeName,
-                        cardioTargetMinutes = ((day.cardioTargetDurationSec ?: WeeklyPlanUseCase.DEFAULT_CARDIO_TARGET_SECONDS) / 60).toString(),
                         isRestDay = day.isRestDay,
-                        notificationEnabled = day.notificationEnabled,
-                        notificationTime = day.notificationTime ?: WeeklyPlanUseCase.DEFAULT_REMINDER_TIME,
                         completedThisWeek = day.completedThisWeek,
+                        sessions = day.sessions.map { session ->
+                            WeeklyPlanSessionDraft(
+                                id = session.id,
+                                type = session.type,
+                                routineId = session.routineId,
+                                routineName = session.routineName,
+                                cardioTypeId = session.cardioTypeId,
+                                cardioTypeName = session.cardioTypeName,
+                                cardioTargetMinutes = ((session.cardioTargetDurationSec ?: WeeklyPlanUseCase.DEFAULT_CARDIO_TARGET_SECONDS) / 60).toString(),
+                                notificationEnabled = session.notificationEnabled,
+                                notificationTime = session.notificationTime ?: WeeklyPlanUseCase.DEFAULT_REMINDER_TIME,
+                                completedThisWeek = session.completedThisWeek,
+                            )
+                        },
                     )
                 }
                 mutableState.update {
@@ -71,8 +79,35 @@ class WeeklyPlanViewModel @Inject constructor(
         }
     }
 
-    fun selectRoutine(dayOfWeek: Int, routineId: String?) {
+    fun addSession(dayOfWeek: Int, type: WeeklyPlanDayType) {
         updateDay(dayOfWeek) { draft ->
+            draft.copy(
+                isRestDay = false,
+                sessions = draft.sessions + WeeklyPlanSessionDraft(
+                    id = "draft_${UUID.randomUUID()}",
+                    type = type,
+                    routineId = null,
+                    routineName = null,
+                    cardioTypeId = null,
+                    cardioTypeName = null,
+                    cardioTargetMinutes = (WeeklyPlanUseCase.DEFAULT_CARDIO_TARGET_SECONDS / 60).toString(),
+                    notificationEnabled = false,
+                    notificationTime = WeeklyPlanUseCase.DEFAULT_REMINDER_TIME,
+                    completedThisWeek = false,
+                ),
+            )
+        }
+    }
+
+    fun removeSession(dayOfWeek: Int, sessionId: String) {
+        updateDay(dayOfWeek) { draft ->
+            val sessions = draft.sessions.filterNot { it.id == sessionId }
+            draft.copy(isRestDay = sessions.isEmpty(), sessions = sessions)
+        }
+    }
+
+    fun selectRoutine(dayOfWeek: Int, sessionId: String, routineId: String?) {
+        updateSession(dayOfWeek, sessionId) { draft ->
             val routine = mutableState.value.routines.firstOrNull { it.id == routineId }
             draft.copy(
                 routineId = routineId,
@@ -80,14 +115,13 @@ class WeeklyPlanViewModel @Inject constructor(
                 cardioTypeId = null,
                 cardioTypeName = null,
                 type = WeeklyPlanDayType.Strength,
-                isRestDay = false,
                 notificationEnabled = routineId != null && draft.notificationEnabled,
             )
         }
     }
 
-    fun selectCardioType(dayOfWeek: Int, cardioTypeId: String?) {
-        updateDay(dayOfWeek) { draft ->
+    fun selectCardioType(dayOfWeek: Int, sessionId: String, cardioTypeId: String?) {
+        updateSession(dayOfWeek, sessionId) { draft ->
             val cardioType = mutableState.value.cardioTypes.firstOrNull { it.id == cardioTypeId }
             draft.copy(
                 type = WeeklyPlanDayType.Cardio,
@@ -95,18 +129,17 @@ class WeeklyPlanViewModel @Inject constructor(
                 routineName = null,
                 cardioTypeId = cardioTypeId,
                 cardioTypeName = cardioType?.name,
-                isRestDay = false,
                 notificationEnabled = cardioTypeId != null && draft.notificationEnabled,
             )
         }
     }
 
-    fun setDayType(dayOfWeek: Int, type: WeeklyPlanDayType) {
-        updateDay(dayOfWeek) { draft ->
+    fun setSessionType(dayOfWeek: Int, sessionId: String, type: WeeklyPlanDayType) {
+        updateSession(dayOfWeek, sessionId) { draft ->
             if (type == WeeklyPlanDayType.Cardio) {
-                draft.copy(type = WeeklyPlanDayType.Cardio, routineId = null, routineName = null, isRestDay = false)
+                draft.copy(type = WeeklyPlanDayType.Cardio, routineId = null, routineName = null)
             } else {
-                draft.copy(type = WeeklyPlanDayType.Strength, cardioTypeId = null, cardioTypeName = null, isRestDay = false)
+                draft.copy(type = WeeklyPlanDayType.Strength, cardioTypeId = null, cardioTypeName = null)
             }
         }
     }
@@ -116,11 +149,7 @@ class WeeklyPlanViewModel @Inject constructor(
             if (restDay) {
                 draft.copy(
                     isRestDay = true,
-                    routineId = null,
-                    routineName = null,
-                    cardioTypeId = null,
-                    cardioTypeName = null,
-                    notificationEnabled = false,
+                    sessions = emptyList(),
                 )
             } else {
                 draft.copy(isRestDay = false)
@@ -128,16 +157,16 @@ class WeeklyPlanViewModel @Inject constructor(
         }
     }
 
-    fun setNotificationEnabled(dayOfWeek: Int, enabled: Boolean) {
-        updateDay(dayOfWeek) { it.copy(notificationEnabled = enabled) }
+    fun setNotificationEnabled(dayOfWeek: Int, sessionId: String, enabled: Boolean) {
+        updateSession(dayOfWeek, sessionId) { it.copy(notificationEnabled = enabled) }
     }
 
-    fun setNotificationTime(dayOfWeek: Int, value: String) {
-        updateDay(dayOfWeek) { it.copy(notificationTime = value.filter { char -> char.isDigit() || char == ':' }.take(MAX_TIME_LENGTH)) }
+    fun setNotificationTime(dayOfWeek: Int, sessionId: String, value: String) {
+        updateSession(dayOfWeek, sessionId) { it.copy(notificationTime = value.filter { char -> char.isDigit() || char == ':' }.take(MAX_TIME_LENGTH)) }
     }
 
-    fun setCardioTargetMinutes(dayOfWeek: Int, value: String) {
-        updateDay(dayOfWeek) { it.copy(cardioTargetMinutes = value.onlyDigits().take(MAX_CARDIO_MINUTES_LENGTH)) }
+    fun setCardioTargetMinutes(dayOfWeek: Int, sessionId: String, value: String) {
+        updateSession(dayOfWeek, sessionId) { it.copy(cardioTargetMinutes = value.onlyDigits().take(MAX_CARDIO_MINUTES_LENGTH)) }
     }
 
     fun saveDay(dayOfWeek: Int) {
@@ -146,13 +175,20 @@ class WeeklyPlanViewModel @Inject constructor(
             val saved = weeklyPlanUseCase.updateDay(
                 WeeklyPlanUpdate(
                     dayOfWeek = draft.dayOfWeek,
-                    type = draft.type,
-                    routineId = draft.routineId,
-                    cardioTypeId = draft.cardioTypeId,
-                    cardioTargetDurationSec = draft.cardioTargetSeconds,
                     isRestDay = draft.isRestDay,
-                    notificationEnabled = draft.notificationEnabled,
-                    notificationTime = draft.notificationTime,
+                    sessions = draft.sessions.map { session ->
+                        WeeklyPlanSessionUpdate(
+                            id = session.id.takeUnless { it.startsWith("draft_") },
+                            type = session.type,
+                            routineId = session.routineId,
+                            cardioTypeId = session.cardioTypeId,
+                            cardioTargetDurationSec = session.cardioTargetSeconds,
+                            notificationEnabled = session.notificationEnabled,
+                            notificationTime = session.notificationTime,
+                        )
+                    },
+                    notificationEnabled = false,
+                    notificationTime = null,
                 ),
             )
             if (saved) {
@@ -171,6 +207,20 @@ class WeeklyPlanViewModel @Inject constructor(
                     if (day.dayOfWeek == dayOfWeek) transform(day) else day
                 },
                 messageRes = null,
+            )
+        }
+    }
+
+    private fun updateSession(
+        dayOfWeek: Int,
+        sessionId: String,
+        transform: (WeeklyPlanSessionDraft) -> WeeklyPlanSessionDraft,
+    ) {
+        updateDay(dayOfWeek) { day ->
+            day.copy(
+                sessions = day.sessions.map { session ->
+                    if (session.id == sessionId) transform(session) else session
+                },
             )
         }
     }
@@ -204,13 +254,21 @@ data class CardioTypeOption(
 
 data class WeeklyPlanDayDraft(
     val dayOfWeek: Int,
+    val isRestDay: Boolean,
+    val completedThisWeek: Boolean,
+    val sessions: List<WeeklyPlanSessionDraft>,
+) {
+    val plannedName: String? = sessions.joinToString(separator = " + ") { it.plannedName.orEmpty() }.takeIf { it.isNotBlank() }
+}
+
+data class WeeklyPlanSessionDraft(
+    val id: String,
     val type: WeeklyPlanDayType,
     val routineId: String?,
     val routineName: String?,
     val cardioTypeId: String?,
     val cardioTypeName: String?,
     val cardioTargetMinutes: String,
-    val isRestDay: Boolean,
     val notificationEnabled: Boolean,
     val notificationTime: String,
     val completedThisWeek: Boolean,

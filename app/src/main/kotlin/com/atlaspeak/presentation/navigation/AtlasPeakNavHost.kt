@@ -88,7 +88,7 @@ fun AtlasPeakNavHost(
                         navController.navigate(
                             AppRoute.ActiveCardio.createRoute(
                                 cardioTypeId,
-                                CardioMode.Countdown(targetSeconds.coerceAtLeast(60)),
+                                CardioMode.Countdown(targetSeconds),
                             ),
                         )
                     },

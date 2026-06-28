@@ -265,6 +265,7 @@ interface SettingsDao {
 data class WeeklyPlanRow(
     val id: String,
     val dayOfWeek: Int,
+    val orderIndex: Int,
     val type: String,
     val routineId: String?,
     val routineName: String?,
@@ -284,11 +285,18 @@ interface WeeklyPlanDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(day: WeeklyPlanEntity)
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(days: List<WeeklyPlanEntity>)
+
+    @Query("DELETE FROM weekly_plan WHERE day_of_week = :dayOfWeek")
+    suspend fun deleteDay(dayOfWeek: Int)
+
     @Query(
         """
         SELECT
             weekly_plan.id AS id,
             weekly_plan.day_of_week AS dayOfWeek,
+            weekly_plan.order_index AS orderIndex,
             weekly_plan.type AS type,
             weekly_plan.routine_id AS routineId,
             routines.name AS routineName,
@@ -301,7 +309,7 @@ interface WeeklyPlanDao {
         FROM weekly_plan
         LEFT JOIN routines ON routines.id = weekly_plan.routine_id
         LEFT JOIN cardio_types ON cardio_types.id = weekly_plan.cardio_type_id
-        ORDER BY weekly_plan.day_of_week
+        ORDER BY weekly_plan.day_of_week, weekly_plan.order_index
         """,
     )
     suspend fun getPlan(): List<WeeklyPlanRow>
@@ -311,6 +319,7 @@ interface WeeklyPlanDao {
         SELECT
             weekly_plan.id AS id,
             weekly_plan.day_of_week AS dayOfWeek,
+            weekly_plan.order_index AS orderIndex,
             weekly_plan.type AS type,
             weekly_plan.routine_id AS routineId,
             routines.name AS routineName,
@@ -324,10 +333,10 @@ interface WeeklyPlanDao {
         LEFT JOIN routines ON routines.id = weekly_plan.routine_id
         LEFT JOIN cardio_types ON cardio_types.id = weekly_plan.cardio_type_id
         WHERE weekly_plan.day_of_week = :dayOfWeek
-        LIMIT 1
+        ORDER BY weekly_plan.order_index
         """,
     )
-    suspend fun getDay(dayOfWeek: Int): WeeklyPlanRow?
+    suspend fun getDay(dayOfWeek: Int): List<WeeklyPlanRow>
 
     @Query(
         """
@@ -339,7 +348,30 @@ interface WeeklyPlanDao {
         """,
     )
     suspend fun getCompletedTrainingSessionStartTimes(startInclusive: Long, endExclusive: Long): List<Long>
+
+    @Query(
+        """
+        SELECT
+            workout_sessions.type AS type,
+            workout_sessions.routine_id AS routineId,
+            cardio_sessions.cardio_type_id AS cardioTypeId,
+            workout_sessions.start_time AS startTime
+        FROM workout_sessions
+        LEFT JOIN cardio_sessions ON cardio_sessions.session_id = workout_sessions.id
+        WHERE workout_sessions.completed = 1
+          AND workout_sessions.start_time >= :startInclusive
+          AND workout_sessions.start_time < :endExclusive
+        """,
+    )
+    suspend fun getCompletedTrainingRows(startInclusive: Long, endExclusive: Long): List<WeeklyPlanCompletionRow>
 }
+
+data class WeeklyPlanCompletionRow(
+    val type: String,
+    val routineId: String?,
+    val cardioTypeId: String?,
+    val startTime: Long,
+)
 
 @Dao
 interface AuthSecurityDao {
@@ -382,6 +414,16 @@ interface BodyCompositionDao {
 
     @Query("UPDATE body_composition SET synced_to_hc = 1 WHERE id IN (:ids)")
     suspend fun markSyncedToHealthConnect(ids: List<String>)
+
+    @Query(
+        """
+        DELETE FROM body_composition
+        WHERE source = 'HEALTH_CONNECT'
+          AND measured_at >= :startInclusive
+          AND measured_at < :endExclusive
+        """,
+    )
+    suspend fun deleteHealthConnectEntriesInWindow(startInclusive: Long, endExclusive: Long)
 }
 
 @Dao
@@ -626,6 +668,7 @@ interface DashboardDao {
         SELECT day_of_week
         FROM weekly_plan
         WHERE is_rest_day = 0 AND (routine_id IS NOT NULL OR cardio_type_id IS NOT NULL)
+        GROUP BY day_of_week
         ORDER BY day_of_week
         """,
     )

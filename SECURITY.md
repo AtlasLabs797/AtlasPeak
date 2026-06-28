@@ -22,7 +22,8 @@ Esto reduce privacidad frente a screenshots, screen recording y vista de recient
    mitigado con AES-256-GCM y clave derivada de contraseña (Google solo ve binario cifrado).
    **Aquí el atacante puede hacer fuerza bruta offline** → por eso PBKDF2 con 600k iter.
 4. **Secretos en el repositorio** (Maps key, OAuth id, keystore) → mitigado con
-   `.gitignore` + `secrets.properties`. Riesgo humano, vigilancia continua.
+   `.gitignore`, `secrets.properties` y keystore de release fuera del arbol del repo.
+   Riesgo humano, vigilancia continua.
 5. **Tráfico de red** (solo Drive) → solo HTTPS, sin cleartext, Bearer token.
 
 Fuera de alcance: no hay servidor que atacar, no hay multiusuario, no hay PII en tránsito
@@ -34,6 +35,33 @@ salvo lo que el propio Google maneja en su OAuth.
 
 Estos se detectaron al auditar el spec **antes** de escribir código. Los fixes están
 reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de versiones.
+
+### SEC-033 - Keystore release dentro del proyecto
+- **Estado:** Resuelto
+- **Fecha:** 2026-06-28
+- **Severidad:** Alta
+- **Sintoma:** `keystore.properties` y `atlas-peak-release.jks` existian dentro del directorio del proyecto. No estaban trackeados por Git, pero seguian siendo material sensible local facil de copiar, sincronizar o subir por error.
+- **Causa raiz:** la configuracion de signing aceptaba el camino comodo de dejar la firma junto al repo.
+- **Solucion:** los archivos locales se movieron fuera del arbol del proyecto y Gradle soporta `ATLAS_PEAK_KEYSTORE_PROPERTIES`; en el repo queda solo `keystore.properties.template`.
+- **Prevencion:** la release debe usar keystore externo; si ese directorio ya se compartio, rotar la clave de firma antes de distribuir builds publicas.
+
+### SEC-032 - Exports JSON/CSV en claro sin confirmacion visible
+- **Estado:** Resuelto / riesgo residual aceptado
+- **Fecha:** 2026-06-28
+- **Severidad:** Media
+- **Sintoma:** el usuario podia exportar datos deportivos/personales en JSON/CSV claro sin un aviso inmediato en el flujo.
+- **Causa raiz:** se acepto el export portable tras retirar el gate local, pero la UI no separaba suficiente "backup cifrado" de "export en claro".
+- **Solucion:** `BackupRestoreScreen` exige confirmacion explicita antes de JSON/CSV, mantiene la exclusion de `users` y `auth_security`, y `LocalBackupExportManager` limpia exports temporales antiguos.
+- **Prevencion:** cualquier nuevo export en claro debe declarar datos incluidos y pasar por confirmacion visible; no venderlo como backup cifrado.
+
+### SEC-031 - Health Connect bloqueaba sync parcial por permisos mezclados
+- **Estado:** Resuelto
+- **Fecha:** 2026-06-28
+- **Severidad:** Media
+- **Sintoma:** un permiso denegado podia bloquear toda la sincronizacion Health Connect, mezclando lectura de salud y exportacion de entrenamientos.
+- **Causa raiz:** `HealthConnectManager` usaba una lista global de permisos obligatorios.
+- **Solucion:** sync parcial por capacidad y permisos separados; se añadieron permisos de lectura corporal para peso, grasa, masa magra y masa de agua corporal.
+- **Prevencion:** nuevos tipos Health Connect deben añadirse como capacidad independiente con minimo privilegio, UI/documentacion y test.
 
 ### SEC-029 - Export CSV permitia formula injection en hojas de calculo
 - **Estado:** Resuelto
@@ -56,19 +84,20 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
   `kotlinx-coroutines-bom` y `guava-parent` para mantener `dependencyVerification` activo
   en unit tests, lint y compilacion androidTest.
 
-### SEC-030 - Compatibilidad de backups con plan semanal v4
+### SEC-030 - Compatibilidad de backups con plan semanal
 - **Estado:** Resuelto
 - **Fecha:** 2026-06-23
 - **Severidad:** Media
-- **Sintoma:** la migracion Room 3->4 agrega columnas a `weekly_plan` para planificar cardio.
-  Sin upgrade del snapshot, un backup antiguo descifrado correctamente seria rechazado por
-  columnas faltantes antes del restore.
+- **Sintoma:** las migraciones de `weekly_plan` agregan columnas para cardio y multiples
+  sesiones por dia. Sin upgrade del snapshot, un backup antiguo descifrado correctamente
+  seria rechazado por columnas faltantes antes del restore.
 - **Causa raiz:** el restore valida columnas exactas contra el schema vivo; eso es correcto,
-  pero exige que cada migracion de columnas tenga un paso equivalente en `BackupSnapshotUpgrader`.
-- **Solucion:** `BackupJsonCodec.CURRENT_SCHEMA_VERSION` sube a 3 y `BackupSnapshotUpgrader`
-  rellena `weekly_plan.type = STRENGTH`, `cardio_type_id = NULL` y
-  `cardio_target_duration_sec = NULL` para snapshots v2.
-- **Prevencion:** `BackupSnapshotUpgraderTest.schema v2 snapshot gains cardio planning columns`.
+  pero exige que cada migracion de columnas tenga un paso equivalente en `BackupSnapshotUpgrader`
+  y que el decode lo aplique antes de restaurar.
+- **Solucion:** `BackupJsonCodec.decode()` aplica `BackupSnapshotUpgrader`; el schema de backup
+  sube a 4, v2->v3 rellena columnas de cardio y v3->v4 rellena `weekly_plan.order_index = 0`.
+- **Prevencion:** tests cubren snapshots antiguos con columnas de planificacion cardio y
+  `order_index` antes de restaurar.
 
 ### SEC-027 - Restore de backup validaba columnas, pero no forma/tipo de valores
 - **Estado:** Resuelto
@@ -220,8 +249,8 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
 - **Severidad:** Media
 - **Sintoma:** una sesion ya abierta podia exportar datos de salud/entrenamiento en claro por ShareSheet sin volver a pedir contrasena.
 - **Causa raiz:** el flujo de export manual excluia hashes y lockout, pero no distinguia entre sesion autenticada y accion sensible de exfiltracion.
-- **Solucion:** al retirar la contraseña de entrada, el step-up local deja de existir. `BackupRestoreViewModel.exportJson()` y `exportCsv()` escriben exports manuales sin contraseña; la UI avisa que son cleartext. Los backups cifrados siguen usando passphrase.
-- **Prevencion:** mantener los exports manuales excluyendo `users` y `auth_security`; no confundirlos con backup cifrado.
+- **Solucion:** al retirar la contraseña de entrada, el step-up local deja de existir. Los exports manuales siguen sin contraseña, pero ahora requieren confirmacion explicita de datos en claro. Los backups cifrados siguen usando passphrase.
+- **Prevencion:** mantener los exports manuales excluyendo `users` y `auth_security`; no confundirlos con backup cifrado ni quitar el aviso visible.
 
 ### SEC-023 - Restore de backup aceptaba columnas desconocidas hasta SQLite
 - **Estado:** Resuelto

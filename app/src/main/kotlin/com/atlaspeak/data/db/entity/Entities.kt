@@ -264,11 +264,16 @@ data class BodyCompositionEntity(
             onDelete = ForeignKey.SET_NULL,
         ),
     ],
-    indices = [Index(value = ["day_of_week"], unique = true), Index(value = ["routine_id"])],
+    indices = [
+        Index(value = ["day_of_week", "order_index"], unique = true),
+        Index(value = ["routine_id"]),
+        Index(value = ["cardio_type_id"]),
+    ],
 )
 data class WeeklyPlanEntity(
     @PrimaryKey val id: String,
     @ColumnInfo(name = "day_of_week") val dayOfWeek: Int,
+    @ColumnInfo(name = "order_index") val orderIndex: Int = 0,
     val type: String = "STRENGTH",
     @ColumnInfo(name = "routine_id") val routineId: String? = null,
     @ColumnInfo(name = "cardio_type_id") val cardioTypeId: String? = null,

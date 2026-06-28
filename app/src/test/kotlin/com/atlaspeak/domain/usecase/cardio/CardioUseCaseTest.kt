@@ -1,9 +1,12 @@
 package com.atlaspeak.domain.usecase.cardio
 
+import com.atlaspeak.domain.model.body.BodyCompositionEntry
+import com.atlaspeak.domain.model.body.BodyCompositionSource
 import com.atlaspeak.domain.model.cardio.CardioMode
 import com.atlaspeak.domain.model.cardio.CardioSession
 import com.atlaspeak.domain.model.cardio.CardioType
 import com.atlaspeak.domain.model.cardio.LocationPoint
+import com.atlaspeak.domain.repository.BodyCompositionRepository
 import com.atlaspeak.domain.repository.CardioRepository
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -15,8 +18,10 @@ import org.junit.jupiter.api.Test
 
 class CardioUseCaseTest {
     private val repository = FakeCardioRepository()
+    private val bodyRepository = FakeBodyCompositionRepository()
     private val useCase = CardioUseCase(
         repository = repository,
+        bodyCompositionRepository = bodyRepository,
         now = { 1_700_000_000_000L },
     )
 
@@ -92,6 +97,23 @@ class CardioUseCaseTest {
     }
 
     @Test
+    fun `complete session uses latest body weight for calorie estimate`() = runTest {
+        repository.types = listOf(CardioType("run", "Run", hasGps = true, isPreset = true, isArchived = false))
+        bodyRepository.entries = listOf(bodyEntry(weightKg = 100.0, measuredAt = 1_700_000_000_000L))
+        val sessionId = useCase.startSession("run", CardioMode.Timer)!!
+
+        val completed = useCase.completeSession(
+            sessionId = sessionId,
+            endedAt = 1_700_000_600_000L,
+            manualDistanceKm = 1.0,
+            manualAvgSpeedKmh = 6.0,
+            route = emptyList(),
+        )
+
+        assertEquals(172, completed?.caloriesBurned)
+    }
+
+    @Test
     fun `complete session rejects manual cardio without distance and speed`() = runTest {
         repository.types = listOf(CardioType("bike", "Bike", hasGps = false, isPreset = true, isArchived = false))
         val sessionId = useCase.startSession("bike", CardioMode.Timer)!!
@@ -140,4 +162,31 @@ class CardioUseCaseTest {
             sessions = sessions.filterNot { it.id == id }
         }
     }
+
+    private class FakeBodyCompositionRepository : BodyCompositionRepository {
+        var entries = emptyList<BodyCompositionEntry>()
+
+        override suspend fun entries(): List<BodyCompositionEntry> = entries
+
+        override suspend fun upsert(entry: BodyCompositionEntry) {
+            entries = entries.filterNot { it.id == entry.id } + entry
+        }
+    }
+
+    private fun bodyEntry(weightKg: Double, measuredAt: Long) = BodyCompositionEntry(
+        id = "body-$measuredAt",
+        measuredAt = measuredAt,
+        weightKg = weightKg,
+        bodyFatPercent = null,
+        muscleMassKg = null,
+        waterPercent = null,
+        bodyWaterMassKg = null,
+        visceralFatLevel = null,
+        proteinPercent = null,
+        boneMassKg = null,
+        bodyAge = null,
+        source = BodyCompositionSource.Manual,
+        syncedToHealthConnect = false,
+        createdAt = measuredAt,
+    )
 }

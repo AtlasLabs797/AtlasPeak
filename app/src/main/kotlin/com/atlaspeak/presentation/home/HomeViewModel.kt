@@ -53,14 +53,14 @@ class HomeViewModel @Inject constructor(
             mutableState.update { it.copy(isLoading = it.snapshot == null, errorMessageRes = null) }
             try {
                 val snapshot = dashboardUseCase.snapshot(filters)
-                val todayWorkout = todayWorkout()
+                val todayWorkouts = todayWorkouts()
                 val greetingName = profileRepository.getProfile()?.displayName
                 mutableState.update {
                     if (it.filters == filters) {
                         it.copy(
                             isLoading = false,
                             snapshot = snapshot,
-                            todayWorkout = todayWorkout,
+                            todayWorkouts = todayWorkouts,
                             greetingName = greetingName,
                             errorMessageRes = null,
                         )
@@ -85,42 +85,60 @@ class HomeViewModel @Inject constructor(
     private fun syncHealthConnect() {
         viewModelScope.launch {
             val result = syncHealthConnectUseCase()
-            if (result.successful && (result.importedRecords > 0 || result.exportedRecords > 0)) {
+            if ((result.successful || result.partiallySuccessful) && (result.importedRecords > 0 || result.exportedRecords > 0)) {
                 refresh()
             }
         }
     }
 
-    private suspend fun todayWorkout(): TodayWorkoutUiState? {
+    private suspend fun todayWorkouts(): List<TodayWorkoutUiState> {
         val today = Instant.ofEpochMilli(System.currentTimeMillis())
             .atZone(ZoneId.systemDefault())
             .dayOfWeek
             .value
-        val day = weeklyPlanUseCase.plan().firstOrNull { it.dayOfWeek == today } ?: return null
-        if (day.isRestDay) return null
-        if (day.type == WeeklyPlanDayType.Cardio) {
-            val cardioTypeId = day.cardioTypeId ?: return null
-            val cardioTypeName = day.cardioTypeName ?: return null
-            return TodayWorkoutUiState(
-                type = TodayWorkoutType.Cardio,
-                routineId = null,
-                routineName = null,
-                cardioTypeId = cardioTypeId,
-                cardioTypeName = cardioTypeName,
-                cardioTargetDurationSec = day.cardioTargetDurationSec,
-                completed = day.completedThisWeek,
-            )
+        val day = weeklyPlanUseCase.plan().firstOrNull { it.dayOfWeek == today } ?: return emptyList()
+        if (day.isRestDay) return emptyList()
+        return day.sessions.mapNotNull { session ->
+            if (session.type == WeeklyPlanDayType.Cardio) {
+                val cardioTypeId = session.cardioTypeId ?: return@mapNotNull null
+                val cardioTypeName = session.cardioTypeName ?: return@mapNotNull null
+                val targetSeconds = session.cardioTargetDurationSec
+                TodayWorkoutUiState(
+                    orderIndex = session.orderIndex,
+                    type = TodayWorkoutType.Cardio,
+                    routineId = null,
+                    routineName = null,
+                    cardioTypeId = cardioTypeId,
+                    cardioTypeName = cardioTypeName,
+                    cardioTargetDurationSec = targetSeconds,
+                    completed = session.completedThisWeek,
+                    canStart = targetSeconds != null && targetSeconds >= MIN_CARDIO_TARGET_SECONDS,
+                    statusMessageRes = if (targetSeconds == null || targetSeconds < MIN_CARDIO_TARGET_SECONDS) {
+                        R.string.home_today_cardio_incomplete
+                    } else {
+                        null
+                    },
+                )
+            } else {
+                if (session.routineId == null || session.routineName == null) return@mapNotNull null
+                TodayWorkoutUiState(
+                    orderIndex = session.orderIndex,
+                    type = TodayWorkoutType.Strength,
+                    routineId = session.routineId,
+                    routineName = session.routineName,
+                    cardioTypeId = null,
+                    cardioTypeName = null,
+                    cardioTargetDurationSec = null,
+                    completed = session.completedThisWeek,
+                    canStart = true,
+                    statusMessageRes = null,
+                )
+            }
         }
-        if (day.routineId == null || day.routineName == null) return null
-        return TodayWorkoutUiState(
-            type = TodayWorkoutType.Strength,
-            routineId = day.routineId,
-            routineName = day.routineName,
-            cardioTypeId = null,
-            cardioTypeName = null,
-            cardioTargetDurationSec = null,
-            completed = day.completedThisWeek,
-        )
+    }
+
+    private companion object {
+        const val MIN_CARDIO_TARGET_SECONDS = 60
     }
 }
 
@@ -128,12 +146,15 @@ data class HomeUiState(
     val isLoading: Boolean = true,
     val filters: DashboardFilters = DashboardFilters(),
     val snapshot: DashboardSnapshot? = null,
-    val todayWorkout: TodayWorkoutUiState? = null,
+    val todayWorkouts: List<TodayWorkoutUiState> = emptyList(),
     val greetingName: String? = null,
     @StringRes val errorMessageRes: Int? = null,
-)
+) {
+    val todayWorkout: TodayWorkoutUiState? = todayWorkouts.firstOrNull()
+}
 
 data class TodayWorkoutUiState(
+    val orderIndex: Int,
     val type: TodayWorkoutType,
     val routineId: String?,
     val routineName: String?,
@@ -141,6 +162,8 @@ data class TodayWorkoutUiState(
     val cardioTypeName: String?,
     val cardioTargetDurationSec: Int?,
     val completed: Boolean,
+    val canStart: Boolean,
+    @StringRes val statusMessageRes: Int?,
 ) {
     val title: String = routineName ?: cardioTypeName.orEmpty()
 }

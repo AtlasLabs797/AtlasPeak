@@ -102,6 +102,7 @@ object SeedData {
         WeeklyPlanEntity(
             id = "weekly_plan_3",
             dayOfWeek = 3,
+            orderIndex = 0,
             type = "CARDIO",
             routineId = null,
             cardioTypeId = "cardio_static_bike",
@@ -158,6 +159,7 @@ object SeedData {
     private fun strengthDay(dayOfWeek: Int, routineId: String) = WeeklyPlanEntity(
         id = "weekly_plan_$dayOfWeek",
         dayOfWeek = dayOfWeek,
+        orderIndex = 0,
         type = "STRENGTH",
         routineId = routineId,
         cardioTypeId = null,
@@ -170,6 +172,7 @@ object SeedData {
     private fun restDay(dayOfWeek: Int) = WeeklyPlanEntity(
         id = "weekly_plan_$dayOfWeek",
         dayOfWeek = dayOfWeek,
+        orderIndex = 0,
         type = "STRENGTH",
         routineId = null,
         cardioTypeId = null,

@@ -3,6 +3,7 @@ package com.atlaspeak.data.backup
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
+import javax.inject.Inject
 
 /**
  * Upgrades snapshots written by older app versions to the current backup schema.
@@ -14,7 +15,7 @@ import kotlinx.serialization.json.JsonPrimitive
  * additions of the corresponding Room migration in `AppDatabase`, backfilling the
  * same default the migration used (nullable columns start as NULL).
  */
-class BackupSnapshotUpgrader {
+class BackupSnapshotUpgrader @Inject constructor() {
     fun upgradeToCurrent(snapshot: DatabaseBackupSnapshot): DatabaseBackupSnapshot {
         require(snapshot.schemaVersion <= BackupJsonCodec.CURRENT_SCHEMA_VERSION) {
             "Backup schema version ${snapshot.schemaVersion} is newer than the supported " +
@@ -60,6 +61,12 @@ class BackupSnapshotUpgrader {
                         "cardio_type_id" to JsonNull,
                         "cardio_target_duration_sec" to JsonNull,
                     ),
+                ),
+            ),
+            UpgradeStep(
+                fromVersion = 3,
+                addedColumns = mapOf(
+                    "weekly_plan" to mapOf("order_index" to JsonPrimitive(0)),
                 ),
             ),
         )

@@ -50,6 +50,7 @@ import com.atlaspeak.R
 import com.atlaspeak.domain.model.backup.DriveBackup
 import com.atlaspeak.domain.model.backup.SharedBackupExport
 import com.atlaspeak.presentation.component.AtlasPrimaryButton
+import com.atlaspeak.presentation.component.AtlasDialog
 import com.atlaspeak.presentation.component.AtlasSecondaryButton
 import com.atlaspeak.presentation.component.AtlasSwitchRow
 import com.atlaspeak.presentation.component.AtlasTextField
@@ -135,8 +136,10 @@ fun BackupRestoreRoute(
         onPasswordChanged = viewModel::onPasswordChanged,
         onAutoBackupChanged = viewModel::setAutoBackupEnabled,
         onCreateLocalBackup = viewModel::createLocalEncryptedBackup,
-        onExportJson = viewModel::exportJson,
-        onExportCsv = viewModel::exportCsv,
+        onExportJson = viewModel::requestExportJson,
+        onExportCsv = viewModel::requestExportCsv,
+        onCancelCleartextExport = viewModel::cancelCleartextExport,
+        onConfirmCleartextExport = viewModel::confirmCleartextExport,
         onRefreshDrive = { requestDrive(DriveAction.RefreshList) },
         onCreateDriveBackup = { requestDrive(DriveAction.CreateBackup) },
         onConfirmRestore = viewModel::confirmRestore,
@@ -154,6 +157,8 @@ fun BackupRestoreScreen(
     onCreateLocalBackup: () -> Unit,
     onExportJson: () -> Unit,
     onExportCsv: () -> Unit,
+    onCancelCleartextExport: () -> Unit,
+    onConfirmCleartextExport: () -> Unit,
     onRefreshDrive: () -> Unit,
     onCreateDriveBackup: () -> Unit,
     onConfirmRestore: (String) -> Unit,
@@ -162,6 +167,25 @@ fun BackupRestoreScreen(
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
+    if (state.pendingCleartextExport != null) {
+        AtlasDialog(
+            onDismissRequest = onCancelCleartextExport,
+            title = stringResource(R.string.backup_cleartext_export_title),
+            message = stringResource(R.string.backup_cleartext_export_body),
+            confirmButton = {
+                AtlasPrimaryButton(
+                    onClick = onConfirmCleartextExport,
+                    text = stringResource(R.string.backup_cleartext_export_confirm),
+                )
+            },
+            dismissButton = {
+                AtlasSecondaryButton(
+                    onClick = onCancelCleartextExport,
+                    text = stringResource(R.string.action_cancel),
+                )
+            },
+        )
+    }
     PremiumBackground(modifier = modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -382,6 +406,7 @@ private fun BackupFileRow(
             text = stringResource(
                 R.string.backup_file_meta,
                 backup.createdTimeMillis?.formatTimestamp() ?: stringResource(R.string.backup_last_never),
+                backup.sizeBytes.formatSize(),
             ),
             style = MaterialTheme.typography.bodySmall,
             color = atlasColors.ink3,
@@ -476,6 +501,17 @@ private fun Context.shareFile(file: SharedBackupExport) {
 
 private fun Long.formatTimestamp(): String {
     return DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date(this))
+}
+
+@Composable
+private fun Long?.formatSize(): String {
+    val bytes = this ?: return stringResource(R.string.backup_size_unknown)
+    val kb = (bytes + 1023L) / 1024L
+    return if (kb < 1024L) {
+        stringResource(R.string.backup_size_kb, kb)
+    } else {
+        stringResource(R.string.backup_size_mb, bytes / (1024.0 * 1024.0))
+    }
 }
 
 private sealed interface DriveAction {

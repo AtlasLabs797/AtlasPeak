@@ -46,6 +46,9 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -103,6 +106,7 @@ fun ActiveWorkoutRoute(
 ) {
     val state = viewModel.state.collectAsStateWithLifecycle().value
     val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
     var showExitDialog by rememberSaveable { mutableStateOf(false) }
     val activityRecognitionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -134,6 +138,22 @@ fun ActiveWorkoutRoute(
         if (state.discarded) onWorkoutDiscarded()
     }
 
+    val deletedSetMessage = stringResource(R.string.workout_set_deleted)
+    val undoAction = stringResource(R.string.action_undo)
+    LaunchedEffect(state.deletedSetEventId) {
+        if (state.deletedSetEventId == 0L || state.deletedSetForUndo == null) return@LaunchedEffect
+        val result = snackbarHostState.showSnackbar(
+            message = deletedSetMessage,
+            actionLabel = undoAction,
+            withDismissAction = true,
+        )
+        if (result == SnackbarResult.ActionPerformed) {
+            viewModel.undoRemoveSet()
+        } else {
+            viewModel.clearDeletedSetNotice()
+        }
+    }
+
     // Back del sistema durante una sesión activa: sin confirmación se abandonaba la sesión
     // dejando el servicio en primer plano notificando para siempre y una sesión huérfana.
     BackHandler(enabled = state.session != null && state.completedSessionId == null && !state.discarded) {
@@ -163,14 +183,35 @@ fun ActiveWorkoutRoute(
         )
     }
 
+    if (state.pendingSetDeletion != null) {
+        AtlasDialog(
+            onDismissRequest = viewModel::cancelRemoveSet,
+            title = stringResource(R.string.workout_delete_set_confirm_title),
+            message = stringResource(R.string.workout_delete_set_confirm_body),
+            confirmButton = {
+                AtlasPrimaryButton(
+                    onClick = viewModel::confirmRemoveSet,
+                    text = stringResource(R.string.workout_delete_set_confirm),
+                )
+            },
+            dismissButton = {
+                AtlasSecondaryButton(
+                    onClick = viewModel::cancelRemoveSet,
+                    text = stringResource(R.string.action_cancel),
+                )
+            },
+        )
+    }
+
     ActiveWorkoutScreen(
         state = state,
+        snackbarHostState = snackbarHostState,
         onSetCompleted = viewModel::onSetCompleted,
         onRepsTextChanged = viewModel::onRepsTextChanged,
         onWeightTextChanged = viewModel::onWeightTextChanged,
         onSetInputCommitted = viewModel::onSetInputCommitted,
         onAddSet = viewModel::addSet,
-        onRemoveSet = viewModel::removeSet,
+        onRemoveSet = viewModel::requestRemoveSet,
         onMoveExercise = viewModel::moveExercise,
         onSkipRest = viewModel::skipRestTimer,
         onCompleteWorkout = viewModel::completeWorkout,
@@ -181,6 +222,7 @@ fun ActiveWorkoutRoute(
 @Composable
 fun ActiveWorkoutScreen(
     state: ActiveWorkoutUiState,
+    snackbarHostState: SnackbarHostState,
     onSetCompleted: (WorkoutSet, Boolean, Int) -> Unit,
     onRepsTextChanged: (WorkoutSet, String) -> Unit,
     onWeightTextChanged: (WorkoutSet, String) -> Unit,
@@ -198,7 +240,8 @@ fun ActiveWorkoutScreen(
     RestFeedbackEffect(state.restTimer, state.restFeedbackSettings)
 
     PremiumBackground(modifier = modifier.fillMaxSize()) {
-        when {
+        Box(Modifier.fillMaxSize()) {
+            when {
             state.isLoading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
             }
@@ -227,74 +270,82 @@ fun ActiveWorkoutScreen(
                     }
                 }
 
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(spacing.screen),
-                    verticalArrangement = Arrangement.spacedBy(spacing.cardGap),
-                ) {
-                    ProgressCard(
-                        routineName = session.routineName.orEmpty(),
-                        completedExercises = state.completedExerciseCount,
-                        totalExercises = state.totalExerciseCount,
-                        elapsedSeconds = state.elapsedSeconds,
-                        totalVolumeKg = session.totalVolumeKg ?: 0.0,
-                    )
-                    ActiveWorkoutMessageText(state.message)
-                    if (session.exercises.isNotEmpty()) {
-                        HorizontalPager(
-                            state = pagerState,
-                            modifier = Modifier.weight(1f),
-                        ) { page ->
-                            ExercisePage(
-                                exercise = session.exercises[page],
-                                inputDrafts = state.inputDrafts,
-                                onSetCompleted = onSetCompleted,
-                                onRepsTextChanged = onRepsTextChanged,
-                                onWeightTextChanged = onWeightTextChanged,
-                                onSetInputCommitted = onSetInputCommitted,
-                                onAddSet = onAddSet,
-                                onRemoveSet = onRemoveSet,
+                Box(Modifier.fillMaxSize()) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(spacing.screen),
+                        verticalArrangement = Arrangement.spacedBy(spacing.cardGap),
+                    ) {
+                        ProgressCard(
+                            routineName = session.routineName.orEmpty(),
+                            completedExercises = state.completedExerciseCount,
+                            totalExercises = state.totalExerciseCount,
+                            elapsedSeconds = state.elapsedSeconds,
+                            totalVolumeKg = session.totalVolumeKg ?: 0.0,
+                        )
+                        ActiveWorkoutMessageText(state.message)
+                        if (session.exercises.isNotEmpty()) {
+                            HorizontalPager(
+                                state = pagerState,
+                                modifier = Modifier.weight(1f),
+                            ) { page ->
+                                ExercisePage(
+                                    exercise = session.exercises[page],
+                                    inputDrafts = state.inputDrafts,
+                                    onSetCompleted = onSetCompleted,
+                                    onRepsTextChanged = onRepsTextChanged,
+                                    onWeightTextChanged = onWeightTextChanged,
+                                    onSetInputCommitted = onSetInputCommitted,
+                                    onAddSet = onAddSet,
+                                    onRemoveSet = onRemoveSet,
+                                )
+                            }
+                        }
+                        state.restTimer?.let { timer ->
+                            RestTimerPanel(
+                                timer = timer,
+                                currentExercise = currentExercise,
+                                onSkipRest = onSkipRest,
+                            )
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                            AtlasSecondaryButton(
+                                modifier = Modifier.weight(1f),
+                                onClick = { showExerciseSheet = true },
+                                text = stringResource(R.string.workout_active_exercise_sheet),
+                                leadingIcon = Icons.AutoMirrored.Filled.List,
+                            )
+                            AtlasPrimaryButton(
+                                modifier = Modifier.weight(1f),
+                                enabled = canMoveNext || allExercisesComplete,
+                                onClick = {
+                                    if (canMoveNext) {
+                                        coroutineScope.launch {
+                                            pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                                        }
+                                    } else {
+                                        onCompleteWorkout()
+                                    }
+                                },
+                                text = stringResource(
+                                    if (canMoveNext) {
+                                        R.string.workout_next_exercise_action
+                                    } else if (allExercisesComplete) {
+                                        R.string.workout_finish_action
+                                    } else {
+                                        R.string.workout_complete_sets_action
+                                    },
+                                ),
                             )
                         }
                     }
-                    state.restTimer?.let { timer ->
-                        RestTimerPanel(
-                            timer = timer,
-                            currentExercise = currentExercise,
-                            onSkipRest = onSkipRest,
-                        )
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
-                        AtlasSecondaryButton(
-                            modifier = Modifier.weight(1f),
-                            onClick = { showExerciseSheet = true },
-                            text = stringResource(R.string.workout_active_exercise_sheet),
-                            leadingIcon = Icons.AutoMirrored.Filled.List,
-                        )
-                        AtlasPrimaryButton(
-                            modifier = Modifier.weight(1f),
-                            enabled = canMoveNext || allExercisesComplete,
-                            onClick = {
-                                if (canMoveNext) {
-                                    coroutineScope.launch {
-                                        pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                                    }
-                                } else {
-                                    onCompleteWorkout()
-                                }
-                            },
-                            text = stringResource(
-                                if (canMoveNext) {
-                                    R.string.workout_next_exercise_action
-                                } else if (allExercisesComplete) {
-                                    R.string.workout_finish_action
-                                } else {
-                                    R.string.workout_complete_sets_action
-                                },
-                            ),
-                        )
-                    }
+                    SnackbarHost(
+                        hostState = snackbarHostState,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(spacing.screen),
+                    )
                 }
                 if (showExerciseSheet) {
                     AtlasBottomSheet(onDismissRequest = { showExerciseSheet = false }) {
@@ -306,6 +357,7 @@ fun ActiveWorkoutScreen(
                     }
                 }
             }
+        }
         }
     }
 }
@@ -596,6 +648,7 @@ private fun SetRow(
             onValueChange = { onWeightTextChanged(set, it) },
             placeholder = set.weightKg?.toString().orEmpty(),
             keyboardType = KeyboardType.Decimal,
+            contentDescription = stringResource(R.string.workout_weight_series_cd, set.setNumber),
             onCommit = { onSetInputCommitted(set) },
         )
         TelemetryInput(
@@ -604,6 +657,7 @@ private fun SetRow(
             onValueChange = { onRepsTextChanged(set, it) },
             placeholder = set.plannedReps.toString(),
             keyboardType = KeyboardType.Number,
+            contentDescription = stringResource(R.string.workout_reps_series_cd, set.setNumber),
             onCommit = { onSetInputCommitted(set) },
         )
         Surface(
@@ -645,6 +699,7 @@ private fun TelemetryInput(
     onValueChange: (String) -> Unit,
     placeholder: String,
     keyboardType: KeyboardType,
+    contentDescription: String,
     onCommit: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -652,6 +707,7 @@ private fun TelemetryInput(
     BasicTextField(
         modifier = modifier
             .commitOnFocusLost(onCommit)
+            .semantics { this.contentDescription = contentDescription }
             .heightIn(min = 44.dp),
         value = value,
         onValueChange = onValueChange,

@@ -60,7 +60,20 @@ class LocalBackupExportManager @Inject constructor(
 
     private fun exportFile(fileName: String): File {
         val directory = File(context.filesDir, EXPORT_DIRECTORY).apply { mkdirs() }
+        cleanupExports(directory)
         return File(directory, fileName)
+    }
+
+    private fun cleanupExports(directory: File) {
+        val now = System.currentTimeMillis()
+        val files = directory.listFiles().orEmpty()
+            .filter { it.isFile }
+            .sortedByDescending { it.lastModified() }
+        files
+            .filterIndexed { index, file ->
+                index >= MAX_EXPORT_FILES || now - file.lastModified() > EXPORT_TTL_MS
+            }
+            .forEach { it.delete() }
     }
 
     private fun File.toSharedFile(mimeType: String): SharedExportFile {
@@ -80,6 +93,8 @@ class LocalBackupExportManager @Inject constructor(
 
     companion object {
         private const val EXPORT_DIRECTORY = "exports"
+        private const val MAX_EXPORT_FILES = 10
+        private const val EXPORT_TTL_MS = 24L * 60L * 60L * 1000L
     }
 }
 

@@ -178,15 +178,28 @@ class BackupRestoreViewModel @Inject constructor(
         }
     }
 
-    fun exportJson() {
-        writeSharedFile(successRes = R.string.backup_export_created) {
-            backupUseCase.writeManualJson()
-        }
+    fun requestExportJson() {
+        _state.update { it.copy(pendingCleartextExport = CleartextExportType.Json, messageRes = null) }
     }
 
-    fun exportCsv() {
-        writeSharedFile(successRes = R.string.backup_export_created) {
-            backupUseCase.writeCsvZip()
+    fun requestExportCsv() {
+        _state.update { it.copy(pendingCleartextExport = CleartextExportType.Csv, messageRes = null) }
+    }
+
+    fun cancelCleartextExport() {
+        _state.update { it.copy(pendingCleartextExport = null) }
+    }
+
+    fun confirmCleartextExport() {
+        val type = state.value.pendingCleartextExport ?: return
+        _state.update { it.copy(pendingCleartextExport = null) }
+        when (type) {
+            CleartextExportType.Json -> writeSharedFile(successRes = R.string.backup_export_created) {
+                backupUseCase.writeManualJson()
+            }
+            CleartextExportType.Csv -> writeSharedFile(successRes = R.string.backup_export_created) {
+                backupUseCase.writeCsvZip()
+            }
         }
     }
 
@@ -232,9 +245,15 @@ data class BackupRestoreUiState(
     val lastBackupAt: Long? = null,
     val driveBackups: List<DriveBackup> = emptyList(),
     val pendingRestoreFileId: String? = null,
+    val pendingCleartextExport: CleartextExportType? = null,
     @StringRes val messageRes: Int? = null,
 )
 
 sealed interface BackupRestoreEvent {
     data class Share(val file: SharedBackupExport) : BackupRestoreEvent
+}
+
+enum class CleartextExportType {
+    Json,
+    Csv,
 }

@@ -226,7 +226,7 @@ data class ActiveCardioUiState(
     val requiresManualMetrics: Boolean = session?.hasGps != true || route.isEmpty()
     val hasValidManualMetrics: Boolean =
         (manualDistanceKm.toDoubleOrNull()?.let { it > 0.0 } == true) &&
-            (manualAvgSpeedKmh.toDoubleOrNull()?.let { it > 0.0 } == true)
+            (manualAvgSpeedKmh.isBlank() || manualAvgSpeedKmh.toDoubleOrNull()?.let { it > 0.0 } == true)
     val canComplete: Boolean = !requiresManualMetrics || hasValidManualMetrics
 
     val averageSpeedKmh: Double? = if (elapsedSeconds > 0 && distanceKm > 0.0) {

@@ -10,6 +10,47 @@
 
 ## [Unreleased]
 
+### 2026-06-28 - Auditoria Atlas Peak alta prioridad
+
+**Anadido**
+- Plan semanal con multiples sesiones por dia (`weekly_plan.order_index`), UI para fuerza +
+  cardio el mismo dia y recordatorios por sesion.
+- Import Health Connect de peso, grasa corporal, masa magra y masa de agua corporal, con
+  sync parcial por capacidad.
+- `AtlasTimeField` con selector horario nativo para planificacion y ajustes de notificaciones.
+- `keystore.properties.template`; la firma release puede apuntar a un `keystore.properties`
+  externo via `ATLAS_PEAK_KEYSTORE_PROPERTIES`.
+
+**Cambiado**
+- Calorias de cardio usan ultimo peso corporal valido y solo caen a 75 kg si no hay dato.
+- Cardio filtra rutas, timestamps, velocidades y distancias imposibles antes de guardar.
+- Home muestra todas las sesiones planificadas del dia y bloquea cardio incompleto en vez de
+  degradarlo silenciosamente a 60 segundos.
+- Perfil queda dividido en Perfil, Ajustes y Datos.
+- Documentacion de usuario/tecnica/spec alineada con Health Connect, planificacion, exports y
+  signing fuera del repo.
+
+**Corregido**
+- Restore de backups antiguos aplica `BackupSnapshotUpgrader` durante `BackupJsonCodec.decode()`.
+- Borrado de series tiene confirmacion cuando hay datos y snackbar con Deshacer.
+- Tabs de Progreso e inputs de series tienen semantica accesible.
+- Export JSON/CSV claro pide confirmacion visible y limpia temporales antiguos.
+
+**Seguridad**
+- `keystore.properties` y `atlas-peak-release.jks` se movieron fuera del arbol del proyecto.
+- Registrados SEC-031, SEC-032 y SEC-033; SEC-030 actualizado para backups schema v4.
+
+**Verificado**
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat :app:compileDebugKotlin --no-daemon --no-configuration-cache --console=plain` pasa.
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat :app:testDebugUnitTest --no-daemon --no-configuration-cache --console=plain` pasa.
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat :app:assembleDebug --no-daemon --no-configuration-cache --console=plain` pasa.
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat :app:lintDebug --no-daemon --no-configuration-cache --console=plain` pasa.
+- `ATLAS_PEAK_KEYSTORE_PROPERTIES=C:\Users\usuario\.atlaspeak\release\keystore.properties`
+  + `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat :app:assembleRelease --no-daemon --no-configuration-cache --console=plain` pasa.
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat :app:compileDebugAndroidTestKotlin --no-daemon --no-configuration-cache --console=plain` pasa.
+- `connectedDebugAndroidTest` no paso por infraestructura: el emulador arranco, pero PackageManager
+  fallo durante install con `Broken pipe (32)` antes de ejecutar tests.
+
 ### 2026-06-23 - Redisenio completo Monochrome Instrument
 
 **Anadido**

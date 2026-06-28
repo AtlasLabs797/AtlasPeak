@@ -18,6 +18,7 @@ import androidx.health.connect.client.time.TimeRangeFilter
 import androidx.health.connect.client.units.Energy
 import androidx.room.withTransaction
 import com.atlaspeak.data.db.AppDatabase
+import com.atlaspeak.data.db.entity.BodyCompositionEntity
 import com.atlaspeak.data.db.entity.HcActiveCaloriesRecordEntity
 import com.atlaspeak.data.db.entity.HcHeartRateSampleEntity
 import com.atlaspeak.data.db.entity.HcSleepSessionEntity
@@ -25,6 +26,7 @@ import com.atlaspeak.data.db.entity.HcSleepStageEntity
 import com.atlaspeak.data.db.entity.HcStepsRecordEntity
 import com.atlaspeak.data.db.entity.HcSyncLogEntity
 import com.atlaspeak.domain.model.healthconnect.HealthConnectAvailability
+import com.atlaspeak.domain.model.healthconnect.HealthConnectCapability
 import com.atlaspeak.domain.model.healthconnect.HealthConnectSyncResult
 import com.atlaspeak.domain.repository.HealthConnectRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -56,23 +58,41 @@ class HealthConnectManager @Inject constructor(
 
         val client = HealthConnectClient.getOrCreate(context)
         val grantedPermissions = client.permissionController.getGrantedPermissions()
-        if (!grantedPermissions.containsAll(REQUIRED_PERMISSIONS)) {
-            return HealthConnectSyncResult(
-                availability = HealthConnectAvailability.Available,
-                missingPermissions = true,
-            )
+        val now = System.currentTimeMillis()
+        var imported = 0
+        var exported = 0
+        val completedCapabilities = mutableSetOf<HealthConnectCapability>()
+        val skippedCapabilities = mutableSetOf<HealthConnectCapability>()
+
+        suspend fun runIfGranted(
+            capability: HealthConnectCapability,
+            block: suspend () -> Int,
+        ): Int {
+            val permissions = REQUIRED_PERMISSIONS_BY_CAPABILITY.getValue(capability)
+            return if (grantedPermissions.containsAll(permissions)) {
+                completedCapabilities += capability
+                block()
+            } else {
+                skippedCapabilities += capability
+                0
+            }
         }
 
-        val now = System.currentTimeMillis()
-        val imported = importSteps(client, now) +
-            importActiveCalories(client, now) +
-            importSleep(client, now) +
-            importHeartRate(client, now)
-        val exported = exportWorkouts(client, now) + exportBodyComposition(client, now)
+        imported += runIfGranted(HealthConnectCapability.Steps) { importSteps(client, now) }
+        imported += runIfGranted(HealthConnectCapability.ActiveCalories) { importActiveCalories(client, now) }
+        imported += runIfGranted(HealthConnectCapability.Sleep) { importSleep(client, now) }
+        imported += runIfGranted(HealthConnectCapability.HeartRate) { importHeartRate(client, now) }
+        imported += runIfGranted(HealthConnectCapability.BodyCompositionRead) { importBodyComposition(client, now) }
+        exported += runIfGranted(HealthConnectCapability.WorkoutWrite) { exportWorkouts(client, now) }
+        exported += runIfGranted(HealthConnectCapability.BodyCompositionWrite) { exportBodyComposition(client, now) }
+
         return HealthConnectSyncResult(
             availability = HealthConnectAvailability.Available,
+            missingPermissions = skippedCapabilities.isNotEmpty(),
             importedRecords = imported,
             exportedRecords = exported,
+            completedCapabilities = completedCapabilities,
+            skippedCapabilities = skippedCapabilities,
         )
     }
 
@@ -220,6 +240,97 @@ class HealthConnectManager @Inject constructor(
         return samples.size
     }
 
+    private suspend fun importBodyComposition(client: HealthConnectClient, now: Long): Int {
+        val startMillis = readWindowStartMillis(now)
+        val start = Instant.ofEpochMilli(startMillis)
+        val end = Instant.ofEpochMilli(now)
+        val entries = buildList {
+            addAll(readWeightRecords(client, start, end, now))
+            addAll(readBodyFatRecords(client, start, end, now))
+            addAll(readLeanBodyMassRecords(client, start, end, now))
+            addAll(readBodyWaterMassRecords(client, start, end, now))
+        }
+        database.withTransaction {
+            ensureSyncLog(BODY_COMP)
+            database.bodyCompositionDao().deleteHealthConnectEntriesInWindow(startMillis, now)
+            database.bodyCompositionDao().upsert(entries)
+            database.healthConnectDao().updateLastReadAt(BODY_COMP, now)
+        }
+        return entries.size
+    }
+
+    private suspend fun readWeightRecords(
+        client: HealthConnectClient,
+        start: Instant,
+        end: Instant,
+        importedAt: Long,
+    ): List<BodyCompositionEntity> {
+        val records = readPagedRecords(client, WeightRecord::class, start, end)
+        return records.map { record ->
+            record.toBodyEntity("weight", importedAt, weightKg = record.weight.inKilograms)
+        }
+    }
+
+    private suspend fun readBodyFatRecords(
+        client: HealthConnectClient,
+        start: Instant,
+        end: Instant,
+        importedAt: Long,
+    ): List<BodyCompositionEntity> {
+        val records = readPagedRecords(client, BodyFatRecord::class, start, end)
+        return records.map { record ->
+            record.toBodyEntity("body_fat", importedAt, bodyFatPercent = record.percentage.value)
+        }
+    }
+
+    private suspend fun readLeanBodyMassRecords(
+        client: HealthConnectClient,
+        start: Instant,
+        end: Instant,
+        importedAt: Long,
+    ): List<BodyCompositionEntity> {
+        val records = readPagedRecords(client, LeanBodyMassRecord::class, start, end)
+        return records.map { record ->
+            record.toBodyEntity("lean_mass", importedAt, muscleMassKg = record.mass.inKilograms)
+        }
+    }
+
+    private suspend fun readBodyWaterMassRecords(
+        client: HealthConnectClient,
+        start: Instant,
+        end: Instant,
+        importedAt: Long,
+    ): List<BodyCompositionEntity> {
+        val records = readPagedRecords(client, BodyWaterMassRecord::class, start, end)
+        return records.map { record ->
+            record.toBodyEntity("body_water_mass", importedAt, bodyWaterMassKg = record.mass.inKilograms)
+        }
+    }
+
+    private suspend fun <T : androidx.health.connect.client.records.Record> readPagedRecords(
+        client: HealthConnectClient,
+        recordType: kotlin.reflect.KClass<T>,
+        start: Instant,
+        end: Instant,
+    ): List<T> {
+        val records = mutableListOf<T>()
+        var pageToken: String? = null
+        do {
+            val response = client.readRecords(
+                ReadRecordsRequest(
+                    recordType = recordType,
+                    timeRangeFilter = TimeRangeFilter.between(start, end),
+                    ascendingOrder = true,
+                    pageSize = PAGE_SIZE,
+                    pageToken = pageToken,
+                ),
+            )
+            records += response.records
+            pageToken = response.pageToken
+        } while (!pageToken.isNullOrBlank())
+        return records
+    }
+
     private suspend fun exportWorkouts(client: HealthConnectClient, now: Long): Int {
         val lastWriteAt = database.healthConnectDao().getSyncLog(WORKOUTS)?.lastWriteAt
         val exports = HealthConnectRecordMapper.workoutRecords(
@@ -330,6 +441,85 @@ class HealthConnectManager @Inject constructor(
         )
     }
 
+    private fun WeightRecord.toBodyEntity(
+        metric: String,
+        importedAt: Long,
+        weightKg: Double,
+    ): BodyCompositionEntity = bodyEntity(
+        metric = metric,
+        providerId = providerRecordId(metric, time.toEpochMilli()),
+        measuredAt = time.toEpochMilli(),
+        sourcePackage = metadata.dataOrigin.packageName,
+        createdAt = importedAt,
+        weightKg = weightKg,
+    )
+
+    private fun BodyFatRecord.toBodyEntity(
+        metric: String,
+        importedAt: Long,
+        bodyFatPercent: Double,
+    ): BodyCompositionEntity = bodyEntity(
+        metric = metric,
+        providerId = providerRecordId(metric, time.toEpochMilli()),
+        measuredAt = time.toEpochMilli(),
+        sourcePackage = metadata.dataOrigin.packageName,
+        createdAt = importedAt,
+        bodyFatPercent = bodyFatPercent,
+    )
+
+    private fun LeanBodyMassRecord.toBodyEntity(
+        metric: String,
+        importedAt: Long,
+        muscleMassKg: Double,
+    ): BodyCompositionEntity = bodyEntity(
+        metric = metric,
+        providerId = providerRecordId(metric, time.toEpochMilli()),
+        measuredAt = time.toEpochMilli(),
+        sourcePackage = metadata.dataOrigin.packageName,
+        createdAt = importedAt,
+        muscleMassKg = muscleMassKg,
+    )
+
+    private fun BodyWaterMassRecord.toBodyEntity(
+        metric: String,
+        importedAt: Long,
+        bodyWaterMassKg: Double,
+    ): BodyCompositionEntity = bodyEntity(
+        metric = metric,
+        providerId = providerRecordId(metric, time.toEpochMilli()),
+        measuredAt = time.toEpochMilli(),
+        sourcePackage = metadata.dataOrigin.packageName,
+        createdAt = importedAt,
+        bodyWaterMassKg = bodyWaterMassKg,
+    )
+
+    private fun bodyEntity(
+        metric: String,
+        providerId: String,
+        measuredAt: Long,
+        sourcePackage: String,
+        createdAt: Long,
+        weightKg: Double? = null,
+        bodyFatPercent: Double? = null,
+        muscleMassKg: Double? = null,
+        bodyWaterMassKg: Double? = null,
+    ) = BodyCompositionEntity(
+        id = "hc_body:$metric:$providerId",
+        measuredAt = measuredAt,
+        weightKg = weightKg?.takeIf { it > 0.0 },
+        bodyFatPercent = bodyFatPercent?.takeIf { it in 0.0..100.0 },
+        muscleMassKg = muscleMassKg?.takeIf { it > 0.0 },
+        waterPercent = null,
+        bodyWaterMassKg = bodyWaterMassKg?.takeIf { it > 0.0 },
+        visceralFatLevel = null,
+        proteinPercent = null,
+        boneMassKg = null,
+        bodyAge = null,
+        source = SOURCE_HEALTH_CONNECT,
+        syncedToHc = true,
+        createdAt = createdAt,
+    )
+
     private fun SleepSessionRecord.localId(dataType: String): String = "$dataType:${providerRecordId(dataType)}"
 
     private fun SleepSessionRecord.providerRecordId(dataType: String): String {
@@ -338,6 +528,10 @@ class HealthConnectManager @Inject constructor(
 
     private fun HeartRateRecord.providerRecordId(dataType: String): String {
         return metadata.id.ifBlank { "$dataType:${startTime.toEpochMilli()}:${endTime.toEpochMilli()}" }
+    }
+
+    private fun androidx.health.connect.client.records.Record.providerRecordId(dataType: String, timeMillis: Long): String {
+        return metadata.id.ifBlank { "$dataType:${metadata.dataOrigin.packageName}:$timeMillis" }
     }
 
     private fun zoneOffsetString(instant: Instant): String = ZoneId.systemDefault().rules.getOffset(instant).id
@@ -355,18 +549,29 @@ class HealthConnectManager @Inject constructor(
         const val BODY_COMP = "BODY_COMP"
         const val PAGE_SIZE = 1000
         const val AGGREGATE_SOURCE = "health_connect_aggregate"
+        const val SOURCE_HEALTH_CONNECT = "HEALTH_CONNECT"
         const val HEALTH_CONNECT_READ_WINDOW_MS = 30L * 24L * 60L * 60L * 1000L
 
-        val REQUIRED_PERMISSIONS = setOf(
-            HealthPermission.getReadPermission(StepsRecord::class),
-            HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
-            HealthPermission.getReadPermission(SleepSessionRecord::class),
-            HealthPermission.getReadPermission(HeartRateRecord::class),
-            HealthPermission.getWritePermission(ExerciseSessionRecord::class),
-            HealthPermission.getWritePermission(WeightRecord::class),
-            HealthPermission.getWritePermission(BodyFatRecord::class),
-            HealthPermission.getWritePermission(LeanBodyMassRecord::class),
-            HealthPermission.getWritePermission(BodyWaterMassRecord::class),
+        val REQUIRED_PERMISSIONS_BY_CAPABILITY = mapOf(
+            HealthConnectCapability.Steps to setOf(HealthPermission.getReadPermission(StepsRecord::class)),
+            HealthConnectCapability.ActiveCalories to setOf(HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class)),
+            HealthConnectCapability.Sleep to setOf(HealthPermission.getReadPermission(SleepSessionRecord::class)),
+            HealthConnectCapability.HeartRate to setOf(HealthPermission.getReadPermission(HeartRateRecord::class)),
+            HealthConnectCapability.BodyCompositionRead to setOf(
+                HealthPermission.getReadPermission(WeightRecord::class),
+                HealthPermission.getReadPermission(BodyFatRecord::class),
+                HealthPermission.getReadPermission(LeanBodyMassRecord::class),
+                HealthPermission.getReadPermission(BodyWaterMassRecord::class),
+            ),
+            HealthConnectCapability.WorkoutWrite to setOf(HealthPermission.getWritePermission(ExerciseSessionRecord::class)),
+            HealthConnectCapability.BodyCompositionWrite to setOf(
+                HealthPermission.getWritePermission(WeightRecord::class),
+                HealthPermission.getWritePermission(BodyFatRecord::class),
+                HealthPermission.getWritePermission(LeanBodyMassRecord::class),
+                HealthPermission.getWritePermission(BodyWaterMassRecord::class),
+            ),
         )
+
+        val REQUIRED_PERMISSIONS = REQUIRED_PERMISSIONS_BY_CAPABILITY.values.flatten().toSet()
     }
 }

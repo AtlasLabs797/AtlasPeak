@@ -76,6 +76,7 @@ class BackupSnapshotUpgraderTest {
         assertEquals(JsonNull, row.getValue("cardio_type_id"))
         assertEquals(JsonNull, row.getValue("cardio_target_duration_sec"))
         assertEquals(JsonPrimitive("routine-1"), row.getValue("routine_id"))
+        assertEquals(JsonPrimitive(0), row.getValue("order_index"))
     }
 
 

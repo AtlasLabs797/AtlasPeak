@@ -108,7 +108,7 @@ class BodyCompositionViewModel @Inject constructor(
                     messageRes = messageRes,
                 )
             }
-            if (result.successful) refresh()
+            if (result.successful || result.partiallySuccessful) refresh()
         }
     }
 

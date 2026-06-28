@@ -142,13 +142,16 @@ Hay tres secretos de configuración. **Ninguno** va al repo.
 |---------|----------|-----------|
 | `MAPS_API_KEY` | Google Maps Compose (cardio GPS) | `secrets.properties` (local) |
 | `OAUTH_WEB_CLIENT_ID` | Drive OAuth (`AuthorizationClient`) | `secrets.properties` (local) |
-| Release keystore + passwords | Firmar el AAB | `atlas-peak-release.jks` + `keystore.properties` (local) |
+| Release keystore + passwords | Firmar el AAB | Fuera del repo, via `ATLAS_PEAK_KEYSTORE_PROPERTIES` |
 
 - Plantilla versionada: **`secrets.properties.template`**. El usuario la copia a
   `secrets.properties` y rellena valores reales.
 - `secrets.properties`, `keystore.properties`, `*.jks`, `local.properties` y
   `google-services.json` están en `.gitignore`. **Verifica que siguen ahí** antes de
   cualquier commit que toque config.
+- El keystore de release no vive en la raiz del repo. Usar, por ejemplo,
+  `%USERPROFILE%\.atlaspeak\release\keystore.properties` y apuntarlo con
+  `ATLAS_PEAK_KEYSTORE_PROPERTIES`.
 - En Gradle, lee `secrets.properties` y expón los valores via `manifestPlaceholders`
   (para la Maps key) y `BuildConfig` (para el OAuth client id). NO los escribas inline.
 - **NO uses `google-services.json` ni el plugin `com.google.gms.google-services`.**
@@ -180,7 +183,7 @@ Aplica en CADA fase, no solo en la 13:
 
 ```bash
 ./gradlew assembleDebug          # build debug
-./gradlew assembleRelease        # build release (requiere keystore.properties)
+./gradlew assembleRelease        # build release (requiere ATLAS_PEAK_KEYSTORE_PROPERTIES o fallback local)
 ./gradlew test                   # unit tests (JVM)
 ./gradlew connectedAndroidTest   # tests instrumentados (requiere emulador/dispositivo)
 ./gradlew lint                   # análisis estático; mira reporte en app/build/reports/lint

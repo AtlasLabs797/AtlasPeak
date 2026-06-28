@@ -1,6 +1,8 @@
 package com.atlaspeak.domain.usecase.planning
 
 import com.atlaspeak.domain.model.planning.WeeklyPlanDay
+import com.atlaspeak.domain.model.planning.WeeklyPlanCompletionKey
+import com.atlaspeak.domain.model.planning.WeeklyPlanSession
 import com.atlaspeak.domain.model.planning.WeeklyPlanDayType
 import com.atlaspeak.domain.model.planning.WeeklyPlanUpdate
 import com.atlaspeak.domain.repository.NotificationScheduler
@@ -20,7 +22,19 @@ class WeeklyPlanUseCaseTest {
     @Test
     fun `plans returns seven iso weekdays sorted`() = runTest {
         repository.saved = listOf(
-            WeeklyPlanDay(dayOfWeek = 3, routineId = "pull", routineName = "Pull", isRestDay = false),
+            WeeklyPlanDay(
+                dayOfWeek = 3,
+                isRestDay = false,
+                sessions = listOf(
+                    WeeklyPlanSession(
+                        id = "weekly_plan_3_0",
+                        dayOfWeek = 3,
+                        orderIndex = 0,
+                        routineId = "pull",
+                        routineName = "Pull",
+                    ),
+                ),
+            ),
         )
 
         val plan = useCase.plan()
@@ -81,8 +95,8 @@ class WeeklyPlanUseCaseTest {
     }
 
     @Test
-    fun `cardio day stores cardio type and default target`() = runTest {
-        assertTrue(
+    fun `cardio day rejects missing target duration`() = runTest {
+        assertFalse(
             useCase.updateDay(
                 WeeklyPlanUpdate(
                     dayOfWeek = 3,
@@ -97,11 +111,32 @@ class WeeklyPlanUseCaseTest {
             ),
         )
 
+        assertTrue(repository.saved.isEmpty())
+        assertEquals(0, scheduler.rescheduleAllCount)
+    }
+
+    @Test
+    fun `cardio day stores cardio type and target duration`() = runTest {
+        assertTrue(
+            useCase.updateDay(
+                WeeklyPlanUpdate(
+                    dayOfWeek = 3,
+                    type = WeeklyPlanDayType.Cardio,
+                    routineId = null,
+                    cardioTypeId = "cardio_static_bike",
+                    cardioTargetDurationSec = 30 * 60,
+                    isRestDay = false,
+                    notificationEnabled = true,
+                    notificationTime = null,
+                ),
+            ),
+        )
+
         val saved = repository.saved.single()
         assertEquals(WeeklyPlanDayType.Cardio, saved.type)
         assertNull(saved.routineId)
         assertEquals("cardio_static_bike", saved.cardioTypeId)
-        assertEquals(45 * 60, saved.cardioTargetDurationSec)
+        assertEquals(30 * 60, saved.cardioTargetDurationSec)
         assertTrue(saved.notificationEnabled)
         assertEquals("18:00", saved.notificationTime)
         assertEquals(1, scheduler.rescheduleAllCount)
@@ -114,7 +149,16 @@ class WeeklyPlanUseCaseTest {
 
         override suspend fun completedTrainingDays(startInclusive: Long, endExclusive: Long): Set<Int> = emptySet()
 
+        override suspend fun completedTrainingKeys(
+            startInclusive: Long,
+            endExclusive: Long,
+        ): Set<WeeklyPlanCompletionKey> = emptySet()
+
         override suspend fun upsert(day: WeeklyPlanDay) {
+            replaceDay(day)
+        }
+
+        override suspend fun replaceDay(day: WeeklyPlanDay) {
             saved = saved.filterNot { it.dayOfWeek == day.dayOfWeek } + day
         }
     }

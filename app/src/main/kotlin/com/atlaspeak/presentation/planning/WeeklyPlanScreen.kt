@@ -11,7 +11,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -29,8 +31,10 @@ import com.atlaspeak.domain.model.planning.WeeklyPlanDayType
 import com.atlaspeak.presentation.component.AtlasDropdown
 import com.atlaspeak.presentation.component.AtlasDropdownItem
 import com.atlaspeak.presentation.component.AtlasPrimaryButton
+import com.atlaspeak.presentation.component.AtlasSecondaryButton
 import com.atlaspeak.presentation.component.AtlasSwitchRow
 import com.atlaspeak.presentation.component.AtlasTextField
+import com.atlaspeak.presentation.component.AtlasTimeField
 import com.atlaspeak.presentation.component.PremiumBackground
 import com.atlaspeak.presentation.component.PremiumCard
 import com.atlaspeak.presentation.theme.LocalAtlasColors
@@ -45,7 +49,9 @@ fun WeeklyPlanRoute(
     WeeklyPlanScreen(
         state = state,
         onBack = onBack,
-        onDayTypeSelected = viewModel::setDayType,
+        onAddSession = viewModel::addSession,
+        onRemoveSession = viewModel::removeSession,
+        onSessionTypeSelected = viewModel::setSessionType,
         onRoutineSelected = viewModel::selectRoutine,
         onCardioTypeSelected = viewModel::selectCardioType,
         onCardioTargetMinutesChanged = viewModel::setCardioTargetMinutes,
@@ -60,13 +66,15 @@ fun WeeklyPlanRoute(
 fun WeeklyPlanScreen(
     state: WeeklyPlanUiState,
     onBack: () -> Unit,
-    onDayTypeSelected: (Int, WeeklyPlanDayType) -> Unit,
-    onRoutineSelected: (Int, String?) -> Unit,
-    onCardioTypeSelected: (Int, String?) -> Unit,
-    onCardioTargetMinutesChanged: (Int, String) -> Unit,
+    onAddSession: (Int, WeeklyPlanDayType) -> Unit,
+    onRemoveSession: (Int, String) -> Unit,
+    onSessionTypeSelected: (Int, String, WeeklyPlanDayType) -> Unit,
+    onRoutineSelected: (Int, String, String?) -> Unit,
+    onCardioTypeSelected: (Int, String, String?) -> Unit,
+    onCardioTargetMinutesChanged: (Int, String, String) -> Unit,
     onRestDayChanged: (Int, Boolean) -> Unit,
-    onNotificationEnabledChanged: (Int, Boolean) -> Unit,
-    onNotificationTimeChanged: (Int, String) -> Unit,
+    onNotificationEnabledChanged: (Int, String, Boolean) -> Unit,
+    onNotificationTimeChanged: (Int, String, String) -> Unit,
     onSaveDay: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -107,18 +115,21 @@ fun WeeklyPlanScreen(
                     count = state.days.size,
                     key = { index -> state.days[index].dayOfWeek },
                 ) { index ->
+                    val day = state.days[index]
                     WeeklyPlanDayCard(
-                        day = state.days[index],
+                        day = day,
                         routines = state.routines,
                         cardioTypes = state.cardioTypes,
-                        onDayTypeSelected = { type -> onDayTypeSelected(state.days[index].dayOfWeek, type) },
-                        onRoutineSelected = { routineId -> onRoutineSelected(state.days[index].dayOfWeek, routineId) },
-                        onCardioTypeSelected = { cardioTypeId -> onCardioTypeSelected(state.days[index].dayOfWeek, cardioTypeId) },
-                        onCardioTargetMinutesChanged = { minutes -> onCardioTargetMinutesChanged(state.days[index].dayOfWeek, minutes) },
-                        onRestDayChanged = { onRestDayChanged(state.days[index].dayOfWeek, it) },
-                        onNotificationEnabledChanged = { onNotificationEnabledChanged(state.days[index].dayOfWeek, it) },
-                        onNotificationTimeChanged = { onNotificationTimeChanged(state.days[index].dayOfWeek, it) },
-                        onSave = { onSaveDay(state.days[index].dayOfWeek) },
+                        onAddSession = { type -> onAddSession(day.dayOfWeek, type) },
+                        onRemoveSession = { sessionId -> onRemoveSession(day.dayOfWeek, sessionId) },
+                        onSessionTypeSelected = { sessionId, type -> onSessionTypeSelected(day.dayOfWeek, sessionId, type) },
+                        onRoutineSelected = { sessionId, routineId -> onRoutineSelected(day.dayOfWeek, sessionId, routineId) },
+                        onCardioTypeSelected = { sessionId, cardioTypeId -> onCardioTypeSelected(day.dayOfWeek, sessionId, cardioTypeId) },
+                        onCardioTargetMinutesChanged = { sessionId, minutes -> onCardioTargetMinutesChanged(day.dayOfWeek, sessionId, minutes) },
+                        onRestDayChanged = { onRestDayChanged(day.dayOfWeek, it) },
+                        onNotificationEnabledChanged = { sessionId, enabled -> onNotificationEnabledChanged(day.dayOfWeek, sessionId, enabled) },
+                        onNotificationTimeChanged = { sessionId, time -> onNotificationTimeChanged(day.dayOfWeek, sessionId, time) },
+                        onSave = { onSaveDay(day.dayOfWeek) },
                     )
                 }
             }
@@ -168,16 +179,19 @@ private fun WeeklyPlanDayCard(
     day: WeeklyPlanDayDraft,
     routines: List<RoutineOption>,
     cardioTypes: List<CardioTypeOption>,
-    onDayTypeSelected: (WeeklyPlanDayType) -> Unit,
-    onRoutineSelected: (String?) -> Unit,
-    onCardioTypeSelected: (String?) -> Unit,
-    onCardioTargetMinutesChanged: (String) -> Unit,
+    onAddSession: (WeeklyPlanDayType) -> Unit,
+    onRemoveSession: (String) -> Unit,
+    onSessionTypeSelected: (String, WeeklyPlanDayType) -> Unit,
+    onRoutineSelected: (String, String?) -> Unit,
+    onCardioTypeSelected: (String, String?) -> Unit,
+    onCardioTargetMinutesChanged: (String, String) -> Unit,
     onRestDayChanged: (Boolean) -> Unit,
-    onNotificationEnabledChanged: (Boolean) -> Unit,
-    onNotificationTimeChanged: (String) -> Unit,
+    onNotificationEnabledChanged: (String, Boolean) -> Unit,
+    onNotificationTimeChanged: (String, String) -> Unit,
     onSave: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
@@ -193,11 +207,7 @@ private fun WeeklyPlanDayCard(
                 Icon(
                     imageVector = Icons.Filled.CheckCircle,
                     contentDescription = null,
-                    tint = if (day.completedThisWeek) {
-                        LocalAtlasColors.current.ink
-                    } else {
-                        LocalAtlasColors.current.ink3
-                    },
+                    tint = if (day.completedThisWeek) atlasColors.ink else atlasColors.ink3,
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
@@ -207,66 +217,143 @@ private fun WeeklyPlanDayCard(
                     Text(
                         text = day.plannedName ?: stringResource(if (day.isRestDay) R.string.weekly_plan_rest_day else R.string.weekly_plan_no_session),
                         style = MaterialTheme.typography.bodySmall,
-                        color = LocalAtlasColors.current.ink3,
+                        color = atlasColors.ink3,
                     )
                 }
-            }
-            PlanTypeDropdown(
-                selectedType = day.type,
-                enabled = !day.isRestDay,
-                onTypeSelected = onDayTypeSelected,
-            )
-            if (day.type == WeeklyPlanDayType.Cardio) {
-                CardioDropdown(
-                    selectedCardioTypeId = day.cardioTypeId,
-                    selectedCardioTypeName = day.cardioTypeName,
-                    cardioTypes = cardioTypes,
-                    enabled = !day.isRestDay,
-                    onCardioTypeSelected = onCardioTypeSelected,
-                )
-                AtlasTextField(
-                    value = day.cardioTargetMinutes,
-                    onValueChange = onCardioTargetMinutesChanged,
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !day.isRestDay && day.cardioTypeId != null,
-                    label = stringResource(R.string.weekly_plan_cardio_minutes),
-                    keyboardType = KeyboardType.Number,
-                )
-            } else {
-                RoutineDropdown(
-                    selectedRoutineId = day.routineId,
-                    selectedRoutineName = day.routineName,
-                    routines = routines,
-                    enabled = !day.isRestDay,
-                    onRoutineSelected = onRoutineSelected,
-                )
             }
             SettingSwitchRow(
                 labelRes = R.string.weekly_plan_rest_day,
                 checked = day.isRestDay,
                 onCheckedChange = onRestDayChanged,
             )
-            SettingSwitchRow(
-                labelRes = R.string.weekly_plan_reminder_enabled,
-                checked = day.notificationEnabled,
-                enabled = !day.isRestDay && day.hasPlannedSession,
-                onCheckedChange = onNotificationEnabledChanged,
-            )
-            AtlasTextField(
-                value = day.notificationTime,
-                onValueChange = onNotificationTimeChanged,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !day.isRestDay && day.hasPlannedSession && day.notificationEnabled,
-                label = stringResource(R.string.weekly_plan_reminder_time),
-                supportingText = stringResource(R.string.weekly_plan_reminder_best_effort),
-                keyboardType = KeyboardType.Text,
-            )
+            if (!day.isRestDay) {
+                day.sessions.forEachIndexed { index, session ->
+                    WeeklyPlanSessionEditor(
+                        session = session,
+                        sessionIndex = index,
+                        routines = routines,
+                        cardioTypes = cardioTypes,
+                        onRemoveSession = { onRemoveSession(session.id) },
+                        onSessionTypeSelected = { type -> onSessionTypeSelected(session.id, type) },
+                        onRoutineSelected = { routineId -> onRoutineSelected(session.id, routineId) },
+                        onCardioTypeSelected = { cardioTypeId -> onCardioTypeSelected(session.id, cardioTypeId) },
+                        onCardioTargetMinutesChanged = { minutes -> onCardioTargetMinutesChanged(session.id, minutes) },
+                        onNotificationEnabledChanged = { enabled -> onNotificationEnabledChanged(session.id, enabled) },
+                        onNotificationTimeChanged = { time -> onNotificationTimeChanged(session.id, time) },
+                    )
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                ) {
+                    AtlasSecondaryButton(
+                        text = stringResource(R.string.weekly_plan_add_strength),
+                        onClick = { onAddSession(WeeklyPlanDayType.Strength) },
+                        modifier = Modifier.weight(1f),
+                        leadingIcon = Icons.Filled.Add,
+                        iconContentDescription = null,
+                    )
+                    AtlasSecondaryButton(
+                        text = stringResource(R.string.weekly_plan_add_cardio),
+                        onClick = { onAddSession(WeeklyPlanDayType.Cardio) },
+                        modifier = Modifier.weight(1f),
+                        leadingIcon = Icons.Filled.Add,
+                        iconContentDescription = null,
+                    )
+                }
+            }
             AtlasPrimaryButton(
                 onClick = onSave,
                 modifier = Modifier.fillMaxWidth(),
                 text = stringResource(R.string.action_save),
             )
         }
+    }
+}
+
+@Composable
+private fun WeeklyPlanSessionEditor(
+    session: WeeklyPlanSessionDraft,
+    sessionIndex: Int,
+    routines: List<RoutineOption>,
+    cardioTypes: List<CardioTypeOption>,
+    onRemoveSession: () -> Unit,
+    onSessionTypeSelected: (WeeklyPlanDayType) -> Unit,
+    onRoutineSelected: (String?) -> Unit,
+    onCardioTypeSelected: (String?) -> Unit,
+    onCardioTargetMinutesChanged: (String) -> Unit,
+    onNotificationEnabledChanged: (Boolean) -> Unit,
+    onNotificationTimeChanged: (String) -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(spacing.sm),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.weekly_plan_session_title, sessionIndex + 1),
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.titleSmall,
+                color = atlasColors.ink,
+            )
+            IconButton(onClick = onRemoveSession) {
+                Icon(
+                    imageVector = Icons.Filled.Delete,
+                    contentDescription = stringResource(R.string.weekly_plan_remove_session_cd),
+                    tint = atlasColors.ink2,
+                )
+            }
+        }
+        PlanTypeDropdown(
+            selectedType = session.type,
+            enabled = true,
+            onTypeSelected = onSessionTypeSelected,
+        )
+        if (session.type == WeeklyPlanDayType.Cardio) {
+            CardioDropdown(
+                selectedCardioTypeId = session.cardioTypeId,
+                selectedCardioTypeName = session.cardioTypeName,
+                cardioTypes = cardioTypes,
+                enabled = true,
+                onCardioTypeSelected = onCardioTypeSelected,
+            )
+            AtlasTextField(
+                value = session.cardioTargetMinutes,
+                onValueChange = onCardioTargetMinutesChanged,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = session.cardioTypeId != null,
+                label = stringResource(R.string.weekly_plan_cardio_minutes),
+                keyboardType = KeyboardType.Number,
+            )
+        } else {
+            RoutineDropdown(
+                selectedRoutineId = session.routineId,
+                selectedRoutineName = session.routineName,
+                routines = routines,
+                enabled = true,
+                onRoutineSelected = onRoutineSelected,
+            )
+        }
+        SettingSwitchRow(
+            labelRes = R.string.weekly_plan_reminder_enabled,
+            checked = session.notificationEnabled,
+            enabled = session.hasPlannedSession,
+            onCheckedChange = onNotificationEnabledChanged,
+        )
+        AtlasTimeField(
+            value = session.notificationTime,
+            onTimeSelected = onNotificationTimeChanged,
+            modifier = Modifier.fillMaxWidth(),
+            enabled = session.hasPlannedSession && session.notificationEnabled,
+            label = stringResource(R.string.weekly_plan_reminder_time),
+            supportingText = stringResource(R.string.weekly_plan_reminder_best_effort),
+        )
     }
 }
 

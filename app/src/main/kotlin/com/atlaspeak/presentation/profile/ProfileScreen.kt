@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.EventNote
 import androidx.compose.material.icons.filled.Backup
@@ -74,6 +75,9 @@ fun ProfileScreen(
                 }
             }
             item {
+                ProfileSectionTitle(R.string.profile_section_profile)
+            }
+            item {
                 AtlasListRow(
                     title = state.displayName?.takeIf(String::isNotBlank)
                         ?: stringResource(R.string.profile_edit_no_name),
@@ -81,6 +85,9 @@ fun ProfileScreen(
                     leadingIcon = Icons.Filled.Edit,
                     onClick = onEditProfile,
                 )
+            }
+            item {
+                ProfileSectionTitle(R.string.profile_section_settings)
             }
             item {
                 AtlasListRow(
@@ -99,6 +106,9 @@ fun ProfileScreen(
                 )
             }
             item {
+                ProfileSectionTitle(R.string.profile_section_data)
+            }
+            item {
                 AtlasListRow(
                     title = stringResource(R.string.screen_backup_restore_title),
                     subtitle = stringResource(R.string.profile_backup_body),
@@ -108,4 +118,13 @@ fun ProfileScreen(
             }
         }
     }
+}
+
+@Composable
+private fun ProfileSectionTitle(@StringRes titleRes: Int) {
+    Text(
+        text = stringResource(titleRes).uppercase(),
+        style = MaterialTheme.typography.labelMedium,
+        color = LocalAtlasColors.current.ink3,
+    )
 }

@@ -24,6 +24,84 @@
 
 ## Entradas
 
+### BUG-068 - Backup restore no aplicaba upgrader de snapshots
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-06-28
+- **Fase:** Auditoria Atlas Peak
+- **Severidad:** Alta
+- **Sintoma:** un backup antiguo podia descifrarse y decodificarse, pero fallar al restaurar por columnas nuevas de `weekly_plan`.
+- **Causa raiz:** `BackupSnapshotUpgrader` existia, pero `BackupJsonCodec.decode()` no lo aplicaba antes de entregar el snapshot al restore.
+- **Solucion:** `BackupJsonCodec` inyecta y aplica el upgrader; el schema de backup sube a 4 y rellena `order_index`.
+- **Prevencion:** tests de upgrader y restore cubren snapshots antiguos.
+- **Fecha resolucion:** 2026-06-28
+
+---
+
+### BUG-067 - Plan semanal solo soportaba una sesion por dia
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-06-28
+- **Fase:** Auditoria Atlas Peak
+- **Severidad:** Alta
+- **Sintoma:** el usuario tenia que elegir fuerza o cardio por dia; no podia planificar fuerza + cardio o doble sesion.
+- **Causa raiz:** `weekly_plan` modelaba una unica fila efectiva por dia sin orden de sesion.
+- **Solucion:** Room v5 agrega `order_index`, el dominio expone `WeeklyPlanSession`, la UI permite varias sesiones y las notificaciones se programan por sesion.
+- **Prevencion:** migracion 4->5, schema exportado y tests de use case/notificaciones.
+- **Fecha resolucion:** 2026-06-28
+
+---
+
+### BUG-066 - Cardio usaba peso fijo y aceptaba metricas imposibles
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-06-28
+- **Fase:** Auditoria Atlas Peak
+- **Severidad:** Alta
+- **Sintoma:** las calorias se estimaban con 75 kg aunque hubiera peso real; distancias, velocidades y puntos GPS anómalos podian contaminar metricas.
+- **Causa raiz:** `CardioUseCase` no consultaba composicion corporal y tenia validacion minima de manual/GPS.
+- **Solucion:** calorias usan ultimo peso valido con fallback 75 kg; ruta, timestamps, distancia y velocidad se filtran por limites razonables por deporte.
+- **Prevencion:** tests de calorias con peso real y validacion manual/GPS en el use case.
+- **Fecha resolucion:** 2026-06-28
+
+---
+
+### BUG-065 - Health Connect era todo-o-nada y no importaba composicion corporal
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-06-28
+- **Fase:** Auditoria Atlas Peak
+- **Severidad:** Alta
+- **Sintoma:** si faltaba un permiso se bloqueaba toda la sync; la documentacion prometia datos de bascula pero no se leian records corporales.
+- **Causa raiz:** permisos agrupados en una lista global y sin pipeline de import para peso/grasa/masa magra/agua.
+- **Solucion:** sync parcial por capacidad e import de `WeightRecord`, `BodyFatRecord`, `LeanBodyMassRecord` y `BodyWaterMassRecord`.
+- **Prevencion:** tests de sync parcial y documentacion alineada con permisos reales.
+- **Fecha resolucion:** 2026-06-28
+
+---
+
+### BUG-064 - Borrado de serie sin undo y campos poco accesibles
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-06-28
+- **Fase:** Auditoria Atlas Peak
+- **Severidad:** Media
+- **Sintoma:** borrar una serie era inmediato y los inputs peso/reps no indicaban con claridad la serie a lectores de pantalla.
+- **Causa raiz:** el flujo no tenia estado de eliminacion pendiente ni etiquetas semanticas por serie.
+- **Solucion:** confirmacion ligera cuando hay datos, snackbar con Deshacer, y content descriptions tipo "Peso serie N" / "Repeticiones serie N".
+- **Prevencion:** mantener acciones destructivas con undo o confirmacion cuando hay datos introducidos.
+- **Fecha resolucion:** 2026-06-28
+
+---
+
+### BUG-063 - Export JSON/CSV claro no advertia suficiente
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-06-28
+- **Fase:** Auditoria Atlas Peak
+- **Severidad:** Media
+- **Sintoma:** el usuario podia exportar datos sensibles en claro sin un aviso justo antes de compartir.
+- **Causa raiz:** el flujo trataba export portable y backup cifrado como acciones vecinas, pero no explicitaba el riesgo del export en claro.
+- **Solucion:** confirmacion antes de JSON/CSV y limpieza de exports temporales antiguos.
+- **Prevencion:** cualquier export claro nuevo debe pasar por aviso visible y excluir secretos.
+- **Fecha resolucion:** 2026-06-28
+
+---
+
 ### BUG-062 - Politica estatica de bottom nav contradecia la navegacion real
 - **Estado:** Resuelto
 - **Fecha deteccion:** 2026-06-23

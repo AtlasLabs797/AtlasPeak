@@ -39,6 +39,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
@@ -208,8 +211,15 @@ private fun ProgressTabSelector(
     ) {
         ProgressTab.entries.forEach { tab ->
             val active = selected == tab
+            val label = stringResource(tab.labelRes())
             androidx.compose.material3.Surface(
-                modifier = Modifier.weight(1f),
+                modifier = Modifier
+                    .weight(1f)
+                    .semantics {
+                        role = Role.Tab
+                        this.selected = active
+                        contentDescription = label
+                    },
                 onClick = { onTabSelected(tab) },
                 shape = MaterialTheme.shapes.medium,
                 color = if (active) atlasColors.ink else Color.Transparent,
@@ -226,6 +236,12 @@ private fun ProgressTabSelector(
                         imageVector = tab.icon(),
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
+                    )
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
@@ -922,6 +938,13 @@ private fun ProgressTab.icon() = when (this) {
     ProgressTab.History -> Icons.Filled.History
     ProgressTab.Exercises -> Icons.Filled.Analytics
     ProgressTab.MuscleGroups -> Icons.Filled.Groups
+}
+
+@StringRes
+private fun ProgressTab.labelRes(): Int = when (this) {
+    ProgressTab.History -> R.string.progress_tab_history
+    ProgressTab.Exercises -> R.string.progress_tab_exercises
+    ProgressTab.MuscleGroups -> R.string.progress_tab_muscle_groups
 }
 
 private fun volumeSeries(exercises: List<ExerciseProgress>): List<Float> {

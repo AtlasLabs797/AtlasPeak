@@ -31,7 +31,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -42,7 +41,7 @@ import com.atlaspeak.R
 import com.atlaspeak.domain.model.planning.NotificationSettings
 import com.atlaspeak.presentation.component.AtlasPrimaryButton
 import com.atlaspeak.presentation.component.AtlasSwitchRow
-import com.atlaspeak.presentation.component.AtlasTextField
+import com.atlaspeak.presentation.component.AtlasTimeField
 import com.atlaspeak.presentation.component.PremiumBackground
 import com.atlaspeak.presentation.theme.LocalAtlasColors
 import com.atlaspeak.presentation.theme.LocalSpacing
@@ -242,14 +241,13 @@ private fun NotificationSettingsControls(
             enabled = settings.notificationsEnabled,
             onCheckedChange = onDailySummaryEnabledChanged,
         )
-        AtlasTextField(
+        AtlasTimeField(
             value = settings.dailySummaryTime,
-            onValueChange = onDailySummaryTimeChanged,
+            onTimeSelected = onDailySummaryTimeChanged,
             modifier = Modifier.fillMaxWidth(),
             enabled = settings.notificationsEnabled && settings.dailySummaryEnabled,
             label = stringResource(R.string.notification_settings_daily_time),
             supportingText = stringResource(R.string.weekly_plan_reminder_best_effort),
-            keyboardType = KeyboardType.Text,
         )
         SettingsSwitchRow(
             titleRes = R.string.notification_settings_weekly_summary,

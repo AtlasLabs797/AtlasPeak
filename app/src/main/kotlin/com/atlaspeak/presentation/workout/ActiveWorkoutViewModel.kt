@@ -160,11 +160,39 @@ class ActiveWorkoutViewModel @Inject constructor(
         }
     }
 
-    fun removeSet(set: WorkoutSet) {
+    fun requestRemoveSet(set: WorkoutSet) {
+        if (set.hasEnteredData()) {
+            mutableState.update { it.copy(pendingSetDeletion = set) }
+        } else {
+            deleteSetWithUndo(set)
+        }
+    }
+
+    fun cancelRemoveSet() {
+        mutableState.update { it.copy(pendingSetDeletion = null) }
+    }
+
+    fun confirmRemoveSet() {
+        val set = mutableState.value.pendingSetDeletion ?: return
+        deleteSetWithUndo(set)
+    }
+
+    fun undoRemoveSet() {
+        val set = mutableState.value.deletedSetForUndo ?: return
         viewModelScope.launch {
-            workoutRepository.deleteSet(set.id)
+            workoutRepository.upsertSet(set)
+            mutableState.update {
+                it.copy(
+                    deletedSetForUndo = null,
+                    pendingSetDeletion = null,
+                )
+            }
             reloadSession()
         }
+    }
+
+    fun clearDeletedSetNotice() {
+        mutableState.update { it.copy(deletedSetForUndo = null) }
     }
 
     fun moveExercise(index: Int, offset: Int) {
@@ -210,6 +238,8 @@ class ActiveWorkoutViewModel @Inject constructor(
                     session = null,
                     restTimer = null,
                     inputDrafts = emptyMap(),
+                    pendingSetDeletion = null,
+                    deletedSetForUndo = null,
                     discarded = true,
                 )
             }
@@ -272,6 +302,21 @@ class ActiveWorkoutViewModel @Inject constructor(
         mutableState.update { it.copy(session = workoutRepository.session(id)?.withCurrentExerciseOrder()) }
     }
 
+    private fun deleteSetWithUndo(set: WorkoutSet) {
+        viewModelScope.launch {
+            workoutRepository.deleteSet(set.id)
+            mutableState.update {
+                it.copy(
+                    inputDrafts = it.inputDrafts - set.id,
+                    pendingSetDeletion = null,
+                    deletedSetForUndo = set,
+                    deletedSetEventId = it.deletedSetEventId + 1,
+                )
+            }
+            reloadSession()
+        }
+    }
+
     private fun WorkoutSession.withCurrentExerciseOrder(): WorkoutSession {
         if (exerciseOrder.isEmpty()) return this
         val orderIndex = exerciseOrder.withIndex().associate { it.value to it.index }
@@ -308,6 +353,9 @@ data class ActiveWorkoutUiState(
     val completedSessionId: String? = null,
     val discarded: Boolean = false,
     val inputDrafts: Map<String, WorkoutSetInputDraft> = emptyMap(),
+    val pendingSetDeletion: WorkoutSet? = null,
+    val deletedSetForUndo: WorkoutSet? = null,
+    val deletedSetEventId: Long = 0L,
     val timerServiceStartHandled: Boolean = false,
     val restFeedbackSettings: RestTimerFeedbackSettings = RestTimerFeedbackSettings(
         soundEnabled = true,
@@ -360,4 +408,8 @@ private fun WorkoutSet.toInputDraft(): WorkoutSetInputDraft {
         weightText = weightKg?.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() }.orEmpty(),
         repsText = actualReps?.toString().orEmpty(),
     )
+}
+
+private fun WorkoutSet.hasEnteredData(): Boolean {
+    return completed || actualReps != null || weightKg != null
 }
