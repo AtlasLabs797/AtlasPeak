@@ -9,6 +9,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import androidx.room.withTransaction
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
@@ -21,14 +22,16 @@ class RoomBackupSnapshotStore @Inject constructor(
     private val database: AppDatabase,
 ) : BackupSnapshotStore {
     override suspend fun snapshot(): DatabaseBackupSnapshot = withContext(Dispatchers.IO) {
-        val db = database.openHelper.writableDatabase
-        DatabaseBackupSnapshot(
-            schemaVersion = BackupJsonCodec.CURRENT_SCHEMA_VERSION,
-            exportedAt = System.currentTimeMillis(),
-            tables = AppDatabase.TABLE_ORDER.associateWith { table ->
-                db.query("SELECT * FROM $table").use { cursor -> cursor.rowsAsJson() }
-            },
-        )
+        database.withTransaction {
+            val db = database.openHelper.writableDatabase
+            DatabaseBackupSnapshot(
+                schemaVersion = BackupJsonCodec.CURRENT_SCHEMA_VERSION,
+                exportedAt = System.currentTimeMillis(),
+                tables = AppDatabase.TABLE_ORDER.associateWith { table ->
+                    db.query("SELECT * FROM $table").use { cursor -> cursor.rowsAsJson() }
+                },
+            )
+        }
     }
 
     override suspend fun restore(snapshot: DatabaseBackupSnapshot) = withContext(Dispatchers.IO) {

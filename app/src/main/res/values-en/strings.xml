@@ -124,6 +124,10 @@
     <string name="workout_next_exercise_action">Next</string>
     <string name="workout_complete_sets_action">Complete sets</string>
     <string name="workout_add_set">Add set</string>
+    <string name="workout_add_exercise">Add exercise</string>
+    <string name="workout_add_exercise_dialog_title">Add exercise to session</string>
+    <string name="workout_add_exercise_empty">No exercises available.</string>
+    <string name="workout_add_exercise_already_added">Already in session</string>
     <string name="workout_set_number">Set %1$d</string>
     <string name="workout_table_set">Set</string>
     <string name="workout_table_kg">Kg</string>
@@ -131,6 +135,8 @@
     <string name="workout_table_done">✓</string>
     <string name="symbol_check">✓</string>
     <string name="workout_remove_set_cd">Delete set</string>
+    <string name="workout_set_completed_cd">Set %1$d completed</string>
+    <string name="workout_set_incomplete_cd">Mark set %1$d as completed</string>
     <string name="workout_set_deleted">Set deleted.</string>
     <string name="workout_delete_set_confirm_title">Delete set?</string>
     <string name="workout_delete_set_confirm_body">This set already has logged data. You can undo it afterward, but confirm before deleting it.</string>
@@ -254,7 +260,13 @@
     <string name="home_greeting_name">Hi, %1$s</string>
     <string name="home_hero_unit_min">min</string>
     <string name="home_weekly_load_overline">Weekly load</string>
+    <string name="home_weekly_load_empty">No sessions this week yet.</string>
     <string name="home_delta_vs_plan">%1$d of %2$d active days vs plan</string>
+    <string name="dashboard_period_week">Week</string>
+    <string name="dashboard_period_month">Month</string>
+    <string name="dashboard_period_three_months">3 months</string>
+    <string name="dashboard_period_year">Year</string>
+    <string name="dashboard_period_year_to_date">YTD</string>
     <string name="home_today_session_overline">Today session</string>
     <string name="home_today_workout_title">Today workout</string>
     <string name="home_today_workout_body">%1$s planned</string>
@@ -318,6 +330,10 @@
     <string name="weekly_plan_no_session">No session</string>
     <string name="weekly_plan_cardio_minutes">Cardio minutes</string>
     <string name="weekly_plan_rest_day">Rest day</string>
+    <string name="weekly_plan_rest_day_confirm_title">Mark as rest day?</string>
+    <string name="weekly_plan_rest_day_confirm_body">This will remove the planned sessions for this day.</string>
+    <string name="weekly_plan_rest_day_confirm_action">Mark rest day</string>
+    <string name="weekly_plan_rest_day_confirm_again">This day has sessions. Turn rest day on again to remove them.</string>
     <string name="weekly_plan_reminder_enabled">Reminder</string>
     <string name="weekly_plan_reminder_time">Reminder time</string>
     <string name="weekly_plan_reminder_best_effort">Android may adjust the exact time to save battery.</string>
@@ -397,6 +413,8 @@
     <string name="backup_size_mb">%1$.1f MB</string>
     <string name="backup_size_unknown">unknown</string>
     <string name="backup_password_change_warning">If you change the password, backups created earlier will still require the old password to restore.</string>
+    <string name="backup_password_update_action">Update saved password</string>
+    <string name="backup_auto_password_updated">Automatic backup password updated.</string>
     <string name="backup_restore_action">Restore</string>
     <string name="backup_restore_confirm">Confirm restore</string>
     <string name="backup_restore_confirm_body">This replaces local data with the selected backup.</string>
@@ -464,6 +482,8 @@
     <string name="theme_system">System</string>
     <string name="theme_light">Light</string>
     <string name="theme_dark">Dark</string>
+    <string name="theme_settings_title">Theme</string>
+    <string name="theme_settings_body">Choose whether Atlas Peak follows the system or forces light/dark mode.</string>
     <string name="state_loading">Loading</string>
     <string name="state_empty_title">No data yet</string>
     <string name="state_empty_body">This section will become active when its phase is complete.</string>

@@ -34,7 +34,9 @@ class RetrofitDriveBackupService @Inject constructor(
     }
 
     override suspend fun listBackups(accessToken: String): List<DriveBackupFile> {
-        return api.listBackups(accessToken.bearer()).files.map { it.toDomain() }
+        return api.listBackups(accessToken.bearer()).files
+            .map { it.toDomain() }
+            .filter { it.name.isAtlasPeakBackupFileName() }
     }
 
     override suspend fun downloadBackup(accessToken: String, fileId: String): ByteArray {
@@ -73,3 +75,9 @@ internal fun driveMultipartUploadBody(
 
 private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
 private val BACKUP_MEDIA_TYPE = "application/octet-stream".toMediaType()
+
+internal fun String.isAtlasPeakBackupFileName(): Boolean {
+    return BACKUP_FILE_NAME_REGEX.matches(this)
+}
+
+private val BACKUP_FILE_NAME_REGEX = Regex("^atlas_peak_backup_\\d{8}_\\d{6}\\.enc$")

@@ -32,6 +32,7 @@ import com.atlaspeak.domain.repository.HealthConnectRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.Instant
 import java.time.ZoneId
+import java.time.ZoneOffset
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -534,7 +535,10 @@ class HealthConnectManager @Inject constructor(
         return metadata.id.ifBlank { "$dataType:${metadata.dataOrigin.packageName}:$timeMillis" }
     }
 
-    private fun zoneOffsetString(instant: Instant): String = ZoneId.systemDefault().rules.getOffset(instant).id
+    private fun zoneOffsetString(instant: Instant): String {
+        val offsetSeconds = ZoneId.systemDefault().rules.getOffset(instant).totalSeconds
+        return ZoneOffset.ofTotalSeconds(offsetSeconds).id
+    }
 
     private fun maxInstant(a: Instant, b: Instant): Instant = if (a >= b) a else b
 

@@ -83,6 +83,7 @@ fun BodyCompositionRoute(
         onToggleEntryForm = viewModel::toggleEntryForm,
         onDraftChanged = viewModel::updateDraft,
         onSaveDraft = viewModel::saveDraft,
+        onRetry = viewModel::refresh,
         onHealthConnectSync = viewModel::syncHealthConnect,
         onRequestHealthConnectPermissions = {
             if (HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE) {
@@ -102,15 +103,34 @@ fun BodyCompositionScreen(
     onToggleEntryForm: () -> Unit,
     onDraftChanged: (BodyMetric, String) -> Unit,
     onSaveDraft: () -> Unit,
+    onRetry: () -> Unit,
     onHealthConnectSync: () -> Unit,
     onRequestHealthConnectPermissions: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
     PremiumBackground(modifier = modifier.fillMaxSize()) {
-        if (state.isLoading || state.snapshot == null) {
+        if (state.isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
+            }
+        } else if (state.snapshot == null) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(spacing.screen),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text(
+                    text = stringResource(state.messageRes ?: R.string.error_generic),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = LocalAtlasColors.current.ink,
+                )
+                AtlasPrimaryButton(
+                    onClick = onRetry,
+                    text = stringResource(R.string.action_retry),
+                )
             }
         } else {
             BodyCompositionContent(

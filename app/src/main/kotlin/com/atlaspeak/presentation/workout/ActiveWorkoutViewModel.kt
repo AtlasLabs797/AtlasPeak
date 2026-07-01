@@ -6,9 +6,11 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.atlaspeak.domain.model.workout.ActiveWorkoutExercise
+import com.atlaspeak.domain.model.workout.Exercise
 import com.atlaspeak.domain.model.workout.RestTimerFeedbackSettings
 import com.atlaspeak.domain.model.workout.WorkoutSession
 import com.atlaspeak.domain.model.workout.WorkoutSet
+import com.atlaspeak.domain.repository.ExerciseRepository
 import com.atlaspeak.domain.repository.WorkoutRepository
 import com.atlaspeak.domain.repository.WorkoutSettingsRepository
 import com.atlaspeak.domain.usecase.workout.CompleteWorkoutSessionUseCase
@@ -37,6 +39,7 @@ class ActiveWorkoutViewModel @Inject constructor(
     private val discardWorkoutSessionUseCase: DiscardWorkoutSessionUseCase,
     private val workoutRepository: WorkoutRepository,
     private val workoutSettingsRepository: WorkoutSettingsRepository,
+    private val exerciseRepository: ExerciseRepository,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
     private val routineId: String = requireNotNull(savedStateHandle[AppRoute.ActiveWorkout.ROUTINE_ID])
@@ -48,6 +51,7 @@ class ActiveWorkoutViewModel @Inject constructor(
     init {
         startWorkout()
         loadRestFeedbackSettings()
+        loadAvailableExercisesForQuickAdd()
         viewModelScope.launch {
             WorkoutTimerRegistry.state.collect { timer ->
                 mutableState.update { current ->
@@ -66,11 +70,21 @@ class ActiveWorkoutViewModel @Inject constructor(
 
     fun onSetCompleted(set: WorkoutSet, completed: Boolean, restSeconds: Int) {
         viewModelScope.launch {
+            val completedAt = if (completed) System.currentTimeMillis() else null
+            val previousMax = if (completed && set.weightKg != null && completedAt != null) {
+                workoutRepository.maxCompletedWeightBefore(set.exerciseId, completedAt)
+            } else {
+                null
+            }
             val updated = set.copy(
                 completed = completed,
                 actualReps = if (completed) set.actualReps ?: set.plannedReps else set.actualReps,
-                completedAt = if (completed) System.currentTimeMillis() else null,
-                isPersonalRecord = if (completed) set.isPersonalRecord else false,
+                completedAt = completedAt,
+                isPersonalRecord = if (completed) {
+                    set.isPersonalRecord || set.weightKg?.let { weight -> weight > (previousMax ?: 0.0) } == true
+                } else {
+                    false
+                },
             )
             workoutRepository.upsertSet(updated)
             reloadSession()
@@ -157,6 +171,43 @@ class ActiveWorkoutViewModel @Inject constructor(
                 ),
             )
             reloadSession()
+        }
+    }
+
+    /**
+     * (#16 del informe) Añade un ejercicio extra durante una sesión activa. Crea 3
+     * sets vacíos planificados (10 reps) y lo inserta al final de la rutina. Se
+     * evita duplicar el mismo ejercicio si ya está en la sesión.
+     */
+    fun addExerciseDuringWorkout(exerciseId: String) {
+        val session = mutableState.value.session ?: return
+        if (session.exercises.any { it.exerciseId == exerciseId }) return
+        viewModelScope.launch {
+            val exercise = exerciseRepository.exercises().firstOrNull { it.id == exerciseId } ?: return@launch
+            val newSets = (1..DEFAULT_NEW_EXERCISE_SETS).map { setNumber ->
+                WorkoutSet(
+                    id = UUID.randomUUID().toString(),
+                    sessionId = session.id,
+                    exerciseId = exercise.id,
+                    exerciseName = exercise.name,
+                    setNumber = setNumber,
+                    plannedReps = DEFAULT_NEW_EXERCISE_REPS,
+                    actualReps = null,
+                    weightKg = null,
+                    completed = false,
+                    completedAt = null,
+                    isPersonalRecord = false,
+                )
+            }
+            newSets.forEach { workoutRepository.upsertSet(it) }
+            reloadSession()
+        }
+    }
+
+    private fun loadAvailableExercisesForQuickAdd() {
+        viewModelScope.launch {
+            val exercises = runCatching { exerciseRepository.exercises() }.getOrDefault(emptyList())
+            mutableState.update { it.copy(availableExercises = exercises) }
         }
     }
 
@@ -332,15 +383,24 @@ class ActiveWorkoutViewModel @Inject constructor(
         if (totalSeconds <= 0) return
         restJob?.cancel()
         val timerId = UUID.randomUUID().toString()
+        val endsAt = System.currentTimeMillis() + totalSeconds * 1000L
         restJob = viewModelScope.launch {
-            for (remaining in totalSeconds downTo 0) {
+            while (true) {
+                val remaining = ((endsAt - System.currentTimeMillis()) / 1000L).toInt().coerceIn(0, totalSeconds)
                 mutableState.update {
                     it.copy(restTimer = RestTimerUiState(timerId, totalSeconds, remaining))
                 }
-                delay(if (remaining > 0) 1000 else 420)
+                if (remaining == 0) break
+                delay(250)
             }
+            delay(420)
             mutableState.update { it.copy(restTimer = null) }
         }
+    }
+
+    private companion object {
+        const val DEFAULT_NEW_EXERCISE_SETS = 3
+        const val DEFAULT_NEW_EXERCISE_REPS = 10
     }
 }
 
@@ -356,6 +416,7 @@ data class ActiveWorkoutUiState(
     val pendingSetDeletion: WorkoutSet? = null,
     val deletedSetForUndo: WorkoutSet? = null,
     val deletedSetEventId: Long = 0L,
+    val availableExercises: List<Exercise> = emptyList(),
     val timerServiceStartHandled: Boolean = false,
     val restFeedbackSettings: RestTimerFeedbackSettings = RestTimerFeedbackSettings(
         soundEnabled = true,

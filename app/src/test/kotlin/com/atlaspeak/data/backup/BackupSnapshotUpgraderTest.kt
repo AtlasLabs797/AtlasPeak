@@ -79,6 +79,61 @@ class BackupSnapshotUpgraderTest {
         assertEquals(JsonPrimitive(0), row.getValue("order_index"))
     }
 
+    @Test
+    fun `schema v3 snapshot reindexes multiple weekly plan sessions per day`() {
+        val upgraded = upgrader.upgradeToCurrent(
+            snapshot(
+                schemaVersion = 3,
+                bodyCompositionRows = emptyList(),
+                weeklyPlanRows = listOf(
+                    mapOf(
+                        "id" to JsonPrimitive("weekly_plan_b"),
+                        "day_of_week" to JsonPrimitive(1),
+                    ),
+                    mapOf(
+                        "id" to JsonPrimitive("weekly_plan_a"),
+                        "day_of_week" to JsonPrimitive(1),
+                    ),
+                    mapOf(
+                        "id" to JsonPrimitive("weekly_plan_c"),
+                        "day_of_week" to JsonPrimitive(2),
+                    ),
+                ),
+            ),
+        )
+
+        assertEquals(BackupJsonCodec.CURRENT_SCHEMA_VERSION, upgraded.schemaVersion)
+        val rowsById = upgraded.tables.getValue("weekly_plan").associateBy { it.getValue("id") }
+        assertEquals(JsonPrimitive(0), rowsById.getValue(JsonPrimitive("weekly_plan_a")).getValue("order_index"))
+        assertEquals(JsonPrimitive(1), rowsById.getValue(JsonPrimitive("weekly_plan_b")).getValue("order_index"))
+        assertEquals(JsonPrimitive(0), rowsById.getValue(JsonPrimitive("weekly_plan_c")).getValue("order_index"))
+    }
+
+    @Test
+    fun `schema v4 snapshot normalizes colliding weekly plan order indexes`() {
+        val upgraded = upgrader.upgradeToCurrent(
+            snapshot(
+                schemaVersion = 4,
+                bodyCompositionRows = emptyList(),
+                weeklyPlanRows = listOf(
+                    mapOf(
+                        "id" to JsonPrimitive("weekly_plan_b"),
+                        "day_of_week" to JsonPrimitive(1),
+                        "order_index" to JsonPrimitive(0),
+                    ),
+                    mapOf(
+                        "id" to JsonPrimitive("weekly_plan_a"),
+                        "day_of_week" to JsonPrimitive(1),
+                        "order_index" to JsonPrimitive(0),
+                    ),
+                ),
+            ),
+        )
+
+        val rowsById = upgraded.tables.getValue("weekly_plan").associateBy { it.getValue("id") }
+        assertEquals(JsonPrimitive(0), rowsById.getValue(JsonPrimitive("weekly_plan_a")).getValue("order_index"))
+        assertEquals(JsonPrimitive(1), rowsById.getValue(JsonPrimitive("weekly_plan_b")).getValue("order_index"))
+    }
 
     @Test
     fun `current schema snapshot passes through unchanged`() {

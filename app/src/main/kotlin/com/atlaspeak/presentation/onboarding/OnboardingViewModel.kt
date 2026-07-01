@@ -11,6 +11,7 @@ import com.atlaspeak.domain.repository.ProfileRepository
 import com.atlaspeak.domain.usecase.planning.NotificationSettingsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -83,10 +84,16 @@ class OnboardingViewModel @Inject constructor(
     private fun finish(snapshot: OnboardingUiState) {
         viewModelScope.launch {
             mutableState.update { it.copy(isSubmitting = true, message = null) }
-            val profile = snapshot.toProfile()
-            if (profile != null) profileRepository.saveProfile(profile)
-            onboardingRepository.setOnboardingCompleted(true)
-            mutableState.update { it.copy(isSubmitting = false, completed = true) }
+            try {
+                val profile = snapshot.toProfile()
+                if (profile != null) profileRepository.saveProfile(profile)
+                onboardingRepository.setOnboardingCompleted(true)
+                mutableState.update { it.copy(isSubmitting = false, completed = true) }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                mutableState.update { it.copy(isSubmitting = false, message = OnboardingMessage.GenericError) }
+            }
         }
     }
 

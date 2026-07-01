@@ -13,6 +13,7 @@ import com.atlaspeak.domain.usecase.body.BodyCompositionUseCase
 import com.atlaspeak.domain.usecase.healthconnect.SyncHealthConnectUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -116,15 +117,28 @@ class BodyCompositionViewModel @Inject constructor(
         mutableState.update { it.copy(messageRes = R.string.body_health_unavailable) }
     }
 
-    private fun refresh() {
+    fun refresh() {
         viewModelScope.launch {
-            val period = mutableState.value.selectedPeriod
-            val snapshot = bodyCompositionUseCase.snapshot(period)
-            mutableState.update {
-                it.copy(
-                    isLoading = false,
-                    snapshot = snapshot,
-                )
+            mutableState.update { it.copy(isLoading = it.snapshot == null) }
+            try {
+                val period = mutableState.value.selectedPeriod
+                val snapshot = bodyCompositionUseCase.snapshot(period)
+                mutableState.update {
+                    it.copy(
+                        isLoading = false,
+                        snapshot = snapshot,
+                        messageRes = null,
+                    )
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                mutableState.update {
+                    it.copy(
+                        isLoading = false,
+                        messageRes = R.string.error_generic,
+                    )
+                }
             }
         }
     }
@@ -202,15 +216,15 @@ data class BodyCompositionDraft(
         return BodyMetric.entries.all { metric ->
             val value = value(metric).trim()
             value.isBlank() || when (metric) {
-                BodyMetric.VisceralFat,
-                BodyMetric.BodyAge -> value.toIntOrNullFlexible() != null
-                BodyMetric.Weight,
+                BodyMetric.VisceralFat -> value.toIntOrNullFlexible()?.let { it in 1..100 } == true
+                BodyMetric.BodyAge -> value.toIntOrNullFlexible()?.let { it in 1..130 } == true
+                BodyMetric.Weight -> value.toDoubleOrNullFlexible()?.let { it in 1.0..500.0 } == true
                 BodyMetric.BodyFat,
-                BodyMetric.MuscleMass,
                 BodyMetric.Water,
+                BodyMetric.Protein -> value.toDoubleOrNullFlexible()?.let { it in 0.0..100.0 } == true
+                BodyMetric.MuscleMass,
                 BodyMetric.BodyWaterMass,
-                BodyMetric.Protein,
-                BodyMetric.BoneMass -> value.toDoubleOrNullFlexible() != null
+                BodyMetric.BoneMass -> value.toDoubleOrNullFlexible()?.let { it in 0.0..500.0 } == true
             }
         }
     }

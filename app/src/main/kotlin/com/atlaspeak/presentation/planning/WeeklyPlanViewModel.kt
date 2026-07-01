@@ -145,6 +145,20 @@ class WeeklyPlanViewModel @Inject constructor(
     }
 
     fun setRestDay(dayOfWeek: Int, restDay: Boolean) {
+        val currentDay = mutableState.value.days.firstOrNull { it.dayOfWeek == dayOfWeek }
+        if (
+            restDay &&
+            currentDay?.sessions?.isNotEmpty() == true &&
+            mutableState.value.pendingRestDayConfirmationDayOfWeek != dayOfWeek
+        ) {
+            mutableState.update {
+                it.copy(
+                    pendingRestDayConfirmationDayOfWeek = dayOfWeek,
+                    messageRes = R.string.weekly_plan_rest_day_confirm_again,
+                )
+            }
+            return
+        }
         updateDay(dayOfWeek) { draft ->
             if (restDay) {
                 draft.copy(
@@ -155,6 +169,7 @@ class WeeklyPlanViewModel @Inject constructor(
                 draft.copy(isRestDay = false)
             }
         }
+        mutableState.update { it.copy(pendingRestDayConfirmationDayOfWeek = null) }
     }
 
     fun setNotificationEnabled(dayOfWeek: Int, sessionId: String, enabled: Boolean) {
@@ -239,6 +254,7 @@ data class WeeklyPlanUiState(
     val routines: List<RoutineOption> = emptyList(),
     val cardioTypes: List<CardioTypeOption> = emptyList(),
     val days: List<WeeklyPlanDayDraft> = emptyList(),
+    val pendingRestDayConfirmationDayOfWeek: Int? = null,
     @StringRes val messageRes: Int? = null,
 )
 

@@ -13,6 +13,7 @@ val AtlasInk3 = Color(0xFF67676E)
 val AtlasInk4 = Color(0xFF5E5E66)
 val AtlasOnAccent = Color(0xFF0A0A0B)
 val AtlasRisk = Color(0xFFFF5A4D)
+val AtlasWarn = Color(0xFFE0B341)
 
 data class AtlasColors(
     val ground: Color,
@@ -34,6 +35,7 @@ data class AtlasColors(
     val grid: Color,
     val ringTrack: Color,
     val risk: Color,
+    val warn: Color,
 )
 
 val AtlasDarkColors = AtlasColors(
@@ -56,6 +58,7 @@ val AtlasDarkColors = AtlasColors(
     grid = Color.White.copy(alpha = 0.07f),
     ringTrack = Color.White.copy(alpha = 0.09f),
     risk = AtlasRisk,
+    warn = AtlasWarn,
 )
 
 val AtlasLightColors = AtlasColors(
@@ -65,7 +68,7 @@ val AtlasLightColors = AtlasColors(
     surface3 = Color(0xFFEFEEE9),
     ink = AtlasOnAccent,
     ink2 = Color(0xFF5A5A60),
-    ink3 = Color(0xFF8A8A90),
+    ink3 = Color(0xFF6E6E76),
     ink4 = Color(0xFFA8A8AE),
     onAccent = Color(0xFFFAFAFA),
     line1 = AtlasOnAccent.copy(alpha = 0.08f),
@@ -78,6 +81,7 @@ val AtlasLightColors = AtlasColors(
     grid = AtlasOnAccent.copy(alpha = 0.08f),
     ringTrack = AtlasOnAccent.copy(alpha = 0.10f),
     risk = Color(0xFFE0473B),
+    warn = Color(0xFFB8861E),
 )
 
 val LocalAtlasColors = staticCompositionLocalOf { AtlasDarkColors }

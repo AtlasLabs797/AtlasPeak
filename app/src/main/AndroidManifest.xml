@@ -97,7 +97,7 @@
         <service
             android:name=".service.CardioForegroundService"
             android:exported="false"
-            android:foregroundServiceType="location" />
+            android:foregroundServiceType="health|location" />
 
         <!-- FileProvider para compartir exports (almacenamiento privado) -->
         <provider

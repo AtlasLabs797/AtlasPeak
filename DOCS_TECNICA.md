@@ -265,9 +265,11 @@ Fase 9 reemplaza el placeholder de `Body` por una pantalla real sobre la tabla v
   `ScaleApp`), periodos, ultimos valores y puntos de evolucion.
 - `BodyCompositionUseCase` valida entrada manual, guarda con `source = Manual` y
   `syncedToHealthConnect = false`, calcula el ultimo valor por metrica y genera series por
-  periodo.
+  periodo. Si una metrica manual y otra de Health Connect comparten timestamp, Health Connect
+  gana y la serie visible se deduplica por metrica/timestamp.
 - `BodyCompositionRepository` abstrae Room; `RoomBodyCompositionRepository` mapea
-  `BodyCompositionEntity` sin exponer entities a presentation.
+  `BodyCompositionEntity` sin exponer entities a presentation y falla de forma explicita ante
+  un `source` desconocido.
 - `BodyCompositionScreen` muestra tabla de valores actuales, selector de periodo, selector de
   metrica, grafica Vico y formulario manual con todos los campos del spec.
 - Las metricas preparadas para Health Connect son peso, grasa corporal, masa muscular y masa de
@@ -337,7 +339,7 @@ revocados.
 - `WeeklyPlanUseCase` normaliza siete dias ISO (`1=Lunes ... 7=Domingo`), valida `HH:mm`,
   soporta varias sesiones por dia, convierte dias vacios en descanso y reprograma
   notificaciones al guardar cada dia.
-- `RoomWeeklyPlanRepository` usa `weekly_plan` v5: `order_index`, `type`, `routine_id`,
+- `RoomWeeklyPlanRepository` usa `weekly_plan` v6: `order_index`, `type`, `routine_id`,
   `cardio_type_id` y `cardio_target_duration_sec` permiten planificar fuerza + cardio el
   mismo dia sin crear rutinas falsas. La marca visual de completado se calcula por clave
   `(day_of_week, order_index)` dentro de la semana local actual.
@@ -359,6 +361,8 @@ revocados.
   de fitness.
 - Antes de notificar se comprueba `POST_NOTIFICATIONS`/`NotificationManagerCompat`. Si el
   permiso esta denegado, el worker termina sin notificar ni entrar en bucles de retry.
+- El scheduler valida `HH:mm` antes de encolar WorkManager para que datos legados/corruptos no
+  lleguen a `LocalTime.parse`.
 
 ---
 
@@ -374,13 +378,16 @@ revocados.
 - `BackupJsonCodec.decode()` aplica `BackupSnapshotUpgrader` antes del restore para que
   snapshots antiguos lleguen al schema actual.
 - `BackupSnapshotUpgrader` eleva backups schema v2->v3 anadiendo las columnas nuevas de
-  planificacion cardio y v3->v4 anadiendo `weekly_plan.order_index = 0`.
+  planificacion cardio, v3->v4 anadiendo `weekly_plan.order_index` y v4->v5 reindexando
+  las sesiones por dia para cumplir el indice unico `(day_of_week, order_index)`.
 - `DriveBackupManager`: snapshot DB completo -> JSON Kotlinx -> ATPK/AES-256-GCM -> upload.
 - `BackupWorker` (WorkManager): diario, con red, solo si auto-backup esta activo, hay token
   Drive silencioso, contrasena guardada y hash estable de snapshot distinto. El hash ignora
   `app_settings.last_backup_at` para no subir un backup diario solo porque el anterior actualizo
-  esa marca.
+  esa marca. El worker exige bateria no baja y backoff exponencial de 30 min.
 - Maximo **5 backups**; tras subir correctamente se lista y borra el mas antiguo sobrante.
+  El listado Drive filtra localmente nombres exactos `atlas_peak_backup_yyyyMMdd_HHmmss.enc`
+  ademas de consultar `appDataFolder` y excluir papelera.
 - Restore: listar -> descargar -> leer cabecera -> derivar clave -> descifrar -> decode +
   upgrade de snapshot -> validar schema/tablas -> transaccion Room (reemplazo completo de datos).
 - `LocalBackupExportManager` crea archivos en `filesDir/exports`, limpia exports temporales
@@ -404,6 +411,8 @@ outliers.
 
 - UI: un `data class XxxUiState` por pantalla; ViewModel expone `StateFlow`. La UI usa
   `collectAsStateWithLifecycle`.
+- Tema: `MainActivity` observa `AppThemeViewModel`, que lee `app_settings.theme` via Room Flow.
+  Ajustes permite `System`/`Light`/`Dark` y `AtlasPeakTheme` aplica el modo persistido.
 - IO/cripto/PBKDF2: siempre `Dispatchers.IO`. Nunca en main thread.
 - Errores: tipo `Result` sellado en domain; no se propagan excepciones entre capas.
 

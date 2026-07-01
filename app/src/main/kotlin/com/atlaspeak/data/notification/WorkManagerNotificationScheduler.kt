@@ -10,6 +10,7 @@ import com.atlaspeak.domain.model.planning.WeeklyPlanSession
 import com.atlaspeak.domain.repository.NotificationScheduler
 import com.atlaspeak.domain.repository.NotificationSettingsRepository
 import com.atlaspeak.domain.repository.WeeklyPlanRepository
+import com.atlaspeak.domain.usecase.planning.isValidClockTime
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -40,7 +41,7 @@ class WorkManagerNotificationScheduler @Inject constructor(
             .filter { !it.isRestDay }
             .forEach { day ->
                 day.sessions
-                    .filter { it.hasPlannedTarget() && it.notificationEnabled && it.notificationTime != null }
+                    .filter { it.hasPlannedTarget() && it.notificationEnabled && it.notificationTime != null && it.notificationTime.isValidClockTime() }
                     .forEach { session ->
                         val workName = NotificationWorkNames.trainingReminder(day.dayOfWeek, session.orderIndex)
                         enabledWork += workName
@@ -75,7 +76,7 @@ class WorkManagerNotificationScheduler @Inject constructor(
         val settings = settingsRepository.settings()
         val day = weeklyPlanRepository.plan().firstOrNull { it.dayOfWeek == dayOfWeek }
         val candidateSessions = day?.sessions.orEmpty()
-            .filter { it.hasPlannedTarget() && it.notificationEnabled && it.notificationTime != null }
+            .filter { it.hasPlannedTarget() && it.notificationEnabled && it.notificationTime != null && it.notificationTime.isValidClockTime() }
         if (
             !settings.notificationsEnabled ||
             !permissionChecker.canPostNotifications() ||
@@ -108,7 +109,12 @@ class WorkManagerNotificationScheduler @Inject constructor(
     override suspend fun rescheduleDailySummary() {
         val workManager = WorkManager.getInstance(context)
         val settings = settingsRepository.settings()
-        if (!settings.notificationsEnabled || !settings.dailySummaryEnabled || !permissionChecker.canPostNotifications()) {
+        if (
+            !settings.notificationsEnabled ||
+            !settings.dailySummaryEnabled ||
+            !settings.dailySummaryTime.isValidClockTime() ||
+            !permissionChecker.canPostNotifications()
+        ) {
             workManager.cancelUniqueWork(NotificationWorkNames.DAILY_SUMMARY)
             return
         }

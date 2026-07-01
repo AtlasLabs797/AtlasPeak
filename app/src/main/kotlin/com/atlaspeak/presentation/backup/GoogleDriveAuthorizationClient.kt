@@ -2,6 +2,7 @@ package com.atlaspeak.presentation.backup
 
 import android.content.Intent
 import androidx.fragment.app.FragmentActivity
+import com.atlaspeak.BuildConfig
 import com.atlaspeak.core.google.awaitResult
 import com.google.android.gms.auth.api.identity.AuthorizationRequest
 import com.google.android.gms.auth.api.identity.Identity
@@ -15,9 +16,12 @@ class GoogleDriveAuthorizationClient(
     private val client = Identity.getAuthorizationClient(activity)
 
     suspend fun requestAccess(): DriveAuthorizationResult {
-        val request = AuthorizationRequest.builder()
+        val builder = AuthorizationRequest.builder()
             .setRequestedScopes(listOf(Scope(Scopes.DRIVE_APPFOLDER)))
-            .build()
+        if (BuildConfig.OAUTH_WEB_CLIENT_ID.isNotBlank()) {
+            builder.requestOfflineAccess(BuildConfig.OAUTH_WEB_CLIENT_ID)
+        }
+        val request = builder.build()
         return runCatching {
             val result = client.authorize(request).awaitResult()
             if (result.hasResolution()) {

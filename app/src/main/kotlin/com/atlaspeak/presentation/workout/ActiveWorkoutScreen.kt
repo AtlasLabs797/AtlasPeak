@@ -16,6 +16,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,6 +27,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.pager.HorizontalPager
@@ -52,6 +55,7 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -203,9 +207,10 @@ fun ActiveWorkoutRoute(
         )
     }
 
-    ActiveWorkoutScreen(
+ActiveWorkoutScreen(
         state = state,
         snackbarHostState = snackbarHostState,
+        availableExercises = state.availableExercises,
         onSetCompleted = viewModel::onSetCompleted,
         onRepsTextChanged = viewModel::onRepsTextChanged,
         onWeightTextChanged = viewModel::onWeightTextChanged,
@@ -213,6 +218,7 @@ fun ActiveWorkoutRoute(
         onAddSet = viewModel::addSet,
         onRemoveSet = viewModel::requestRemoveSet,
         onMoveExercise = viewModel::moveExercise,
+        onAddExercise = viewModel::addExerciseDuringWorkout,
         onSkipRest = viewModel::skipRestTimer,
         onCompleteWorkout = viewModel::completeWorkout,
     )
@@ -223,6 +229,7 @@ fun ActiveWorkoutRoute(
 fun ActiveWorkoutScreen(
     state: ActiveWorkoutUiState,
     snackbarHostState: SnackbarHostState,
+    availableExercises: List<com.atlaspeak.domain.model.workout.Exercise>,
     onSetCompleted: (WorkoutSet, Boolean, Int) -> Unit,
     onRepsTextChanged: (WorkoutSet, String) -> Unit,
     onWeightTextChanged: (WorkoutSet, String) -> Unit,
@@ -230,13 +237,14 @@ fun ActiveWorkoutScreen(
     onAddSet: (ActiveWorkoutExercise) -> Unit,
     onRemoveSet: (WorkoutSet) -> Unit,
     onMoveExercise: (Int, Int) -> Unit,
+    onAddExercise: (String) -> Unit,
     onSkipRest: () -> Unit,
     onCompleteWorkout: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
     val session = state.session
-    var showExerciseSheet by remember { mutableStateOf(false) }
+    var showExerciseSheet by rememberSaveable { mutableStateOf(false) }
     RestFeedbackEffect(state.restTimer, state.restFeedbackSettings)
 
     PremiumBackground(modifier = modifier.fillMaxSize()) {
@@ -347,11 +355,16 @@ fun ActiveWorkoutScreen(
                             .padding(spacing.screen),
                     )
                 }
-                if (showExerciseSheet) {
+if (showExerciseSheet) {
                     AtlasBottomSheet(onDismissRequest = { showExerciseSheet = false }) {
                         ExerciseSheet(
                             exercises = session.exercises,
+                            availableExercises = availableExercises,
                             onMoveExercise = onMoveExercise,
+                            onAddExercise = { exerciseId ->
+                                onAddExercise(exerciseId)
+                                showExerciseSheet = false
+                            },
                             onDismiss = { showExerciseSheet = false },
                         )
                     }
@@ -365,14 +378,22 @@ fun ActiveWorkoutScreen(
 @Composable
 private fun ActiveWorkoutMessageText(message: ActiveWorkoutMessage?) {
     if (message == null) return
+    val atlasColors = LocalAtlasColors.current
     val res = when (message) {
         ActiveWorkoutMessage.RoutineMissing -> R.string.workout_active_missing_routine
         ActiveWorkoutMessage.TimerServiceUnavailable -> R.string.workout_timer_service_unavailable
     }
+    // (#22 del informe) RoutineMissing sí es un error real (rojo); TimerService
+    // unavailable solo significa "el cronómetro en background no pudo arrancar"
+    // (aviso), así que usamos warn (ámbar) para no generar ansiedad innecesaria.
+    val tint = when (message) {
+        ActiveWorkoutMessage.RoutineMissing -> atlasColors.risk
+        ActiveWorkoutMessage.TimerServiceUnavailable -> atlasColors.warn
+    }
     Text(
         text = stringResource(res),
         style = MaterialTheme.typography.bodyMedium,
-        color = LocalAtlasColors.current.risk,
+        color = tint,
     )
 }
 
@@ -446,8 +467,16 @@ private fun ProgressCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            // (#6 del informe) Si ya están todos completos no sumamos +1 (si no
+            // mostraría "5+1 / 5"). En otro caso, numeramos el ejercicio actual
+            // 1-indexed para humanos.
+            val currentExerciseNumber = if (totalExercises > 0 && completedExercises >= totalExercises) {
+                totalExercises
+            } else {
+                completedExercises + 1
+            }
             Text(
-                text = stringResource(R.string.workout_active_exercise_progress, completedExercises + 1, totalExercises),
+                text = stringResource(R.string.workout_active_exercise_progress, currentExerciseNumber, totalExercises),
                 style = MaterialTheme.typography.labelSmall,
                 color = atlasColors.ink3,
             )
@@ -660,8 +689,16 @@ private fun SetRow(
             contentDescription = stringResource(R.string.workout_reps_series_cd, set.setNumber),
             onCommit = { onSetInputCommitted(set) },
         )
+        val completionContentDescription = stringResource(
+            if (set.completed) R.string.workout_set_completed_cd else R.string.workout_set_incomplete_cd,
+            set.setNumber,
+        )
         Surface(
-            modifier = Modifier.size(34.dp),
+            modifier = Modifier
+                .size(44.dp)
+                .semantics {
+                    contentDescription = completionContentDescription
+                },
             onClick = {
                 val completed = !set.completed
                 if (completed) haptics.performHapticFeedback(HapticFeedbackType.LongPress)
@@ -828,10 +865,13 @@ private fun RestCountdownRing(timer: RestTimerUiState) {
 @Composable
 private fun ExerciseSheet(
     exercises: List<ActiveWorkoutExercise>,
+    availableExercises: List<com.atlaspeak.domain.model.workout.Exercise>,
     onMoveExercise: (Int, Int) -> Unit,
+    onAddExercise: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
+    var showAddDialog by remember { mutableStateOf(false) }
     Column(
         modifier = Modifier.padding(spacing.screen),
         verticalArrangement = Arrangement.spacedBy(spacing.sm),
@@ -857,6 +897,96 @@ private fun ExerciseSheet(
                 last = index == exercises.lastIndex,
                 onMoveExercise = onMoveExercise,
             )
+        }
+        AtlasSecondaryButton(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = { showAddDialog = true },
+            text = stringResource(R.string.workout_add_exercise),
+            leadingIcon = Icons.Filled.Add,
+        )
+    }
+    if (showAddDialog) {
+        AddExerciseDialog(
+            availableExercises = availableExercises,
+            currentExerciseIds = exercises.map { it.exerciseId }.toSet(),
+            onDismiss = { showAddDialog = false },
+            onPick = { exerciseId ->
+                onAddExercise(exerciseId)
+                showAddDialog = false
+            },
+        )
+    }
+}
+
+@Composable
+private fun AddExerciseDialog(
+    availableExercises: List<com.atlaspeak.domain.model.workout.Exercise>,
+    currentExerciseIds: Set<String>,
+    onDismiss: () -> Unit,
+    onPick: (String) -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
+    val filtered = availableExercises
+        .filter { !it.isArchived }
+        .sortedBy { it.muscleGroup.name }
+    AtlasDialog(
+        onDismissRequest = onDismiss,
+        title = stringResource(R.string.workout_add_exercise_dialog_title),
+        confirmButton = {
+            AtlasSecondaryButton(
+                onClick = onDismiss,
+                text = stringResource(R.string.action_cancel),
+            )
+        },
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 360.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(spacing.xs),
+        ) {
+            if (filtered.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.workout_add_exercise_empty),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = atlasColors.ink3,
+                )
+            } else {
+                filtered.forEach { exercise ->
+                    val alreadyAdded = exercise.id in currentExerciseIds
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(MaterialTheme.shapes.medium)
+                            .background(if (alreadyAdded) atlasColors.fillSoft else atlasColors.surface2)
+                            .clickable(enabled = !alreadyAdded) { onPick(exercise.id) }
+                            .padding(spacing.sm),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = exercise.name,
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = if (alreadyAdded) atlasColors.ink3 else atlasColors.ink,
+                            )
+                            Text(
+                                text = exercise.muscleGroup.name,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = atlasColors.ink3,
+                            )
+                        }
+                        if (alreadyAdded) {
+                            Text(
+                                text = stringResource(R.string.workout_add_exercise_already_added),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = atlasColors.ink3,
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -944,6 +1074,14 @@ private fun RestFeedbackEffect(
     settings: RestTimerFeedbackSettings,
 ) {
     val context = LocalContext.current
+    // (#7 del informe) ToneGenerator es caro (allocate + inicializa audio HAL). Lo
+    // creamos una sola vez por pantalla de workout y lo liberamos al salir.
+    val toneGenerator = remember {
+        if (settings.soundEnabled) ToneGenerator(AudioManager.STREAM_NOTIFICATION, 60) else null
+    }
+    DisposableEffect(toneGenerator) {
+        onDispose { toneGenerator?.release() }
+    }
     LaunchedEffect(restTimer?.id, restTimer?.remainingSeconds) {
         if (restTimer == null) return@LaunchedEffect
         if (restTimer.remainingSeconds != 0) return@LaunchedEffect
@@ -961,13 +1099,12 @@ private fun RestFeedbackEffect(
                 vibrator.vibrate(120)
             }
         }
-        if (settings.soundEnabled) {
-            val toneGenerator = ToneGenerator(AudioManager.STREAM_NOTIFICATION, 60)
+        if (settings.soundEnabled && toneGenerator != null) {
             try {
                 toneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP, 120)
-                delay(140)
-            } finally {
-                toneGenerator.release()
+            } catch (_: RuntimeException) {
+                // ToneGenerator puede soltar RuntimeException si el HAL no responde.
+                // Lo silenciamos: la vibración ya cubrió la señal háptica.
             }
         }
     }

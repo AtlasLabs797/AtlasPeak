@@ -77,6 +77,7 @@ fun HomeRoute(
     HomeScreen(
         state = state,
         onPeriodSelected = viewModel::selectPeriod,
+        onRetry = { viewModel.refresh() },
         onStartRoutine = onStartRoutine,
         onStartCardio = onStartCardio,
     )
@@ -86,6 +87,7 @@ fun HomeRoute(
 fun HomeScreen(
     state: HomeUiState,
     onPeriodSelected: (DashboardWidget, DashboardPeriod) -> Unit,
+    onRetry: () -> Unit,
     onStartRoutine: (String) -> Unit,
     onStartCardio: (String, Int) -> Unit,
     modifier: Modifier = Modifier,
@@ -106,11 +108,20 @@ fun HomeScreen(
                         .padding(spacing.screen),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(
-                        text = stringResource(state.errorMessageRes ?: R.string.error_generic),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = atlasColors.ink,
-                    )
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(spacing.sm),
+                    ) {
+                        Text(
+                            text = stringResource(state.errorMessageRes ?: R.string.error_generic),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = atlasColors.ink,
+                        )
+                        AtlasPrimaryButton(
+                            onClick = onRetry,
+                            text = stringResource(R.string.action_retry),
+                        )
+                    }
                 }
             }
             else -> {
@@ -121,6 +132,7 @@ fun HomeScreen(
                     filters = state.filters,
                     errorMessageRes = state.errorMessageRes,
                     onPeriodSelected = onPeriodSelected,
+                    onRetry = onRetry,
                     onStartRoutine = onStartRoutine,
                     onStartCardio = onStartCardio,
                 )
@@ -137,6 +149,7 @@ private fun DashboardContent(
     filters: DashboardFilters,
     @StringRes errorMessageRes: Int?,
     onPeriodSelected: (DashboardWidget, DashboardPeriod) -> Unit,
+    onRetry: () -> Unit,
     onStartRoutine: (String) -> Unit,
     onStartCardio: (String, Int) -> Unit,
 ) {
@@ -157,11 +170,22 @@ private fun DashboardContent(
         }
         errorMessageRes?.let { messageRes ->
             item {
-                Text(
-                    text = stringResource(messageRes),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = atlasColors.risk,
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        modifier = Modifier.weight(1f),
+                        text = stringResource(messageRes),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = atlasColors.risk,
+                    )
+                    AtlasPrimaryButton(
+                        onClick = onRetry,
+                        text = stringResource(R.string.action_retry),
+                    )
+                }
             }
         }
         item {
@@ -237,6 +261,7 @@ private fun HomeHeader(greetingName: String?) {
 private fun WeeklyLoadHero(snapshot: DashboardSnapshot) {
     val spacing = LocalSpacing.current
     val atlasColors = LocalAtlasColors.current
+    val weeklyBars = weeklyLoadBars(snapshot)
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(spacing.sm),
@@ -269,12 +294,20 @@ private fun WeeklyLoadHero(snapshot: DashboardSnapshot) {
             style = MaterialTheme.typography.labelLarge,
             color = atlasColors.ink,
         )
-        MonochromeBarChart(
-            values = weeklyLoadBars(snapshot),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(54.dp),
-        )
+        if (weeklyBars.any { it > 0f }) {
+            MonochromeBarChart(
+                values = weeklyBars,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp),
+            )
+        } else {
+            Text(
+                text = stringResource(R.string.home_weekly_load_empty),
+                style = MaterialTheme.typography.bodySmall,
+                color = atlasColors.ink3,
+            )
+        }
     }
 }
 
@@ -291,7 +324,8 @@ private fun MetricCarousel(
             value = formatWhole(snapshot.totalVolumeKg),
             unitRes = R.string.unit_kg,
             icon = Icons.Filled.FitnessCenter,
-            points = emptyList(),
+            points = snapshot.volumePoints,
+            periodLabel = periodLabel(filters.totalVolumePeriod),
             onClick = { onPeriodSelected(DashboardWidget.TotalVolume, filters.totalVolumePeriod.next()) },
         ),
         DashboardTile(
@@ -301,6 +335,7 @@ private fun MetricCarousel(
             unitRes = R.string.unit_steps,
             icon = Icons.AutoMirrored.Filled.DirectionsWalk,
             points = snapshot.dailySteps,
+            periodLabel = periodLabel(filters.dailyStepsPeriod),
             onClick = { onPeriodSelected(DashboardWidget.DailySteps, filters.dailyStepsPeriod.next()) },
         ),
         DashboardTile(
@@ -310,6 +345,7 @@ private fun MetricCarousel(
             unitRes = R.string.unit_bpm,
             icon = Icons.Filled.Favorite,
             points = snapshot.heartRate,
+            periodLabel = periodLabel(filters.heartRatePeriod),
             onClick = { onPeriodSelected(DashboardWidget.HeartRate, filters.heartRatePeriod.next()) },
         ),
     )
@@ -330,7 +366,7 @@ private fun MetricTile(tile: DashboardTile) {
     PremiumCard(
         modifier = Modifier
             .width(164.dp)
-            .height(138.dp),
+            .height(154.dp),
     ) {
         Column(
             modifier = Modifier
@@ -339,12 +375,21 @@ private fun MetricTile(tile: DashboardTile) {
                 .padding(spacing.card),
             verticalArrangement = Arrangement.spacedBy(spacing.xs),
         ) {
-            Icon(
-                imageVector = tile.icon,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                tint = atlasColors.ink2,
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = tile.icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = atlasColors.ink2,
+                )
+                Spacer(Modifier.weight(1f))
+                Text(
+                    text = tile.periodLabel.uppercase(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = atlasColors.ink3,
+                    maxLines = 1,
+                )
+            }
             Spacer(Modifier.weight(1f))
             Row(verticalAlignment = Alignment.Bottom) {
                 Text(
@@ -379,6 +424,15 @@ private fun MetricTile(tile: DashboardTile) {
             }
         }
     }
+}
+
+@Composable
+private fun periodLabel(period: DashboardPeriod): String = when (period) {
+    DashboardPeriod.Week -> stringResource(R.string.dashboard_period_week)
+    DashboardPeriod.Month -> stringResource(R.string.dashboard_period_month)
+    DashboardPeriod.ThreeMonths -> stringResource(R.string.dashboard_period_three_months)
+    DashboardPeriod.Year -> stringResource(R.string.dashboard_period_year)
+    DashboardPeriod.YearToDate -> stringResource(R.string.dashboard_period_year_to_date)
 }
 
 @Composable
@@ -525,6 +579,7 @@ private data class DashboardTile(
     @StringRes val unitRes: Int,
     val icon: ImageVector,
     val points: List<DashboardPoint>,
+    val periodLabel: String,
     val onClick: () -> Unit,
 )
 
@@ -537,13 +592,24 @@ private fun DashboardPeriod.next(): DashboardPeriod = when (this) {
 }
 
 private fun weeklyLoadBars(snapshot: DashboardSnapshot): List<Float> {
-    val activeDays = snapshot.consistency.activeDays.coerceAtLeast(0)
-    val targetDays = snapshot.consistency.targetDays.coerceIn(1, 7)
-    return List(7) { index ->
+    // Antes (#5 del informe): fórmula determinista inventada que no reflejaba los
+    // minutos reales. Ahora pintamos minutos/día normalizados al máximo de la
+    // semana, con hueco para los días futuros (0f) y los días sin entrenar (0.04f
+    // base para que la barra sea visible pero no engañe).
+    val today = java.time.LocalDate.now()
+    val mondayThisWeek = today.minusDays((today.dayOfWeek.value - 1).toLong())
+    val pointsByDate = snapshot.weeklyMinutesPoints.associateBy { point ->
+        java.time.Instant.ofEpochMilli(point.timestamp)
+            .atZone(java.time.ZoneId.systemDefault())
+            .toLocalDate()
+    }
+    val maxMinutes = pointsByDate.values.maxOfOrNull { it.value }?.takeIf { it > 0.0 } ?: 0.0
+    return (0L until 7L).map { offset ->
+        val date = mondayThisWeek.plusDays(offset)
+        val minutes = pointsByDate[date]?.value ?: 0.0
         when {
-            index < activeDays -> 0.45f + (index % 3) * 0.18f
-            index < targetDays -> 0.24f
-            else -> 0.12f
+            maxMinutes <= 0.0 -> 0f
+            else -> (minutes / maxMinutes).toFloat().coerceIn(0f, 1f)
         }
     }
 }

@@ -135,6 +135,7 @@ fun BackupRestoreRoute(
         onBack = onBack,
         onPasswordChanged = viewModel::onPasswordChanged,
         onAutoBackupChanged = viewModel::setAutoBackupEnabled,
+        onUpdateAutoBackupPassword = viewModel::updateAutoBackupPassword,
         onCreateLocalBackup = viewModel::createLocalEncryptedBackup,
         onExportJson = viewModel::requestExportJson,
         onExportCsv = viewModel::requestExportCsv,
@@ -154,6 +155,7 @@ fun BackupRestoreScreen(
     onBack: () -> Unit,
     onPasswordChanged: (String) -> Unit,
     onAutoBackupChanged: (Boolean) -> Unit,
+    onUpdateAutoBackupPassword: () -> Unit,
     onCreateLocalBackup: () -> Unit,
     onExportJson: () -> Unit,
     onExportCsv: () -> Unit,
@@ -220,6 +222,7 @@ fun BackupRestoreScreen(
                     lastBackupAt = state.lastBackupAt,
                     onPasswordChanged = onPasswordChanged,
                     onAutoBackupChanged = onAutoBackupChanged,
+                    onUpdateAutoBackupPassword = onUpdateAutoBackupPassword,
                 )
             }
             item {
@@ -284,6 +287,7 @@ private fun PasswordCard(
     lastBackupAt: Long?,
     onPasswordChanged: (String) -> Unit,
     onAutoBackupChanged: (Boolean) -> Unit,
+    onUpdateAutoBackupPassword: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
     val atlasColors = LocalAtlasColors.current
@@ -327,6 +331,18 @@ private fun PasswordCard(
                     checked = autoBackupEnabled,
                     onCheckedChange = onAutoBackupChanged,
                 )
+                if (autoBackupEnabled) {
+                    Text(
+                        text = stringResource(R.string.backup_password_change_warning),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = atlasColors.warn,
+                    )
+                    AtlasSecondaryButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = onUpdateAutoBackupPassword,
+                        text = stringResource(R.string.backup_password_update_action),
+                    )
+                }
             }
         }
     }

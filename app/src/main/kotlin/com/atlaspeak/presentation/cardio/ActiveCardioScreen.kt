@@ -25,6 +25,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -37,6 +41,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.atlaspeak.R
 import com.atlaspeak.domain.model.cardio.CardioMode
+import com.atlaspeak.presentation.component.AtlasDialog
 import com.atlaspeak.presentation.component.AtlasPrimaryButton
 import com.atlaspeak.presentation.component.AtlasSecondaryButton
 import com.atlaspeak.presentation.component.AtlasTextField
@@ -53,6 +58,7 @@ fun ActiveCardioRoute(
 ) {
     val state = viewModel.state.collectAsStateWithLifecycle().value
     val context = LocalContext.current
+    var showCancelDialog by rememberSaveable { mutableStateOf(false) }
     val locationLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
@@ -81,7 +87,30 @@ fun ActiveCardioRoute(
     }
 
     BackHandler(enabled = state.session != null && state.completedSessionId == null) {
-        viewModel.cancelCardio()
+        showCancelDialog = true
+    }
+
+    if (showCancelDialog) {
+        AtlasDialog(
+            onDismissRequest = { showCancelDialog = false },
+            title = stringResource(R.string.cardio_cancel_dialog_title),
+            message = stringResource(R.string.cardio_cancel_dialog_body),
+            confirmButton = {
+                AtlasPrimaryButton(
+                    onClick = {
+                        showCancelDialog = false
+                        viewModel.cancelCardio()
+                    },
+                    text = stringResource(R.string.cardio_cancel_dialog_discard),
+                )
+            },
+            dismissButton = {
+                AtlasSecondaryButton(
+                    onClick = { showCancelDialog = false },
+                    text = stringResource(R.string.cardio_cancel_dialog_keep),
+                )
+            },
+        )
     }
 
     ActiveCardioScreen(
@@ -89,7 +118,7 @@ fun ActiveCardioRoute(
         onManualDistanceChanged = viewModel::onManualDistanceChanged,
         onManualSpeedChanged = viewModel::onManualSpeedChanged,
         onCompleteCardio = viewModel::completeCardio,
-        onCancelCardio = viewModel::cancelCardio,
+        onCancelCardio = { showCancelDialog = true },
     )
 }
 
@@ -121,7 +150,7 @@ fun ActiveCardioScreen(
                 CardioHeaderCard(state)
                 ActiveCardioMessageText(state.message)
                 CardioMetricsGrid(state)
-                if (state.requiresManualMetrics) {
+                if (state.shouldShowManualMetrics) {
                     ManualDistanceCard(
                         distance = state.manualDistanceKm,
                         speed = state.manualAvgSpeedKmh,

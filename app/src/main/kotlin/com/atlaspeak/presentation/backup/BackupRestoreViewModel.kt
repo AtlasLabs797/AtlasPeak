@@ -80,6 +80,23 @@ class BackupRestoreViewModel @Inject constructor(
         }
     }
 
+    fun updateAutoBackupPassword() {
+        viewModelScope.launch {
+            val password = state.value.password.toCharArray()
+            if (password.isEmpty()) {
+                _state.update { it.copy(messageRes = R.string.backup_password_required) }
+                return@launch
+            }
+            try {
+                backupUseCase.saveAutoBackupPassword(password)
+                _state.update { it.copy(messageRes = R.string.backup_auto_password_updated) }
+            } finally {
+                password.fill('\u0000')
+                clearPassword()
+            }
+        }
+    }
+
     fun loadDriveBackups(accessToken: String) {
         viewModelScope.launch {
             setLoading(true)

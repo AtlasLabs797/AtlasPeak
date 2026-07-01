@@ -1,7 +1,7 @@
 package com.atlaspeak.presentation.profile
 
-import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,12 +17,14 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -46,15 +48,17 @@ fun EditProfileRoute(
     viewModel: EditProfileViewModel = hiltViewModel(),
 ) {
     val state = viewModel.state.collectAsStateWithLifecycle().value
-    val context = LocalContext.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val savedMessage = stringResource(R.string.edit_profile_saved)
     LaunchedEffect(state.saved) {
         if (state.saved) {
-            Toast.makeText(context, R.string.edit_profile_saved, Toast.LENGTH_SHORT).show()
+            snackbarHostState.showSnackbar(savedMessage)
             onBack()
         }
     }
     EditProfileScreen(
         state = state,
+        snackbarHostState = snackbarHostState,
         onBack = onBack,
         onDisplayNameChanged = viewModel::onDisplayNameChanged,
         onAgeChanged = viewModel::onAgeChanged,
@@ -68,6 +72,7 @@ fun EditProfileRoute(
 @Composable
 fun EditProfileScreen(
     state: EditProfileUiState,
+    snackbarHostState: SnackbarHostState,
     onBack: () -> Unit,
     onDisplayNameChanged: (String) -> Unit,
     onAgeChanged: (String) -> Unit,
@@ -79,88 +84,96 @@ fun EditProfileScreen(
 ) {
     val spacing = LocalSpacing.current
     PremiumBackground(modifier = modifier.fillMaxSize()) {
-        if (state.isLoading) {
-            Column(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                CircularProgressIndicator()
-            }
-            return@PremiumBackground
-        }
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(spacing.screen),
-            verticalArrangement = Arrangement.spacedBy(spacing.cardGap),
-        ) {
-            EditProfileHeader(onBack = onBack)
-            if (state.loadFailed || state.saveFailed) {
-                AtlasStatusMessage(
-                    message = stringResource(R.string.error_generic),
-                    tone = AtlasStatusTone.Error,
-                )
-            }
-            PremiumCard(modifier = Modifier.fillMaxWidth()) {
+        Box(Modifier.fillMaxSize()) {
+            if (state.isLoading) {
                 Column(
-                    modifier = Modifier.padding(spacing.card),
-                    verticalArrangement = Arrangement.spacedBy(spacing.sm),
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally,
                 ) {
-                    AtlasTextField(
-                        modifier = Modifier.fillMaxWidth(),
-                        value = state.displayName,
-                        onValueChange = onDisplayNameChanged,
-                        label = stringResource(R.string.onboarding_profile_name),
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
-                        AtlasTextField(
-                            modifier = Modifier.weight(1f),
-                            value = state.age,
-                            onValueChange = onAgeChanged,
-                            label = stringResource(R.string.onboarding_profile_age),
-                            keyboardType = KeyboardType.Number,
-                            isError = state.ageInvalid,
-                            supportingText = if (state.ageInvalid) {
-                                stringResource(R.string.edit_profile_age_invalid)
-                            } else {
-                                null
-                            },
-                        )
-                        AtlasTextField(
-                            modifier = Modifier.weight(1f),
-                            value = state.heightCm,
-                            onValueChange = onHeightChanged,
-                            label = stringResource(R.string.onboarding_profile_height),
-                            keyboardType = KeyboardType.Decimal,
-                            isError = state.heightInvalid,
-                            supportingText = if (state.heightInvalid) {
-                                stringResource(R.string.edit_profile_height_invalid)
-                            } else {
-                                null
-                            },
+                    CircularProgressIndicator()
+                }
+            } else {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(spacing.screen),
+                    verticalArrangement = Arrangement.spacedBy(spacing.cardGap),
+                ) {
+                    EditProfileHeader(onBack = onBack)
+                    if (state.loadFailed || state.saveFailed) {
+                        AtlasStatusMessage(
+                            message = stringResource(R.string.error_generic),
+                            tone = AtlasStatusTone.Error,
                         )
                     }
-                    EditProfileChoiceSelector(
-                        label = stringResource(R.string.onboarding_profile_gender),
-                        options = Gender.entries.map { it to stringResource(it.labelRes()) },
-                        selected = state.gender,
-                        onSelected = onGenderChanged,
-                    )
-                    EditProfileChoiceSelector(
-                        label = stringResource(R.string.onboarding_profile_goal),
-                        options = Goal.entries.map { it to stringResource(it.labelRes()) },
-                        selected = state.goalType,
-                        onSelected = onGoalChanged,
+                    PremiumCard(modifier = Modifier.fillMaxWidth()) {
+                        Column(
+                            modifier = Modifier.padding(spacing.card),
+                            verticalArrangement = Arrangement.spacedBy(spacing.sm),
+                        ) {
+                            AtlasTextField(
+                                modifier = Modifier.fillMaxWidth(),
+                                value = state.displayName,
+                                onValueChange = onDisplayNameChanged,
+                                label = stringResource(R.string.onboarding_profile_name),
+                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                                AtlasTextField(
+                                    modifier = Modifier.weight(1f),
+                                    value = state.age,
+                                    onValueChange = onAgeChanged,
+                                    label = stringResource(R.string.onboarding_profile_age),
+                                    keyboardType = KeyboardType.Number,
+                                    isError = state.ageInvalid,
+                                    supportingText = if (state.ageInvalid) {
+                                        stringResource(R.string.edit_profile_age_invalid)
+                                    } else {
+                                        null
+                                    },
+                                )
+                                AtlasTextField(
+                                    modifier = Modifier.weight(1f),
+                                    value = state.heightCm,
+                                    onValueChange = onHeightChanged,
+                                    label = stringResource(R.string.onboarding_profile_height),
+                                    keyboardType = KeyboardType.Decimal,
+                                    isError = state.heightInvalid,
+                                    supportingText = if (state.heightInvalid) {
+                                        stringResource(R.string.edit_profile_height_invalid)
+                                    } else {
+                                        null
+                                    },
+                                )
+                            }
+                            EditProfileChoiceSelector(
+                                label = stringResource(R.string.onboarding_profile_gender),
+                                options = Gender.entries.map { it to stringResource(it.labelRes()) },
+                                selected = state.gender,
+                                onSelected = onGenderChanged,
+                            )
+                            EditProfileChoiceSelector(
+                                label = stringResource(R.string.onboarding_profile_goal),
+                                options = Goal.entries.map { it to stringResource(it.labelRes()) },
+                                selected = state.goalType,
+                                onSelected = onGoalChanged,
+                            )
+                        }
+                    }
+                    AtlasPrimaryButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !state.isSubmitting,
+                        onClick = onSave,
+                        text = stringResource(R.string.action_save),
                     )
                 }
             }
-            AtlasPrimaryButton(
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !state.isSubmitting,
-                onClick = onSave,
-                text = stringResource(R.string.action_save),
+            SnackbarHost(
+                hostState = snackbarHostState,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(spacing.screen),
             )
         }
     }

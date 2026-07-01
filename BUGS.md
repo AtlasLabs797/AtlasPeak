@@ -24,6 +24,279 @@
 
 ## Entradas
 
+### BUG-086 - ThemeMode existia pero no habia switching real
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-07-01
+- **Fase:** Fase G theme switching
+- **Severidad:** Baja
+- **Sintoma:** `ThemeMode` estaba definido y habia strings de tema, pero la app siempre seguia
+  el modo por defecto y no exponia control al usuario.
+- **Causa raiz:** `app_settings.theme` no tenia repositorio/Flow ni UI conectada al theme root.
+- **Solucion:** repositorio Room persistido, `AppThemeViewModel`, wiring en `MainActivity` y selector
+  en Ajustes.
+- **Prevencion:** settings persistidos deben tener repositorio, UI y aplicacion efectiva antes de
+  considerar cerrada la feature.
+- **Fecha resolucion:** 2026-07-01
+
+---
+
+### BUG-085 - Scheduler podia crashear con horarios corruptos
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-07-01
+- **Fase:** Fase F notificaciones
+- **Severidad:** Media
+- **Sintoma:** si datos legados/corruptos contenian `notification_time` invalido, el scheduler
+  podia llegar a `LocalTime.parse` y fallar durante reschedule.
+- **Causa raiz:** el scheduler confiaba en que todos los datos ya habian pasado por validacion
+  de dominio/UI.
+- **Solucion:** se filtran horas nulas/invalidas antes de encolar recordatorios y resumen diario.
+- **Prevencion:** WorkManager debe validar entradas persistidas antes de parsear/enqueue.
+- **Fecha resolucion:** 2026-07-01
+
+---
+
+### BUG-084 - Lista Drive aceptaba nombres de backup demasiado laxos
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-07-01
+- **Fase:** Fase E backup/security
+- **Severidad:** Baja
+- **Sintoma:** la query Drive usaba `contains` para prefijo y extension, pudiendo listar archivos
+  no generados por Atlas Peak dentro de App Data.
+- **Causa raiz:** Drive query no soporta regex y no habia filtro local estricto.
+- **Solucion:** se filtra localmente el patron exacto `atlas_peak_backup_yyyyMMdd_HHmmss.enc` y
+  la query excluye papelera.
+- **Prevencion:** `RetrofitDriveBackupServiceTest` cubre nombres validos e invalidos.
+- **Fecha resolucion:** 2026-07-01
+
+---
+
+### BUG-083 - Worker de backup no exigia bateria no baja ni backoff explicito
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-07-01
+- **Fase:** Fase E backup/security
+- **Severidad:** Media
+- **Sintoma:** el backup periodico podia ejecutarse con bateria baja y dependia de defaults para backoff.
+- **Causa raiz:** `BackupWorkScheduler` solo declaraba red conectada.
+- **Solucion:** constraints con `setRequiresBatteryNotLow(true)` y backoff exponencial de 30 min.
+- **Prevencion:** cualquier worker de IO pesado debe declarar constraints y backoff explicitos.
+- **Fecha resolucion:** 2026-07-01
+
+---
+
+### BUG-082 - Source desconocido de composicion corporal se convertia en Manual
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-07-01
+- **Fase:** Fase D Health Connect
+- **Severidad:** Media
+- **Sintoma:** un valor `source` nuevo o corrupto en `body_composition` aparecia como manual,
+  ocultando el origen real del dato.
+- **Causa raiz:** el mapper Room usaba `else -> BodyCompositionSource.Manual`.
+- **Solucion:** el mapper reconoce `MANUAL`, `HEALTH_CONNECT`, `SCALE_APP` y falla de forma
+  explicita para cualquier otro valor.
+- **Prevencion:** nuevas fuentes deben agregarse al enum/mapeo y cubrirse con test o migracion.
+- **Fecha resolucion:** 2026-07-01
+
+---
+
+### BUG-081 - HC y entrada manual duplicaban metricas con el mismo timestamp
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-07-01
+- **Fase:** Fase D Health Connect
+- **Severidad:** Alta
+- **Sintoma:** si Health Connect importaba una medicion con el mismo timestamp que una entrada
+  manual, ambas podian aparecer en chart/latest y producir valores inconsistentes.
+- **Causa raiz:** `BodyCompositionUseCase.snapshot()` ordenaba solo por timestamp y no aplicaba
+  politica de resolucion de conflicto por fuente.
+- **Solucion:** los snapshots priorizan Health Connect por metrica/timestamp y deduplican la serie.
+- **Prevencion:** `BodyCompositionUseCaseTest` cubre que Health Connect gana frente a Manual.
+- **Fecha resolucion:** 2026-07-01
+
+---
+
+### BUG-080 - Rutinas vacias o con parametros absurdos se podian guardar
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-07-01
+- **Fase:** Fase C UX y bugs medios
+- **Severidad:** Media
+- **Sintoma:** el constructor permitia guardar una rutina sin ejercicios o con sets/reps/rest
+  fuera de rango util.
+- **Causa raiz:** `RoutineUseCase.createOrUpdateRoutine` solo validaba nombre.
+- **Solucion:** se exige al menos un ejercicio y rangos razonables para sets, reps, peso y descanso.
+- **Prevencion:** `RoutineUseCaseTest` cubre rutinas vacias y parametros fuera de rango.
+- **Fecha resolucion:** 2026-07-01
+
+---
+
+### BUG-079 - Composicion corporal aceptaba valores fuera de rango
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-07-01
+- **Fase:** Fase C UX y bugs medios
+- **Severidad:** Media
+- **Sintoma:** campos como grasa corporal, agua o edad corporal aceptaban valores parseables
+  pero imposibles, por ejemplo porcentajes mayores que 100.
+- **Causa raiz:** `BodyCompositionDraft.isValidRaw()` solo comprobaba parseo numerico.
+- **Solucion:** validacion por rango para porcentajes, peso, masas, grasa visceral y edad corporal.
+- **Prevencion:** `BodyCompositionDraftTest` cubre valores imposibles.
+- **Fecha resolucion:** 2026-07-01
+
+---
+
+### BUG-078 - Home y Body no ofrecian retry tras error inicial
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-07-01
+- **Fase:** Fase C UX y bugs medios
+- **Severidad:** Media
+- **Sintoma:** un fallo transitorio en Home o Composicion corporal dejaba solo texto/error sin
+  accion para reintentar.
+- **Causa raiz:** las pantallas no exponian `refresh()` como accion UI en estados de error.
+- **Solucion:** se anade boton `Reintentar` en carga inicial fallida y en aviso de Home con
+  snapshot existente.
+- **Prevencion:** nuevos estados de error transitorio deben exponer accion de recuperacion.
+- **Fecha resolucion:** 2026-07-01
+
+---
+
+### BUG-077 - Busqueda de ejercicios refetcheaba por cada tecla
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-07-01
+- **Fase:** Fase C UX y bugs medios
+- **Severidad:** Media
+- **Sintoma:** buscar ejercicios en Entrenar podia causar flicker y lecturas Room por cada
+  cambio de texto.
+- **Causa raiz:** `onSearchQueryChanged` llamaba `refreshExercises()` y esta consultaba el
+  use case/repositorio cada vez.
+- **Solucion:** `TrainViewModel` mantiene `allExercises` en estado y filtra busqueda/grupo en memoria.
+- **Prevencion:** filtros de listas ya cargadas deben ser transformaciones locales salvo que haya
+  paginacion real.
+- **Fecha resolucion:** 2026-07-01
+
+---
+
+### BUG-076 - Home podia pisar estado entre sync Health Connect y refresh
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-07-01
+- **Fase:** Fase C UX y bugs medios
+- **Severidad:** Media
+- **Sintoma:** al abrir Home, sync Health Connect y refresh de dashboard corrian en paralelo;
+  el resultado tardio podia dejar metricas desactualizadas o limpiar errores de otra carga.
+- **Causa raiz:** `HomeViewModel.init` lanzaba dos jobs independientes sin coordinacion.
+- **Solucion:** el arranque usa un unico refresh con sync previo opcional dentro del mismo job.
+- **Prevencion:** cargas que escriben el mismo estado deben compartir job o versionado de filtros.
+- **Fecha resolucion:** 2026-07-01
+
+---
+
+### BUG-075 - Launch podia quedar en loading indefinidamente
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-07-01
+- **Fase:** Fase B UX critica
+- **Severidad:** Alta
+- **Sintoma:** si `onboardingCompleted` fallaba o no emitia, la pantalla inicial podia quedarse
+  en `Loading` sin salida.
+- **Causa raiz:** `LaunchViewModel` colectaba el flujo sin `catch` ni timeout de fallback.
+- **Solucion:** se captura el error y se aplica fallback a onboarding; un timeout de 3 s evita
+  loading perpetuo si no hay emision.
+- **Prevencion:** `LaunchViewModelTest` cubre emision normal, fallo y flujo sin emisiones.
+- **Fecha resolucion:** 2026-07-01
+
+---
+
+### BUG-074 - Cardio sin GPS no mantenia foreground service
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-07-01
+- **Fase:** Fase B UX critica
+- **Severidad:** Alta
+- **Sintoma:** cardio manual o GPS denegado caia a timer local; al salir de la UI no habia
+  servicio foreground que mantuviera cronometro/notificacion.
+- **Causa raiz:** `ActiveCardioViewModel` no arrancaba el servicio si `gpsEnabled=false` y
+  `CardioForegroundService` se marcaba fallido si no habia location tracking.
+- **Solucion:** el servicio arranca tambien sin GPS, usa FGS `health` y solo crea job de
+  ubicacion cuando hay permiso/tipo GPS.
+- **Prevencion:** revisar cualquier nuevo modo cardio contra los dos caminos FGS: `health` sin
+  ubicacion y `location` con GPS real.
+- **Fecha resolucion:** 2026-07-01
+
+---
+
+### BUG-073 - Plan semanal podia borrar sesiones al marcar descanso
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-07-01
+- **Fase:** Fase B UX critica
+- **Severidad:** Alta
+- **Sintoma:** activar "Dia de descanso" en un dia con sesiones vaciaba la lista sin confirmacion.
+- **Causa raiz:** `setRestDay(true)` limpiaba `sessions` directamente.
+- **Solucion:** el primer intento solo muestra aviso y guarda confirmacion pendiente; el segundo
+  intento sobre el mismo dia confirma el borrado.
+- **Prevencion:** `WeeklyPlanViewModelTest` cubre que el primer toque no elimina sesiones.
+- **Fecha resolucion:** 2026-07-01
+
+---
+
+### BUG-072 - Entrenamiento activo bloqueaba composicion con runBlocking
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-07-01
+- **Fase:** Fase B UX critica
+- **Severidad:** Media
+- **Sintoma:** abrir el sheet de quick-add podia bloquear UI al leer ejercicios sincronamente.
+- **Causa raiz:** `availableExercisesForQuickAdd()` usaba `runBlocking` desde el arbol Compose.
+- **Solucion:** los ejercicios disponibles se cargan asincronamente en `ActiveWorkoutViewModel`
+  y se exponen como estado.
+- **Prevencion:** no usar `runBlocking` en presentation salvo tests; cargas UI deben ir por
+  `viewModelScope`/estado.
+- **Fecha resolucion:** 2026-07-01
+
+---
+
+### BUG-071 - Cancelar cardio activo descartaba la sesion sin confirmacion
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-07-01
+- **Fase:** Fase B UX critica
+- **Severidad:** Alta
+- **Sintoma:** back del sistema o Cancelar en cardio activo borraban la sesion inmediatamente.
+- **Causa raiz:** `ActiveCardioRoute` llamaba `cancelCardio()` directamente desde `BackHandler`
+  y desde la accion de cancelar.
+- **Solucion:** ambos caminos abren `AtlasDialog` con conservar entrenamiento o descartar sesion.
+- **Prevencion:** acciones destructivas de sesiones activas deben pasar por confirmacion o undo.
+- **Fecha resolucion:** 2026-07-01
+
+---
+
+### BUG-070 - Backups antiguos podian restaurar plan semanal con order_index colisionado
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-07-01
+- **Fase:** Fase A seguridad e integridad
+- **Severidad:** Alta
+- **Sintoma:** un backup anterior al schema con `weekly_plan.order_index` podia ser actualizado
+  con `order_index = 0` para varias sesiones del mismo dia y fallar contra el indice unico
+  `(day_of_week, order_index)` durante el restore.
+- **Causa raiz:** `BackupSnapshotUpgrader` aplicaba el mismo backfill escalar a todas las filas
+  y `MIGRATION_4_5` hacia lo mismo a nivel SQL.
+- **Solucion:** backup schema v5 reindexa sesiones por dia; Room schema v6 incluye
+  `MIGRATION_5_6` idempotente y `MIGRATION_4_5` queda corregida para futuros upgrades 4->5.
+- **Prevencion:** tests de upgrader cubren snapshots v3/v4 con multiples sesiones por dia y
+  `AppDatabaseMigrationTest` cubre migraciones 4->5 y 5->6 con colisiones.
+- **Fecha resolucion:** 2026-07-01
+
+---
+
+### BUG-069 - Auto-backup de Drive podia fallar silenciosamente
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-07-01
+- **Fase:** Fase A seguridad e integridad
+- **Severidad:** Alta
+- **Sintoma:** si el grant silencioso de Drive fallaba o requeria consentimiento, el worker
+  terminaba como exito sin subir backup ni distinguir la causa.
+- **Causa raiz:** `DriveAccessTokenProvider.silentAccessToken()` devolvia `String?`, mezclando
+  falta de autorizacion y fallo transitorio en `null`, y no usaba `OAUTH_WEB_CLIENT_ID` para
+  offline access.
+- **Solucion:** el provider devuelve `DriveAccessTokenResult` tipado y el worker reintenta solo
+  fallos transitorios; la solicitud OAuth usa `requestOfflineAccess` cuando hay Web Client ID.
+- **Prevencion:** `BackupWorkerRunnerTest` cubre grant faltante, fallo de grant, exito y fallos
+  permanentes sin retry.
+- **Fecha resolucion:** 2026-07-01
+
+---
+
 ### BUG-068 - Backup restore no aplicaba upgrader de snapshots
 - **Estado:** Resuelto
 - **Fecha deteccion:** 2026-06-28

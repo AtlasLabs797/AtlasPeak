@@ -37,8 +37,7 @@ class HomeViewModel @Inject constructor(
     val state: StateFlow<HomeUiState> = mutableState.asStateFlow()
 
     init {
-        syncHealthConnect()
-        refresh()
+        refresh(syncBefore = true)
     }
 
     fun selectPeriod(widget: DashboardWidget, period: DashboardPeriod) {
@@ -46,12 +45,15 @@ class HomeViewModel @Inject constructor(
         refresh()
     }
 
-    fun refresh() {
+    fun refresh(syncBefore: Boolean = false) {
         refreshJob?.cancel()
         refreshJob = viewModelScope.launch {
             val filters = mutableState.value.filters
             mutableState.update { it.copy(isLoading = it.snapshot == null, errorMessageRes = null) }
             try {
+                if (syncBefore) {
+                    runCatching { syncHealthConnectUseCase() }
+                }
                 val snapshot = dashboardUseCase.snapshot(filters)
                 val todayWorkouts = todayWorkouts()
                 val greetingName = profileRepository.getProfile()?.displayName
@@ -78,15 +80,6 @@ class HomeViewModel @Inject constructor(
                         it
                     }
                 }
-            }
-        }
-    }
-
-    private fun syncHealthConnect() {
-        viewModelScope.launch {
-            val result = syncHealthConnectUseCase()
-            if ((result.successful || result.partiallySuccessful) && (result.importedRecords > 0 || result.exportedRecords > 0)) {
-                refresh()
             }
         }
     }

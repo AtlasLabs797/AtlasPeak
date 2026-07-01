@@ -3,13 +3,14 @@ package com.atlaspeak.presentation.navigation
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -84,7 +85,9 @@ private fun AtlasPeakBottomBar(
         contentAlignment = Alignment.Center,
     ) {
         Surface(
-            modifier = Modifier.width(282.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .widthIn(max = 282.dp),
             shape = RoundedCornerShape(999.dp),
             color = atlasColors.surface.copy(alpha = 0.92f),
             contentColor = atlasColors.ink,

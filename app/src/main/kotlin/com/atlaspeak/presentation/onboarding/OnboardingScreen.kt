@@ -28,7 +28,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
@@ -260,16 +259,6 @@ private fun StepBody(
 ) {
     val spacing = LocalSpacing.current
     when (state.currentStep) {
-        OnboardingStep.Google -> {
-            PremiumCard(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    modifier = Modifier.padding(spacing.card),
-                    text = stringResource(R.string.onboarding_google_status),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = LocalAtlasColors.current.ink2,
-                )
-            }
-        }
         OnboardingStep.Profile -> {
             PremiumCard(modifier = Modifier.fillMaxWidth()) {
                 Column(
@@ -369,7 +358,6 @@ private fun OnboardingMessageText(message: OnboardingMessage?) {
 
 private fun OnboardingStep.icon(): ImageVector = when (this) {
     OnboardingStep.Welcome -> Icons.Filled.RocketLaunch
-    OnboardingStep.Google -> Icons.Filled.Cloud
     OnboardingStep.Profile -> Icons.Filled.Person
     OnboardingStep.Notifications -> Icons.Filled.Notifications
     OnboardingStep.HealthConnect -> Icons.Filled.Favorite
@@ -379,7 +367,6 @@ private fun OnboardingStep.icon(): ImageVector = when (this) {
 
 private fun OnboardingStep.titleRes(): Int = when (this) {
     OnboardingStep.Welcome -> R.string.onboarding_welcome_title
-    OnboardingStep.Google -> R.string.onboarding_google_title
     OnboardingStep.Profile -> R.string.onboarding_profile_title
     OnboardingStep.Notifications -> R.string.onboarding_notifications_title
     OnboardingStep.HealthConnect -> R.string.onboarding_health_title
@@ -389,7 +376,6 @@ private fun OnboardingStep.titleRes(): Int = when (this) {
 
 private fun OnboardingStep.bodyRes(): Int = when (this) {
     OnboardingStep.Welcome -> R.string.onboarding_welcome_body
-    OnboardingStep.Google -> R.string.onboarding_google_body
     OnboardingStep.Profile -> R.string.onboarding_profile_body
     OnboardingStep.Notifications -> R.string.onboarding_notifications_body
     OnboardingStep.HealthConnect -> R.string.onboarding_health_body
@@ -400,7 +386,6 @@ private fun OnboardingStep.bodyRes(): Int = when (this) {
 private fun primaryActionRes(step: OnboardingStep): Int = when (step) {
     OnboardingStep.Welcome -> R.string.onboarding_get_started
     OnboardingStep.Done -> R.string.action_start
-    OnboardingStep.Google -> R.string.action_continue
     OnboardingStep.Notifications,
     OnboardingStep.Location,
     OnboardingStep.HealthConnect,

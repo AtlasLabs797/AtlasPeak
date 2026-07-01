@@ -36,6 +36,69 @@ salvo lo que el propio Google maneja en su OAuth.
 Estos se detectaron al auditar el spec **antes** de escribir código. Los fixes están
 reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de versiones.
 
+### SEC-039 - Residuos de buffers cifrados en backup Drive
+- **Estado:** Resuelto / riesgo residual aceptado
+- **Fecha:** 2026-07-01
+- **Severidad:** Media
+- **Sintoma:** los bytes cifrados descargados/subidos quedaban en memoria hasta GC tras la operacion.
+- **Causa raiz:** se limpiaban payload/plaintext, pero no el buffer cifrado intermedio.
+- **Solucion:** `DriveBackupManager` limpia best-effort `encrypted` en create y restore.
+- **Riesgo residual:** el JSON se decodifica como `String` para kotlinx serialization y no puede
+  zerarse de forma fiable en JVM; se mantiene limitado al proceso local.
+- **Prevencion:** nuevos flujos de backup deben preferir buffers mutables y borrado best-effort.
+
+### SEC-038 - Origen de composicion corporal no debe degradar silenciosamente a Manual
+- **Estado:** Resuelto
+- **Fecha:** 2026-07-01
+- **Severidad:** Media
+- **Sintoma:** un source desconocido en datos corporales podia mostrarse como Manual, ocultando
+  integraciones futuras, datos corruptos o importaciones mal clasificadas.
+- **Causa raiz:** mapper defensivo en exceso con `else -> Manual`.
+- **Solucion:** mapeo exhaustivo y fallo explicito si aparece un source no soportado.
+- **Prevencion:** toda nueva fuente corporal requiere enum, mapper, strings/UI y migracion si aplica.
+
+### SEC-037 - Cambio de contrasena de backup automatico podia ser ambiguo
+- **Estado:** Resuelto
+- **Fecha:** 2026-07-01
+- **Severidad:** Media
+- **Sintoma:** la pantalla permitia escribir una contrasena nueva mientras el backup automatico
+  ya estaba activo, pero no habia accion explicita para actualizar la credencial guardada ni
+  recordatorio de que backups antiguos siguen ligados a la contrasena previa.
+- **Causa raiz:** el toggle de auto-backup mezclaba activacion y persistencia de contrasena;
+  una edicion posterior del campo podia interpretarse como cambio aplicado cuando no lo estaba.
+- **Solucion:** se anade accion "Actualizar contrasena guardada" y se muestra la advertencia
+  SEC-002 sobre backups previos antes de cambiar la credencial cifrada localmente.
+- **Prevencion:** cambios de passphrase deben ser accion explicita y advertir compatibilidad de
+  backups antiguos; no loguear ni persistir texto claro.
+
+### SEC-036 - Passphrase de auto-backup materializada como String inmutable
+- **Estado:** Resuelto
+- **Fecha:** 2026-07-01
+- **Severidad:** Media
+- **Sintoma:** `BackupCredentialStore.saveAutoBackupPassword()` convertia el `CharArray` de la
+  passphrase a `String` mediante `concatToString()`, dejando una copia inmutable en heap hasta GC.
+- **Causa raiz:** se buscaba convertir a UTF-8 para cifrar con Keystore, pero se uso la ruta
+  comoda `String -> ByteArray`.
+- **Solucion:** la conversion se realiza ahora mediante `CharsetEncoder`/`ByteBuffer` mutables;
+  el `CharArray` original y los buffers intermedios se limpian al terminar.
+- **Prevencion:** no volver a usar `String` para passphrases ni passwords en flujos de backup;
+  si se necesita texto, usar buffers mutables y borrado best-effort.
+
+### SEC-035 - Grant silencioso de Drive indistinguible de fallo transitorio
+- **Estado:** Resuelto
+- **Fecha:** 2026-07-01
+- **Severidad:** Alta
+- **Sintoma:** el auto-backup podia no subir nada si Drive requeria consentimiento o si el grant
+  silencioso fallaba, pero el worker lo trataba como exito sin diagnostico.
+- **Causa raiz:** `DriveAccessTokenProvider` devolvia `String?`, y `null` significaba tanto
+  "no autorizado" como "fallo transitorio". Ademas la solicitud no usaba el Web Client ID
+  configurado en `BuildConfig` para offline access.
+- **Solucion:** el provider devuelve `DriveAccessTokenResult` tipado, la solicitud usa
+  `requestOfflineAccess(BuildConfig.OAUTH_WEB_CLIENT_ID)` cuando esta configurado, y
+  `BackupWorkerRunner` reintenta solo fallos transitorios.
+- **Prevencion:** cualquier nuevo flujo OAuth debe exponer resultados tipados y no colapsar
+  errores en `null`; los tokens/access grants nunca se loguean.
+
 ### SEC-033 - Keystore release dentro del proyecto
 - **Estado:** Resuelto
 - **Fecha:** 2026-06-28
@@ -95,7 +158,8 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
   pero exige que cada migracion de columnas tenga un paso equivalente en `BackupSnapshotUpgrader`
   y que el decode lo aplique antes de restaurar.
 - **Solucion:** `BackupJsonCodec.decode()` aplica `BackupSnapshotUpgrader`; el schema de backup
-  sube a 4, v2->v3 rellena columnas de cardio y v3->v4 rellena `weekly_plan.order_index = 0`.
+  sube a 5, v2->v3 rellena columnas de cardio, v3->v4 anade `weekly_plan.order_index` y
+  v4->v5 reindexa por dia para evitar colisiones del indice unico.
 - **Prevencion:** tests cubren snapshots antiguos con columnas de planificacion cardio y
   `order_index` antes de restaurar.
 
@@ -179,6 +243,9 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
 - **Causa raiz:** el permiso de ubicacion es runtime y el FGS de tipo `location` no puede asumirse concedido.
 - **Solucion:** `ActiveCardio` solicita `ACCESS_FINE_LOCATION` solo para tipos con GPS. Si se deniega o el tipo es manual, la sesion usa cronometro local y exige distancia/velocidad manuales antes de guardarse. `ACCESS_BACKGROUND_LOCATION` sigue ausente.
 - **Prevencion:** Fase 13 debe validar el flujo en Android 14/15 real: GPS concedido, GPS denegado y cardio manual.
+- **Actualizacion 2026-07-01:** cardio sin GPS o con permiso de ubicacion denegado arranca
+  `CardioForegroundService` con tipo `health` para mantener cronometro/notificacion sin pedir
+  ubicacion. El tipo `location` se usa solo cuando hay tracking GPS real.
 
 ### SEC-015 - Composicion corporal muestra datos de salud sensibles
 - **Estado:** Aceptado por SEC-026

@@ -10,6 +10,7 @@ import com.atlaspeak.data.drive.DriveAccessTokenProvider
 import com.atlaspeak.data.drive.GoogleDriveAccessTokenProvider
 import com.atlaspeak.data.healthconnect.HealthConnectManager
 import com.atlaspeak.data.notification.WorkManagerNotificationScheduler
+import com.atlaspeak.data.repository.RoomAppSettingsRepository
 import com.atlaspeak.data.repository.RoomBodyCompositionRepository
 import com.atlaspeak.data.repository.RoomCardioRepository
 import com.atlaspeak.data.repository.RoomDashboardRepository
@@ -38,12 +39,16 @@ import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
+import com.atlaspeak.domain.repository.AppSettingsRepository
 
 @Module
 @InstallIn(SingletonComponent::class)
 abstract class AuthModule {
     @Binds
     abstract fun bindCardioRepository(repository: RoomCardioRepository): CardioRepository
+
+    @Binds
+    abstract fun bindAppSettingsRepository(repository: RoomAppSettingsRepository): AppSettingsRepository
 
     @Binds
     abstract fun bindBodyCompositionRepository(repository: RoomBodyCompositionRepository): BodyCompositionRepository

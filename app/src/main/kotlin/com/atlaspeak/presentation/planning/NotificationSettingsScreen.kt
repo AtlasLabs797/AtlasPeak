@@ -39,10 +39,13 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.atlaspeak.R
 import com.atlaspeak.domain.model.planning.NotificationSettings
+import com.atlaspeak.domain.model.settings.AppThemeMode
+import com.atlaspeak.presentation.component.AtlasChip
 import com.atlaspeak.presentation.component.AtlasPrimaryButton
 import com.atlaspeak.presentation.component.AtlasSwitchRow
 import com.atlaspeak.presentation.component.AtlasTimeField
 import com.atlaspeak.presentation.component.PremiumBackground
+import com.atlaspeak.presentation.theme.AppThemeViewModel
 import com.atlaspeak.presentation.theme.LocalAtlasColors
 import com.atlaspeak.presentation.theme.LocalSpacing
 
@@ -50,8 +53,10 @@ import com.atlaspeak.presentation.theme.LocalSpacing
 fun NotificationSettingsRoute(
     onBack: () -> Unit,
     viewModel: NotificationSettingsViewModel = hiltViewModel(),
+    themeViewModel: AppThemeViewModel = hiltViewModel(),
 ) {
     val state = viewModel.state.collectAsStateWithLifecycle().value
+    val themeMode = themeViewModel.themeMode.collectAsStateWithLifecycle().value
     val context = LocalContext.current
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -68,7 +73,9 @@ fun NotificationSettingsRoute(
     }
     NotificationSettingsScreen(
         state = state,
+        themeMode = themeMode,
         onBack = onBack,
+        onThemeModeSelected = themeViewModel::setThemeMode,
         onNotificationsEnabledChanged = { enabled ->
             if (!enabled) {
                 viewModel.setNotificationsEnabled(false)
@@ -115,7 +122,9 @@ private fun Context.openAppNotificationSettings() {
 @Composable
 fun NotificationSettingsScreen(
     state: NotificationSettingsUiState,
+    themeMode: AppThemeMode,
     onBack: () -> Unit,
+    onThemeModeSelected: (AppThemeMode) -> Unit,
     onNotificationsEnabledChanged: (Boolean) -> Unit,
     onMotivationalMessagesChanged: (Boolean) -> Unit,
     onDailySummaryEnabledChanged: (Boolean) -> Unit,
@@ -142,6 +151,12 @@ fun NotificationSettingsScreen(
             ) {
                 item {
                     SettingsHeader(onBack = onBack)
+                }
+                item {
+                    ThemeSettingsControls(
+                        selected = themeMode,
+                        onSelected = onThemeModeSelected,
+                    )
                 }
                 if (state.messageRes != null) {
                     item {
@@ -172,6 +187,45 @@ fun NotificationSettingsScreen(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ThemeSettingsControls(
+    selected: AppThemeMode,
+    onSelected: (AppThemeMode) -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
+        Text(
+            text = stringResource(R.string.theme_settings_title),
+            style = MaterialTheme.typography.titleMedium,
+            color = atlasColors.ink,
+        )
+        Text(
+            text = stringResource(R.string.theme_settings_body),
+            style = MaterialTheme.typography.bodySmall,
+            color = atlasColors.ink2,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
+            AppThemeMode.entries.forEach { mode ->
+                AtlasChip(
+                    text = stringResource(mode.labelRes()),
+                    selected = selected == mode,
+                    onClick = { onSelected(mode) },
+                )
+            }
+        }
+    }
+}
+
+@StringRes
+private fun AppThemeMode.labelRes(): Int {
+    return when (this) {
+        AppThemeMode.System -> R.string.theme_system
+        AppThemeMode.Light -> R.string.theme_light
+        AppThemeMode.Dark -> R.string.theme_dark
     }
 }
 

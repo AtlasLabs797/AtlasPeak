@@ -131,6 +131,10 @@
     <string name="workout_next_exercise_action">Siguiente</string>
     <string name="workout_complete_sets_action">Completa sets</string>
     <string name="workout_add_set">Añadir set</string>
+    <string name="workout_add_exercise">Añadir ejercicio</string>
+    <string name="workout_add_exercise_dialog_title">Añadir ejercicio a la sesión</string>
+    <string name="workout_add_exercise_empty">No hay ejercicios disponibles.</string>
+    <string name="workout_add_exercise_already_added">Ya en sesión</string>
     <string name="workout_set_number">Set %1$d</string>
     <string name="workout_table_set">Set</string>
     <string name="workout_table_kg">Kg</string>
@@ -138,6 +142,8 @@
     <string name="workout_table_done">✓</string>
     <string name="symbol_check">✓</string>
     <string name="workout_remove_set_cd">Eliminar set</string>
+    <string name="workout_set_completed_cd">Set %1$d completado</string>
+    <string name="workout_set_incomplete_cd">Marcar set %1$d como completado</string>
     <string name="workout_set_deleted">Set eliminado.</string>
     <string name="workout_delete_set_confirm_title">Eliminar set?</string>
     <string name="workout_delete_set_confirm_body">Este set tiene datos registrados. Puedes deshacerlo despues, pero mejor confirmar antes de borrarlo.</string>
@@ -265,7 +271,13 @@
     <string name="home_greeting_name">Hola, %1$s</string>
     <string name="home_hero_unit_min">min</string>
     <string name="home_weekly_load_overline">Carga semanal</string>
+    <string name="home_weekly_load_empty">Sin sesiones esta semana todavía.</string>
     <string name="home_delta_vs_plan">%1$d de %2$d días activos vs. plan</string>
+    <string name="dashboard_period_week">Semana</string>
+    <string name="dashboard_period_month">Mes</string>
+    <string name="dashboard_period_three_months">3 meses</string>
+    <string name="dashboard_period_year">Año</string>
+    <string name="dashboard_period_year_to_date">YTD</string>
     <string name="home_today_session_overline">Sesión de hoy</string>
     <string name="home_today_workout_title">Entrenamiento de hoy</string>
     <string name="home_today_workout_body">%1$s planificado</string>
@@ -329,6 +341,10 @@
     <string name="weekly_plan_no_session">Sin sesión</string>
     <string name="weekly_plan_cardio_minutes">Minutos de cardio</string>
     <string name="weekly_plan_rest_day">Día de descanso</string>
+    <string name="weekly_plan_rest_day_confirm_title">¿Marcar como descanso?</string>
+    <string name="weekly_plan_rest_day_confirm_body">Esto eliminará las sesiones planificadas de este día.</string>
+    <string name="weekly_plan_rest_day_confirm_action">Marcar descanso</string>
+    <string name="weekly_plan_rest_day_confirm_again">Ese día tiene sesiones. Vuelve a activar descanso para eliminarlas.</string>
     <string name="weekly_plan_reminder_enabled">Recordatorio</string>
     <string name="weekly_plan_reminder_time">Hora de recordatorio</string>
     <string name="weekly_plan_reminder_best_effort">Android puede ajustar la hora exacta para ahorrar batería.</string>
@@ -408,6 +424,8 @@
     <string name="backup_size_mb">%1$.1f MB</string>
     <string name="backup_size_unknown">desconocido</string>
     <string name="backup_password_change_warning">Si cambias la contraseña, los backups creados antes seguirán necesitando la contraseña antigua para restaurarse.</string>
+    <string name="backup_password_update_action">Actualizar contraseña guardada</string>
+    <string name="backup_auto_password_updated">Contraseña de backup automático actualizada.</string>
     <string name="backup_restore_action">Restaurar</string>
     <string name="backup_restore_confirm">Confirmar restauración</string>
     <string name="backup_restore_confirm_body">Esto reemplaza los datos locales por el backup seleccionado.</string>
@@ -476,6 +494,8 @@
     <string name="theme_system">Sistema</string>
     <string name="theme_light">Claro</string>
     <string name="theme_dark">Oscuro</string>
+    <string name="theme_settings_title">Tema</string>
+    <string name="theme_settings_body">Elige si Atlas Peak sigue el sistema o fuerza modo claro/oscuro.</string>
     <string name="state_loading">Cargando</string>
     <string name="state_empty_title">Sin datos todavía</string>
     <string name="state_empty_body">Esta sección se activará al completar su fase.</string>

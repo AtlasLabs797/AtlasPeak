@@ -23,7 +23,6 @@ import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Tune
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -165,31 +164,21 @@ fun ProgressScreen(
 private fun ProgressHeader() {
     val spacing = LocalSpacing.current
     val atlasColors = LocalAtlasColors.current
-    Row(
+    // (#8 del informe) El icono "Tune" no tenía acción y confundía. Lo hemos
+    // retirado; cuando exista un menú de filtros avanzados volverá aquí.
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.Top,
-        horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+        verticalArrangement = Arrangement.spacedBy(spacing.xxs),
     ) {
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(spacing.xxs),
-        ) {
-            Text(
-                text = stringResource(R.string.progress_stats_overline).uppercase(),
-                style = MaterialTheme.typography.labelMedium,
-                color = atlasColors.ink3,
-            )
-            Text(
-                text = stringResource(R.string.progress_title_evolution),
-                style = MaterialTheme.typography.headlineMedium,
-                color = atlasColors.ink,
-            )
-        }
-        Icon(
-            imageVector = Icons.Filled.Tune,
-            contentDescription = null,
-            modifier = Modifier.size(24.dp),
-            tint = atlasColors.ink2,
+        Text(
+            text = stringResource(R.string.progress_stats_overline).uppercase(),
+            style = MaterialTheme.typography.labelMedium,
+            color = atlasColors.ink3,
+        )
+        Text(
+            text = stringResource(R.string.progress_title_evolution),
+            style = MaterialTheme.typography.headlineMedium,
+            color = atlasColors.ink,
         )
     }
 }

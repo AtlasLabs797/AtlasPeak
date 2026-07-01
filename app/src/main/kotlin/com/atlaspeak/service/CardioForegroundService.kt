@@ -52,7 +52,12 @@ object CardioTrackerRegistry {
     fun tick(now: Long) {
         mutableState.update { current ->
             val startedAt = current.startedAt ?: return@update current
-            current.copy(elapsedSeconds = ((now - startedAt) / 1000).coerceAtLeast(0))
+            current.copy(
+                elapsedSeconds = ((now - startedAt) / 1000).coerceAtLeast(0),
+                currentSpeedKmh = current.currentSpeedKmh.takeIf {
+                    current.route.lastOrNull()?.let { point -> now - point.timestamp <= CURRENT_SPEED_MAX_AGE_MS } == true
+                },
+            )
         }
     }
 
@@ -77,6 +82,8 @@ object CardioTrackerRegistry {
     }
 }
 
+private const val CURRENT_SPEED_MAX_AGE_MS = 5_000L
+
 class CardioForegroundService : LifecycleService() {
     private var timerJob: Job? = null
     private var locationJob: Job? = null
@@ -92,7 +99,10 @@ class CardioForegroundService : LifecycleService() {
             )
             ACTION_STOP -> stopTracking(clearState = true)
         }
-        return START_STICKY
+        // BUG-058: START_STICKY provocaba servicio zombi tras presión de memoria.
+        // Con START_NOT_STICKY, si Android mata el servicio, el cardio se reanuda
+        // desde la UI al volver a abrir la app.
+        return START_NOT_STICKY
     }
 
     override fun onDestroy() {
@@ -117,13 +127,8 @@ class CardioForegroundService : LifecycleService() {
                 running = true,
             ),
         )
-        if (!locationTracking) {
-            CardioTrackerRegistry.update(CardioTrackerRegistry.state.value.copy(running = false, failed = true))
-            stopSelf()
-            return
-        }
         try {
-            startForegroundCompat(buildNotification(CardioTrackerRegistry.state.value))
+            startForegroundCompat(buildNotification(CardioTrackerRegistry.state.value), locationTracking)
         } catch (_: RuntimeException) {
             CardioTrackerRegistry.update(CardioTrackerRegistry.state.value.copy(running = false, failed = true))
             stopSelf()
@@ -152,9 +157,14 @@ class CardioForegroundService : LifecycleService() {
         }
     }
 
-    private fun startForegroundCompat(notification: Notification) {
+    private fun startForegroundCompat(notification: Notification, locationTracking: Boolean) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIFICATION_ID, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
+            val serviceType = if (locationTracking) {
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+            } else {
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH
+            }
+            startForeground(NOTIFICATION_ID, notification, serviceType)
         } else {
             startForeground(NOTIFICATION_ID, notification)
         }

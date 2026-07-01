@@ -33,9 +33,10 @@ class RoomBodyCompositionRepository @Inject constructor(
         boneMassKg = boneMassKg,
         bodyAge = bodyAge,
         source = when (source) {
+            SOURCE_MANUAL -> BodyCompositionSource.Manual
             SOURCE_HEALTH_CONNECT -> BodyCompositionSource.HealthConnect
             SOURCE_SCALE_APP -> BodyCompositionSource.ScaleApp
-            else -> BodyCompositionSource.Manual
+            else -> error("Unknown body composition source: $source")
         },
         syncedToHealthConnect = syncedToHc,
         createdAt = createdAt,

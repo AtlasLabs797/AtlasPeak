@@ -60,4 +60,14 @@ data class DashboardSnapshot(
     val heartRate: List<DashboardPoint>,
     val averageSleepHours: Double?,
     val totalActivitySeconds: Int,
+    /**
+     * Volumen total diario (kg) en el periodo seleccionado por el usuario
+     * (filtro `filters.totalVolumePeriod`). Permite pintar la sparkline en Home.
+     */
+    val volumePoints: List<DashboardPoint> = emptyList(),
+    /**
+     * Minutos de entrenamiento por día en los últimos 7 días. Permite pintar la
+     * barra semanal con valores reales (no fórmula).
+     */
+    val weeklyMinutesPoints: List<DashboardPoint> = emptyList(),
 )

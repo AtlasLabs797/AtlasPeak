@@ -26,7 +26,9 @@ class LocationTracker(
             .build()
         val callback = object : LocationCallback() {
             override fun onLocationResult(result: LocationResult) {
-                result.locations.forEach { trySend(it) }
+                result.locations
+                    .filter { it.isUsableForCardioTracking() }
+                    .forEach { trySend(it) }
             }
         }
         try {
@@ -43,3 +45,26 @@ class LocationTracker(
         const val LOCATION_FASTEST_INTERVAL_MS = 2_000L
     }
 }
+
+internal fun Location.isUsableForCardioTracking(nowMillis: Long = System.currentTimeMillis()): Boolean {
+    return isUsableForCardioTracking(
+        hasAccuracy = hasAccuracy(),
+        accuracyMeters = accuracy,
+        locationTimeMillis = time,
+        nowMillis = nowMillis,
+    )
+}
+
+internal fun isUsableForCardioTracking(
+    hasAccuracy: Boolean,
+    accuracyMeters: Float,
+    locationTimeMillis: Long,
+    nowMillis: Long,
+): Boolean {
+    if (!hasAccuracy || accuracyMeters > MAX_TRACKING_ACCURACY_METERS) return false
+    val ageMillis = nowMillis - locationTimeMillis
+    return ageMillis in 0..MAX_TRACKING_LOCATION_AGE_MS
+}
+
+private const val MAX_TRACKING_ACCURACY_METERS = 30f
+private const val MAX_TRACKING_LOCATION_AGE_MS = 10_000L

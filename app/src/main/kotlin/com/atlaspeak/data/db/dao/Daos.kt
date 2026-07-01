@@ -24,6 +24,7 @@ import com.atlaspeak.data.db.entity.UserProfileEntity
 import com.atlaspeak.data.db.entity.WeeklyPlanEntity
 import com.atlaspeak.data.db.entity.WorkoutSessionEntity
 import com.atlaspeak.data.db.entity.WorkoutSetEntity
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface UserDao {
@@ -222,6 +223,12 @@ interface SettingsDao {
 
     @Query("SELECT * FROM app_settings WHERE id = 1")
     suspend fun getSettings(): AppSettingsEntity?
+
+    @Query("SELECT * FROM app_settings WHERE id = 1")
+    fun observeSettings(): Flow<AppSettingsEntity?>
+
+    @Query("UPDATE app_settings SET theme = :theme WHERE id = 1")
+    suspend fun updateTheme(theme: String)
 
     @Query("UPDATE app_settings SET biometrics_enabled = :enabled WHERE id = 1")
     suspend fun updateBiometricsEnabled(enabled: Boolean)
