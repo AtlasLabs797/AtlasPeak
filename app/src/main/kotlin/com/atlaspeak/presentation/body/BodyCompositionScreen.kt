@@ -2,6 +2,7 @@ package com.atlaspeak.presentation.body
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.annotation.StringRes
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Favorite
@@ -22,16 +22,13 @@ import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.filled.Scale
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Sync
-import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -54,23 +51,14 @@ import com.atlaspeak.domain.model.body.BodyMetricPoint
 import com.atlaspeak.domain.model.body.BodyMetricValue
 import com.atlaspeak.presentation.component.AtlasPrimaryButton
 import com.atlaspeak.presentation.component.AtlasSecondaryButton
+import com.atlaspeak.presentation.component.AtlasTextField
+import com.atlaspeak.presentation.component.MonochromeAreaChart
 import com.atlaspeak.presentation.component.PeriodSelector
 import com.atlaspeak.presentation.component.PeriodSelectorItem
 import com.atlaspeak.presentation.component.PremiumBackground
 import com.atlaspeak.presentation.component.PremiumCard
+import com.atlaspeak.presentation.theme.LocalAtlasColors
 import com.atlaspeak.presentation.theme.LocalSpacing
-import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
-import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
-import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
-import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
-import com.patrykandpatrick.vico.compose.cartesian.marker.rememberDefaultCartesianMarker
-import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
-import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
-import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
-import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
-import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
-import com.patrykandpatrick.vico.core.cartesian.data.CartesianValueFormatter
-import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -95,6 +83,7 @@ fun BodyCompositionRoute(
         onToggleEntryForm = viewModel::toggleEntryForm,
         onDraftChanged = viewModel::updateDraft,
         onSaveDraft = viewModel::saveDraft,
+        onRetry = viewModel::refresh,
         onHealthConnectSync = viewModel::syncHealthConnect,
         onRequestHealthConnectPermissions = {
             if (HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE) {
@@ -114,15 +103,34 @@ fun BodyCompositionScreen(
     onToggleEntryForm: () -> Unit,
     onDraftChanged: (BodyMetric, String) -> Unit,
     onSaveDraft: () -> Unit,
+    onRetry: () -> Unit,
     onHealthConnectSync: () -> Unit,
     onRequestHealthConnectPermissions: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
     PremiumBackground(modifier = modifier.fillMaxSize()) {
-        if (state.isLoading || state.snapshot == null) {
+        if (state.isLoading) {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 CircularProgressIndicator()
+            }
+        } else if (state.snapshot == null) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(spacing.screen),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text(
+                    text = stringResource(state.messageRes ?: R.string.error_generic),
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = LocalAtlasColors.current.ink,
+                )
+                AtlasPrimaryButton(
+                    onClick = onRetry,
+                    text = stringResource(R.string.action_retry),
+                )
             }
         } else {
             BodyCompositionContent(
@@ -155,6 +163,7 @@ private fun BodyCompositionContent(
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     LazyColumn(
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(horizontal = spacing.screen, vertical = spacing.screen),
@@ -175,7 +184,7 @@ private fun BodyCompositionContent(
                 Text(
                     text = stringResource(message),
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
+                    color = bodyMessageColor(message),
                 )
             }
         }
@@ -226,6 +235,7 @@ private fun HealthConnectCard(
     onRequestPermissions: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
@@ -241,17 +251,18 @@ private fun HealthConnectCard(
                 Icon(
                     imageVector = Icons.Filled.Favorite,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = atlasColors.ink2,
                 )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = stringResource(R.string.body_health_title),
                         style = MaterialTheme.typography.titleMedium,
+                        color = atlasColors.ink,
                     )
                     Text(
-                        text = stringResource(R.string.body_health_status_ready),
+                        text = stringResource(if (isSyncing) R.string.body_health_syncing else R.string.body_health_status_ready),
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = atlasColors.ink2,
                     )
                 }
             }
@@ -281,6 +292,7 @@ private fun HealthConnectCard(
 @Composable
 private fun HeaderRow(onAddClick: () -> Unit) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -293,12 +305,12 @@ private fun HeaderRow(onAddClick: () -> Unit) {
             Text(
                 text = stringResource(R.string.screen_body_title),
                 style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onBackground,
+                color = atlasColors.ink,
             )
             Text(
                 text = stringResource(R.string.body_screen_subtitle),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = atlasColors.ink2,
             )
         }
         AtlasPrimaryButton(
@@ -312,6 +324,7 @@ private fun HeaderRow(onAddClick: () -> Unit) {
 @Composable
 private fun EmptyBodyCard(onAddClick: () -> Unit) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
@@ -322,16 +335,17 @@ private fun EmptyBodyCard(onAddClick: () -> Unit) {
             Icon(
                 imageVector = Icons.Filled.Scale,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+                tint = atlasColors.ink2,
             )
             Text(
                 text = stringResource(R.string.body_empty_title),
                 style = MaterialTheme.typography.titleMedium,
+                color = atlasColors.ink,
             )
             Text(
                 text = stringResource(R.string.body_empty_body),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = atlasColors.ink2,
             )
             AtlasPrimaryButton(
                 onClick = onAddClick,
@@ -345,6 +359,7 @@ private fun EmptyBodyCard(onAddClick: () -> Unit) {
 @Composable
 private fun LatestValuesTable(values: List<BodyMetricValue>) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
@@ -355,8 +370,12 @@ private fun LatestValuesTable(values: List<BodyMetricValue>) {
             Text(
                 text = stringResource(R.string.body_latest_values_title),
                 style = MaterialTheme.typography.titleMedium,
+                color = atlasColors.ink,
             )
-            values.forEach { value ->
+            values.forEachIndexed { index, value ->
+                if (index > 0) {
+                    HorizontalDivider(color = atlasColors.line1)
+                }
                 LatestValueRow(value)
             }
         }
@@ -366,6 +385,7 @@ private fun LatestValuesTable(values: List<BodyMetricValue>) {
 @Composable
 private fun LatestValueRow(value: BodyMetricValue) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -374,42 +394,57 @@ private fun LatestValueRow(value: BodyMetricValue) {
         Icon(
             imageVector = Icons.Filled.MonitorWeight,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
+            tint = atlasColors.ink2,
         )
         Column(modifier = Modifier.weight(1f)) {
             Text(
                 text = stringResource(value.metric.labelRes()),
                 style = MaterialTheme.typography.bodyMedium,
+                color = atlasColors.ink,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = value.timestamp.formatDate(),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = atlasColors.ink3,
             )
         }
         Column(horizontalAlignment = Alignment.End) {
             Text(
                 text = value.value.formattedValue(value.metric),
                 style = MaterialTheme.typography.titleMedium,
+                color = atlasColors.ink,
             )
-            AssistChip(
-                onClick = {},
-                enabled = false,
-                label = {
-                    Text(
-                        stringResource(
-                            if (value.metric.isHealthConnectSyncable()) {
-                                R.string.body_badge_hc_ready
-                            } else {
-                                R.string.body_badge_manual_only
-                            },
-                        ),
-                    )
-                },
-            )
+            SourceBadge(metric = value.metric)
         }
+    }
+}
+
+@Composable
+private fun SourceBadge(metric: BodyMetric) {
+    val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = atlasColors.fillSoft,
+        contentColor = atlasColors.ink3,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
+        border = BorderStroke(1.dp, atlasColors.line1),
+    ) {
+        Text(
+            text = stringResource(
+                if (metric.isHealthConnectSyncable()) {
+                    R.string.body_badge_hc_ready
+                } else {
+                    R.string.body_badge_manual_only
+                },
+            ).uppercase(),
+            modifier = Modifier.padding(horizontal = spacing.xs, vertical = spacing.xxs),
+            style = MaterialTheme.typography.labelSmall,
+            color = atlasColors.ink3,
+        )
     }
 }
 
@@ -421,6 +456,7 @@ private fun ManualBodyEntryCard(
     onCancel: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
@@ -431,26 +467,22 @@ private fun ManualBodyEntryCard(
             Text(
                 text = stringResource(R.string.body_manual_entry_title),
                 style = MaterialTheme.typography.titleMedium,
+                color = atlasColors.ink,
             )
             BodyMetric.entries.forEach { metric ->
-                OutlinedTextField(
+                AtlasTextField(
                     value = draft.value(metric),
                     onValueChange = { onDraftChanged(metric, it) },
                     modifier = Modifier.fillMaxWidth(),
-                    label = { Text(stringResource(metric.labelRes())) },
-                    supportingText = {
-                        Text(
-                            stringResource(
-                                if (metric.isHealthConnectSyncable()) {
-                                    R.string.body_badge_hc_ready
-                                } else {
-                                    R.string.body_badge_manual_only
-                                },
-                            ),
-                        )
-                    },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true,
+                    label = stringResource(metric.labelRes()),
+                    supportingText = stringResource(
+                        if (metric.isHealthConnectSyncable()) {
+                            R.string.body_badge_hc_ready
+                        } else {
+                            R.string.body_badge_manual_only
+                        },
+                    ),
+                    keyboardType = KeyboardType.Decimal,
                 )
             }
             Row(
@@ -489,18 +521,44 @@ private fun BodyMetricTabs(
 ) {
     LazyRow(horizontalArrangement = Arrangement.spacedBy(LocalSpacing.current.xs)) {
         items(BodyMetric.entries, key = { it.name }) { metric ->
-            FilterChip(
+            MetricSelectorChip(
                 selected = selectedMetric == metric,
                 onClick = { onMetricSelected(metric) },
-                label = { Text(stringResource(metric.labelRes())) },
+                label = stringResource(metric.labelRes()),
             )
         }
     }
 }
 
 @Composable
+private fun MetricSelectorChip(
+    selected: Boolean,
+    label: String,
+    onClick: () -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
+    Surface(
+        onClick = onClick,
+        shape = MaterialTheme.shapes.medium,
+        color = if (selected) atlasColors.ink else atlasColors.fillSoft,
+        contentColor = if (selected) atlasColors.onAccent else atlasColors.ink2,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
+        border = BorderStroke(1.dp, if (selected) atlasColors.ink else atlasColors.line1),
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.padding(horizontal = spacing.sm, vertical = spacing.xs),
+            style = if (selected) MaterialTheme.typography.labelLarge else MaterialTheme.typography.labelMedium,
+        )
+    }
+}
+
+@Composable
 private fun BodyMetricChartCard(metric: BodyMetric, points: List<BodyMetricPoint>) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
@@ -511,12 +569,13 @@ private fun BodyMetricChartCard(metric: BodyMetric, points: List<BodyMetricPoint
             Text(
                 text = stringResource(metric.labelRes()),
                 style = MaterialTheme.typography.titleMedium,
+                color = atlasColors.ink,
             )
             if (points.isEmpty()) {
                 Text(
                     text = stringResource(R.string.body_chart_empty),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = atlasColors.ink2,
                 )
             } else {
                 BodyLineChart(
@@ -537,41 +596,36 @@ private fun BodyLineChart(
     metricLabel: String,
     modifier: Modifier = Modifier,
 ) {
-    val modelProducer = remember { CartesianChartModelProducer() }
-    val labels = remember(points) { points.map { it.timestamp.formatDate() } }
-    val bottomFormatter = remember(labels) {
-        CartesianValueFormatter { _, value, _ ->
-            labels.getOrNull(value.roundToInt()).orEmpty()
-        }
-    }
-    val marker = rememberDefaultCartesianMarker(
-        label = rememberTextComponent(color = MaterialTheme.colorScheme.onSurface),
-    )
-    LaunchedEffect(points) {
-        modelProducer.runTransaction {
-            lineSeries {
-                series(points.indices.toList(), points.map { it.value })
-            }
-        }
+    val atlasColors = LocalAtlasColors.current
+    val validPoints = points.filter { it.value.isFinite() }
+    if (validPoints.isEmpty()) {
+        Text(
+            text = stringResource(R.string.body_chart_empty),
+            style = MaterialTheme.typography.bodyMedium,
+            color = atlasColors.ink2,
+        )
+        return
     }
     val chartDescription = stringResource(
         R.string.body_chart_summary,
         metricLabel,
-        points.size,
-        points.first().timestamp.formatDate(),
-        points.last().timestamp.formatDate(),
-        points.last().value.formattedValue(points.last().metric),
+        validPoints.size,
+        validPoints.first().timestamp.formatDate(),
+        validPoints.last().timestamp.formatDate(),
+        validPoints.last().value.formattedValue(validPoints.last().metric),
     )
-    CartesianChartHost(
-        chart = rememberCartesianChart(
-            rememberLineCartesianLayer(),
-            startAxis = VerticalAxis.rememberStart(),
-            bottomAxis = HorizontalAxis.rememberBottom(valueFormatter = bottomFormatter),
-            marker = marker,
-        ),
-        modelProducer = modelProducer,
+    MonochromeAreaChart(
+        values = validPoints.map { it.value.toFloat() },
         modifier = modifier.semantics { contentDescription = chartDescription },
     )
+}
+
+@Composable
+private fun bodyMessageColor(@StringRes messageRes: Int) = when (messageRes) {
+    R.string.body_entry_saved,
+    R.string.body_health_sync_success,
+    -> LocalAtlasColors.current.ink
+    else -> LocalAtlasColors.current.risk
 }
 
 @StringRes

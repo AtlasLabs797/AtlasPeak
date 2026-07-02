@@ -38,10 +38,13 @@ class BackupRestoreViewModelTest {
         val viewModel = viewModel(backupRepository)
         dispatcher.scheduler.advanceUntilIdle()
 
-        viewModel.exportJson()
+        viewModel.requestExportJson()
+        assertEquals(CleartextExportType.Json, viewModel.state.value.pendingCleartextExport)
+        viewModel.confirmCleartextExport()
         dispatcher.scheduler.advanceUntilIdle()
 
         assertEquals(1, backupRepository.manualJsonCalls)
+        assertEquals(null, viewModel.state.value.pendingCleartextExport)
         assertEquals(R.string.backup_export_created, viewModel.state.value.messageRes)
     }
 
@@ -52,12 +55,29 @@ class BackupRestoreViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
 
         viewModel.onPasswordChanged("backup passphrase")
-        viewModel.exportCsv()
+        viewModel.requestExportCsv()
+        assertEquals(CleartextExportType.Csv, viewModel.state.value.pendingCleartextExport)
+        viewModel.confirmCleartextExport()
         dispatcher.scheduler.advanceUntilIdle()
 
         assertEquals(1, backupRepository.csvCalls)
         assertEquals("backup passphrase", viewModel.state.value.password)
         assertEquals(R.string.backup_export_created, viewModel.state.value.messageRes)
+    }
+
+    @Test
+    fun `updating automatic backup password saves password and clears entry`() = runTest {
+        val backupRepository = FakeBackupRepository()
+        val viewModel = viewModel(backupRepository)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.onPasswordChanged("new password")
+        viewModel.updateAutoBackupPassword()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals("new password", backupRepository.savedPassword)
+        assertEquals("", viewModel.state.value.password)
+        assertEquals(R.string.backup_auto_password_updated, viewModel.state.value.messageRes)
     }
 
     private fun viewModel(backupRepository: FakeBackupRepository): BackupRestoreViewModel {
@@ -69,6 +89,7 @@ class BackupRestoreViewModelTest {
     private class FakeBackupRepository : BackupRepository {
         var manualJsonCalls = 0
         var csvCalls = 0
+        var savedPassword: String? = null
 
         override suspend fun status(): BackupStatus = BackupStatus(
             autoBackupEnabled = false,
@@ -77,7 +98,9 @@ class BackupRestoreViewModelTest {
 
         override suspend fun setAutoBackupEnabled(enabled: Boolean) = Unit
 
-        override suspend fun saveAutoBackupPassword(password: CharArray) = Unit
+        override suspend fun saveAutoBackupPassword(password: CharArray) {
+            savedPassword = password.concatToString()
+        }
 
         override suspend fun clearAutoBackupPassword() = Unit
 

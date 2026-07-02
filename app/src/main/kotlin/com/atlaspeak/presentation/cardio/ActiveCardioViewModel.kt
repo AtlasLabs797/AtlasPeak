@@ -64,6 +64,9 @@ class ActiveCardioViewModel @Inject constructor(
                 if (shouldAutoComplete(tracker.remainingSeconds)) {
                     completeCardio()
                 }
+                if (!tracker.failed && tracker.running && tracker.sessionId == mutableState.value.session?.id) {
+                    stopLocalTimer()
+                }
                 if (tracker.failed && tracker.sessionId == mutableState.value.session?.id) {
                     startLocalTimerIfNeeded()
                 }
@@ -75,24 +78,14 @@ class ActiveCardioViewModel @Inject constructor(
         val session = mutableState.value.session ?: return
         if (mutableState.value.trackerServiceStartHandled) return
         val gpsEnabled = session.hasGps && locationAllowed
-        if (!gpsEnabled) {
-            mutableState.update {
-                it.copy(
-                    trackerServiceStartHandled = true,
-                    message = if (session.hasGps && !locationAllowed) {
-                        ActiveCardioMessage.LocationPermissionDenied
-                    } else {
-                        it.message
-                    },
-                )
-            }
-            startLocalTimerIfNeeded()
-            return
-        }
         mutableState.update {
             it.copy(
                 trackerServiceStartHandled = true,
-                message = null,
+                message = if (session.hasGps && !locationAllowed) {
+                    ActiveCardioMessage.LocationPermissionDenied
+                } else {
+                    null
+                },
             )
         }
         try {
@@ -226,8 +219,12 @@ data class ActiveCardioUiState(
     val requiresManualMetrics: Boolean = session?.hasGps != true || route.isEmpty()
     val hasValidManualMetrics: Boolean =
         (manualDistanceKm.toDoubleOrNull()?.let { it > 0.0 } == true) &&
-            (manualAvgSpeedKmh.toDoubleOrNull()?.let { it > 0.0 } == true)
+            (manualAvgSpeedKmh.isBlank() || manualAvgSpeedKmh.toDoubleOrNull()?.let { it > 0.0 } == true)
     val canComplete: Boolean = !requiresManualMetrics || hasValidManualMetrics
+    val shouldShowManualMetrics: Boolean = session?.hasGps != true ||
+        message == ActiveCardioMessage.LocationPermissionDenied ||
+        message == ActiveCardioMessage.TrackerUnavailable ||
+        message == ActiveCardioMessage.ManualMetricsRequired
 
     val averageSpeedKmh: Double? = if (elapsedSeconds > 0 && distanceKm > 0.0) {
         distanceKm / (elapsedSeconds / 3600.0)

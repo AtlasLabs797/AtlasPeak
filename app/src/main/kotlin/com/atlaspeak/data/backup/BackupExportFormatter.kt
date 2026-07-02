@@ -37,11 +37,25 @@ class BackupExportFormatter @Inject constructor() {
             is JsonPrimitive -> value.contentValue()
             else -> value.toString()
         }
-        val escaped = raw.replace("\"", "\"\"")
+        val csvSafe = if (value is JsonPrimitive && value.isString) {
+            raw.neutralizeSpreadsheetFormula()
+        } else {
+            raw
+        }
+        val escaped = csvSafe.replace("\"", "\"\"")
         return if (escaped.any { it == ',' || it == '"' || it == '\n' || it == '\r' }) {
             "\"$escaped\""
         } else {
             escaped
+        }
+    }
+
+    private fun String.neutralizeSpreadsheetFormula(): String {
+        val firstMeaningfulChar = firstOrNull { !it.isWhitespace() } ?: return this
+        return if (firstMeaningfulChar in SPREADSHEET_FORMULA_PREFIXES) {
+            "$CSV_FORMULA_ESCAPE$this"
+        } else {
+            this
         }
     }
 
@@ -56,5 +70,7 @@ class BackupExportFormatter @Inject constructor() {
         val SENSITIVE_EXPORT_TABLES = setOf("users", "auth_security")
         private const val CSV_SEPARATOR = ","
         private const val CSV_ROW_SEPARATOR = "\r\n"
+        private const val CSV_FORMULA_ESCAPE = "'"
+        private val SPREADSHEET_FORMULA_PREFIXES = setOf('=', '+', '-', '@')
     }
 }

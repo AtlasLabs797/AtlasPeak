@@ -57,8 +57,6 @@ coroutines = "1.9.0"
 
 # Testing
 junit5 = "5.11.3"
-mockk = "1.13.13"
-turbine = "1.2.0"
 androidxJunit = "1.2.1"
 androidxTestCore = "1.6.1"
 androidxTestRunner = "1.6.2"
@@ -139,9 +137,6 @@ kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-t
 
 # Testing
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit5" }
-mockk = { module = "io.mockk:mockk", version.ref = "mockk" }
-mockk-android = { module = "io.mockk:mockk-android", version.ref = "mockk" }
-turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
 androidx-test-ext-junit = { module = "androidx.test.ext:junit", version.ref = "androidxJunit" }
 androidx-test-core = { module = "androidx.test:core", version.ref = "androidxTestCore" }
 androidx-test-runner = { module = "androidx.test:runner", version.ref = "androidxTestRunner" }

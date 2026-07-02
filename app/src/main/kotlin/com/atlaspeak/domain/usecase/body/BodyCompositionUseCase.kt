@@ -28,14 +28,14 @@ class BodyCompositionUseCase(
 
     suspend fun snapshot(period: BodyCompositionPeriod): BodyCompositionSnapshot {
         val nowMillis = now()
-        val allEntries = repository.entries().sortedByDescending { it.measuredAt }
+        val allEntries = repository.entries().sortedForMetricResolution()
         val periodStart = period.startMillis(nowMillis)
         val periodEntries = allEntries
             .filter { it.measuredAt >= periodStart && it.measuredAt <= nowMillis }
             .sortedBy { it.measuredAt }
         return BodyCompositionSnapshot(
             latestValues = BodyMetric.entries.mapNotNull { metric -> allEntries.latestValue(metric) },
-            series = periodEntries.flatMap { it.points() },
+            series = periodEntries.flatMap { it.points() }.resolveMetricConflicts(),
             entries = allEntries,
         )
     }
@@ -134,6 +134,27 @@ class BodyCompositionUseCase(
             BodyMetric.BodyAge -> bodyAge?.toDouble()
         }
     }
+
+    private fun List<BodyCompositionEntry>.sortedForMetricResolution(): List<BodyCompositionEntry> {
+        return sortedWith(
+            compareByDescending<BodyCompositionEntry> { it.measuredAt }
+                .thenByDescending { it.source.priority },
+        )
+    }
+
+    private fun List<BodyMetricPoint>.resolveMetricConflicts(): List<BodyMetricPoint> {
+        return groupBy { it.metric to it.timestamp }
+            .values
+            .map { points -> points.maxBy { it.source.priority } }
+            .sortedWith(compareBy<BodyMetricPoint> { it.timestamp }.thenBy { it.metric.ordinal })
+    }
+
+    private val BodyCompositionSource.priority: Int
+        get() = when (this) {
+            BodyCompositionSource.HealthConnect -> 2
+            BodyCompositionSource.ScaleApp -> 1
+            BodyCompositionSource.Manual -> 0
+        }
 
     private fun BodyCompositionPeriod.startMillis(nowMillis: Long): Long {
         val zone = ZoneId.systemDefault()

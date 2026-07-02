@@ -13,6 +13,7 @@ import com.atlaspeak.MainActivity
 import com.atlaspeak.R
 import com.atlaspeak.domain.model.dashboard.DashboardSnapshot
 import com.atlaspeak.domain.model.planning.WeeklyPlanDay
+import com.atlaspeak.domain.model.planning.WeeklyPlanSession
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -55,25 +56,30 @@ class AtlasPeakNotificationHelper @Inject constructor(
     }
 
     @SuppressLint("MissingPermission")
-    fun showTrainingReminder(day: WeeklyPlanDay) {
+    fun showTrainingReminder(day: WeeklyPlanDay, session: WeeklyPlanSession) {
         if (!permissionChecker.canPostNotifications()) return
         ensureChannels()
-        val routineName = day.routineName ?: context.getString(R.string.notifications_training_generic_routine)
-        val time = day.notificationTime ?: context.getString(R.string.notifications_time_unspecified)
+        val plannedName = session.routineName
+            ?: session.cardioTypeName
+            ?: context.getString(R.string.notifications_training_generic_routine)
+        val time = session.notificationTime ?: context.getString(R.string.notifications_time_unspecified)
         val notification = NotificationCompat.Builder(context, TRAINING_REMINDERS_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_launcher_monochrome)
             .setContentTitle(context.getString(R.string.notifications_training_title))
-            .setContentText(context.getString(R.string.notifications_training_text, routineName, time))
+            .setContentText(context.getString(R.string.notifications_training_text, plannedName, time))
             .setStyle(
                 NotificationCompat.BigTextStyle()
-                    .bigText(context.getString(R.string.notifications_training_text, routineName, time)),
+                    .bigText(context.getString(R.string.notifications_training_text, plannedName, time)),
             )
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setContentIntent(contentIntent(REQUEST_TRAINING))
             .setAutoCancel(true)
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .build()
-        NotificationManagerCompat.from(context).notify(TRAINING_NOTIFICATION_ID_BASE + day.dayOfWeek, notification)
+        NotificationManagerCompat.from(context).notify(
+            TRAINING_NOTIFICATION_ID_BASE + day.dayOfWeek * 10 + session.orderIndex,
+            notification,
+        )
     }
 
     @SuppressLint("MissingPermission")

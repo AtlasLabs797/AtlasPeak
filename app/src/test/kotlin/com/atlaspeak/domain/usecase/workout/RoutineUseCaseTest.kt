@@ -49,7 +49,7 @@ class RoutineUseCaseTest {
 
     @Test
     fun `archive routine uses soft delete`() = runTest {
-        useCase.createOrUpdateRoutine("Legs", null, emptyList())
+        useCase.createOrUpdateRoutine("Legs", null, listOf(RoutineExerciseInput("squat", 3, 8, null, 90)))
         val id = repository.routines.single().id
 
         useCase.archiveRoutine(id)
@@ -67,6 +67,15 @@ class RoutineUseCaseTest {
         assertEquals("#1565C0", updated.colorTag)
         assertEquals(listOf("bench"), updated.exercises.map { it.exerciseId })
         assertEquals(listOf(0), updated.exercises.map { it.orderIndex })
+    }
+
+    @Test
+    fun `create routine rejects empty and out of range exercises`() = runTest {
+        assertFalse(useCase.createOrUpdateRoutine("Empty", null, emptyList()))
+        assertFalse(useCase.createOrUpdateRoutine("Bad sets", null, listOf(RoutineExerciseInput("row", 0, 10, null, 90))))
+        assertFalse(useCase.createOrUpdateRoutine("Bad rest", null, listOf(RoutineExerciseInput("row", 3, 10, null, 901))))
+
+        assertEquals(emptyList<Routine>(), repository.routines)
     }
 
     private class FakeRoutineRepository : RoutineRepository {

@@ -1,5 +1,6 @@
 package com.atlaspeak.data.backup
 
+import com.atlaspeak.data.drive.DriveAccessTokenResult
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -54,6 +55,44 @@ class BackupWorkerRunnerTest {
         val result = runner(store, recorder, credentials).run()
 
         assertEquals(BackupWorkerRunResult.Retry, result)
+        assertEquals(1, recorder.uploadCount)
+        assertEquals("", credentials.savedHash)
+        assertEquals("\u0000\u0000\u0000\u0000", credentials.password.concatToString())
+    }
+
+    @Test
+    fun `runner skips upload when Drive authorization is missing`() = runTest {
+        val store = FakeSnapshotStore()
+        val recorder = BackupRecorder()
+        val credentials = FakeCredentials(token = DriveAccessTokenResult.MissingAuthorization)
+
+        val result = runner(store, recorder, credentials).run()
+
+        assertEquals(BackupWorkerRunResult.Success, result)
+        assertEquals(0, recorder.uploadCount)
+    }
+
+    @Test
+    fun `runner retries when silent Drive authorization fails`() = runTest {
+        val store = FakeSnapshotStore()
+        val recorder = BackupRecorder()
+        val credentials = FakeCredentials(token = DriveAccessTokenResult.Failed)
+
+        val result = runner(store, recorder, credentials).run()
+
+        assertEquals(BackupWorkerRunResult.Retry, result)
+        assertEquals(0, recorder.uploadCount)
+    }
+
+    @Test
+    fun `runner does not retry permanent backup failures`() = runTest {
+        val store = FakeSnapshotStore()
+        val recorder = BackupRecorder(result = BackupOperationResult.Failed(BackupFailureReason.EmptyPassword))
+        val credentials = FakeCredentials(password = charArrayOf('p', 'a', 's', 's'))
+
+        val result = runner(store, recorder, credentials).run()
+
+        assertEquals(BackupWorkerRunResult.Success, result)
         assertEquals(1, recorder.uploadCount)
         assertEquals("", credentials.savedHash)
         assertEquals("\u0000\u0000\u0000\u0000", credentials.password.concatToString())
@@ -115,7 +154,7 @@ class BackupWorkerRunnerTest {
     }
 
     private class FakeCredentials(
-        val token: String? = "drive-token",
+        val token: DriveAccessTokenResult = DriveAccessTokenResult.Granted("drive-token"),
         val password: CharArray = charArrayOf('p', 'a', 's', 's'),
         val lastHash: String? = null,
     ) {

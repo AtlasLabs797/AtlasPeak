@@ -18,6 +18,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.navArgument
 import com.atlaspeak.R
+import com.atlaspeak.domain.model.cardio.CardioMode
 import com.atlaspeak.presentation.backup.BackupRestoreRoute
 import com.atlaspeak.presentation.body.BodyCompositionRoute
 import com.atlaspeak.presentation.cardio.ActiveCardioRoute
@@ -26,6 +27,7 @@ import com.atlaspeak.presentation.home.HomeRoute
 import com.atlaspeak.presentation.onboarding.OnboardingRoute
 import com.atlaspeak.presentation.planning.NotificationSettingsRoute
 import com.atlaspeak.presentation.planning.WeeklyPlanRoute
+import com.atlaspeak.presentation.profile.EditProfileRoute
 import com.atlaspeak.presentation.profile.ProfileRoute
 import com.atlaspeak.presentation.progress.ProgressRoute
 import com.atlaspeak.presentation.screen.PlaceholderScreen
@@ -82,6 +84,14 @@ fun AtlasPeakNavHost(
                     onStartRoutine = { routineId ->
                         navController.navigate(AppRoute.ActiveWorkout.createRoute(routineId))
                     },
+                    onStartCardio = { cardioTypeId, targetSeconds ->
+                        navController.navigate(
+                            AppRoute.ActiveCardio.createRoute(
+                                cardioTypeId,
+                                CardioMode.Countdown(targetSeconds),
+                            ),
+                        )
+                    },
                 )
             }
             composable(AppRoute.Train.route) {
@@ -102,6 +112,12 @@ fun AtlasPeakNavHost(
                     onWorkoutCompleted = { sessionId ->
                         navController.navigate(AppRoute.WorkoutComplete.createRoute(sessionId)) {
                             popUpTo(AppRoute.Train.route)
+                        }
+                    },
+                    onWorkoutDiscarded = {
+                        navController.navigate(AppRoute.Train.route) {
+                            popUpTo(AppRoute.AppGraph.route)
+                            launchSingleTop = true
                         }
                     },
                 )
@@ -162,10 +178,14 @@ fun AtlasPeakNavHost(
             }
             composable(AppRoute.Profile.route) {
                 ProfileRoute(
+                    onEditProfile = { navController.navigate(AppRoute.EditProfile.route) },
                     onWeeklyPlan = { navController.navigate(AppRoute.WeeklyPlan.route) },
                     onSettings = { navController.navigate(AppRoute.Settings.route) },
                     onBackupRestore = { navController.navigate(AppRoute.BackupRestore.route) },
                 )
+            }
+            composable(AppRoute.EditProfile.route) {
+                EditProfileRoute(onBack = { navController.popBackStack() })
             }
             composable(AppRoute.WeeklyPlan.route) {
                 WeeklyPlanRoute(onBack = { navController.popBackStack() })

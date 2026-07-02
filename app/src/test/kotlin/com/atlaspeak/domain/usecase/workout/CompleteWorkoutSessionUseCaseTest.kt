@@ -68,6 +68,9 @@ class CompleteWorkoutSessionUseCaseTest {
         override suspend fun createSession(session: WorkoutSession): WorkoutSession = session
         override suspend fun session(id: String): WorkoutSession? = sessions.firstOrNull { it.id == id }
         override suspend fun sessions(): List<WorkoutSession> = sessions
+        override suspend fun deleteSession(id: String) {
+            sessions = sessions.filterNot { it.id == id }
+        }
         override suspend fun upsertSet(set: WorkoutSet) {
             updatedSets += set
         }

@@ -46,7 +46,7 @@ interface DriveApiService {
 
     companion object {
         const val DRIVE_FILE_FIELDS = "id,name,createdTime,size"
-        const val BACKUP_QUERY = "name contains 'atlas_peak_backup_' and name contains '.enc'"
+        const val BACKUP_QUERY = "name contains 'atlas_peak_backup_' and name contains '.enc' and trashed = false"
     }
 }
 

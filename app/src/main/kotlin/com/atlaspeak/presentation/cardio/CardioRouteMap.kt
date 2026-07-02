@@ -4,7 +4,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -13,6 +12,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.atlaspeak.R
 import com.atlaspeak.domain.model.cardio.LocationPoint
+import com.atlaspeak.presentation.theme.LocalAtlasColors
 import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.compose.GoogleMap
@@ -31,7 +31,7 @@ fun CardioRouteMap(
         points.size,
         route.distanceKm(),
     )
-    val routeColor = MaterialTheme.colorScheme.primary
+    val routeColor = LocalAtlasColors.current.ink
     val cameraPositionState = rememberCameraPositionState {
         position = CameraPosition.fromLatLngZoom(points.first(), 15f)
     }

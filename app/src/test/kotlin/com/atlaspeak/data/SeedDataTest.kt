@@ -18,6 +18,23 @@ class SeedDataTest {
             SeedData.exercises.map { it.id }.distinct().size,
             SeedData.exercises.size,
         )
+        assertEquals(4, SeedData.defaultRoutines.size)
+        assertEquals(
+            SeedData.defaultRoutines.map { it.id }.distinct().size,
+            SeedData.defaultRoutines.size,
+        )
+        assertEquals(22, SeedData.defaultRoutineExercises.size)
+        assertEquals(
+            SeedData.defaultRoutineExercises.map { it.id }.distinct().size,
+            SeedData.defaultRoutineExercises.size,
+        )
+        assertEquals(7, SeedData.defaultWeeklyPlan.size)
+        assertEquals(
+            SeedData.defaultWeeklyPlan.map { it.dayOfWeek }.toSet(),
+            (1..7).toSet(),
+        )
+        assertTrue(SeedData.defaultWeeklyPlan.single { it.dayOfWeek == 3 }.cardioTypeId != null)
+        assertTrue(SeedData.defaultWeeklyPlan.filter { it.isRestDay }.map { it.dayOfWeek }.toSet() == setOf(6, 7))
         assertEquals(7, SeedData.cardioTypes.size)
         assertEquals(
             SeedData.cardioTypes.map { it.id }.distinct().size,

@@ -12,6 +12,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import com.atlaspeak.R
+import com.atlaspeak.presentation.theme.LocalAtlasColors
 import com.atlaspeak.presentation.theme.LocalSpacing
 
 @Composable
@@ -20,6 +21,7 @@ fun PlaceholderScreen(
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -30,12 +32,12 @@ fun PlaceholderScreen(
         Text(
             text = stringResource(titleRes),
             style = MaterialTheme.typography.headlineMedium,
-            color = MaterialTheme.colorScheme.onBackground,
+            color = atlasColors.ink,
         )
         Text(
             text = stringResource(R.string.state_empty_body),
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = atlasColors.ink2,
         )
     }
 }

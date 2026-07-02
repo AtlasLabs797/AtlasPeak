@@ -73,7 +73,11 @@ class DriveBackupManagerTest {
         assertEquals("access-token", service.downloadToken)
         assertEquals("file-1", service.downloadFileId)
         assertEquals(1, store.restoreCount)
-        assertEquals(snapshot, store.restoredSnapshot)
+        assertEquals(BackupJsonCodec.CURRENT_SCHEMA_VERSION, store.restoredSnapshot?.schemaVersion)
+        assertEquals(
+            JsonPrimitive(0),
+            store.restoredSnapshot?.tables?.getValue("weekly_plan")?.single()?.getValue("order_index"),
+        )
     }
 
     @Test

@@ -11,6 +11,7 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import com.atlaspeak.presentation.theme.LocalAtlasColors
 import com.atlaspeak.presentation.theme.LocalSpacing
 
 @Composable
@@ -25,6 +26,7 @@ fun AtlasSlider(
     enabled: Boolean = true,
 ) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(spacing.xs),
@@ -36,12 +38,12 @@ fun AtlasSlider(
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.onSurface,
+                color = atlasColors.ink,
             )
             Text(
                 text = valueLabel,
                 style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
+                color = atlasColors.ink,
             )
         }
         Box(modifier = Modifier.fillMaxWidth()) {
@@ -52,11 +54,11 @@ fun AtlasSlider(
                 steps = steps,
                 enabled = enabled,
                 colors = SliderDefaults.colors(
-                    thumbColor = MaterialTheme.colorScheme.primary,
-                    activeTrackColor = MaterialTheme.colorScheme.primary,
-                    inactiveTrackColor = MaterialTheme.colorScheme.surfaceVariant,
-                    activeTickColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.5f),
-                    inactiveTickColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f),
+                    thumbColor = atlasColors.ink,
+                    activeTrackColor = atlasColors.ink,
+                    inactiveTrackColor = atlasColors.fillActive,
+                    activeTickColor = atlasColors.onAccent.copy(alpha = 0.5f),
+                    inactiveTickColor = atlasColors.lineStrong,
                 ),
             )
         }

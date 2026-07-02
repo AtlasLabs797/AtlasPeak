@@ -19,6 +19,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
+import com.atlaspeak.presentation.theme.LocalAtlasColors
 import com.atlaspeak.presentation.theme.LocalSpacing
 
 private val AtlasButtonShape = RoundedCornerShape(16.dp)
@@ -33,6 +34,7 @@ fun AtlasPrimaryButton(
     iconContentDescription: String? = null,
 ) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     Button(
         modifier = modifier.heightIn(min = 56.dp),
         enabled = enabled,
@@ -40,8 +42,10 @@ fun AtlasPrimaryButton(
         shape = AtlasButtonShape,
         contentPadding = PaddingValues(horizontal = spacing.lg, vertical = spacing.sm),
         colors = ButtonDefaults.buttonColors(
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
+            containerColor = atlasColors.ink,
+            contentColor = atlasColors.onAccent,
+            disabledContainerColor = atlasColors.fillActive,
+            disabledContentColor = atlasColors.ink3,
         ),
     ) {
         ButtonRow(text, leadingIcon, iconContentDescription)
@@ -58,6 +62,7 @@ fun AtlasSecondaryButton(
     iconContentDescription: String? = null,
 ) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     OutlinedButton(
         modifier = modifier.heightIn(min = 56.dp),
         enabled = enabled,
@@ -66,7 +71,11 @@ fun AtlasSecondaryButton(
         contentPadding = PaddingValues(horizontal = spacing.lg, vertical = spacing.sm),
         border = BorderStroke(
             width = 1.dp,
-            color = MaterialTheme.colorScheme.outline.copy(alpha = 0.85f),
+            color = atlasColors.lineStrong,
+        ),
+        colors = ButtonDefaults.outlinedButtonColors(
+            contentColor = atlasColors.ink,
+            disabledContentColor = atlasColors.ink3,
         ),
     ) {
         ButtonRow(text, leadingIcon, iconContentDescription)
@@ -83,12 +92,17 @@ fun AtlasGhostButton(
     iconContentDescription: String? = null,
 ) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     TextButton(
         modifier = modifier.heightIn(min = 48.dp),
         enabled = enabled,
         onClick = onClick,
         shape = AtlasButtonShape,
         contentPadding = PaddingValues(horizontal = spacing.md, vertical = spacing.xs),
+        colors = ButtonDefaults.textButtonColors(
+            contentColor = atlasColors.ink2,
+            disabledContentColor = atlasColors.ink3,
+        ),
     ) {
         ButtonRow(text, leadingIcon, iconContentDescription)
     }

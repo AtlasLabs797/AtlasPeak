@@ -28,11 +28,15 @@ class DriveBackupManager(
             } finally {
                 payload.fill(0)
             }
-            val uploaded = driveBackupService.uploadBackup(
-                accessToken = accessToken,
-                fileName = backupFileName(now),
-                encryptedBytes = encrypted,
-            )
+            val uploaded = try {
+                driveBackupService.uploadBackup(
+                    accessToken = accessToken,
+                    fileName = backupFileName(now),
+                    encryptedBytes = encrypted,
+                )
+            } finally {
+                encrypted.fill(0)
+            }
             trimOldBackups(accessToken)
             snapshotStore.markBackupCompleted(now)
             BackupOperationResult.Success(uploaded)
@@ -51,7 +55,11 @@ class DriveBackupManager(
 
         return runCatching {
             val encrypted = driveBackupService.downloadBackup(accessToken, fileId)
-            val plaintext = backupFileCodec.decrypt(encrypted, password)
+            val plaintext = try {
+                backupFileCodec.decrypt(encrypted, password)
+            } finally {
+                encrypted.fill(0)
+            }
             val json = try {
                 plaintext.decodeToString()
             } finally {

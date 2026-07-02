@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.atlaspeak.presentation.theme.LocalAtlasColors
 import com.atlaspeak.presentation.theme.LocalSpacing
 
 @Composable
@@ -26,6 +27,7 @@ fun EmptyState(
     action: @Composable (() -> Unit)? = null,
 ) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -43,13 +45,13 @@ fun EmptyState(
         Text(
             text = title,
             style = MaterialTheme.typography.titleLarge,
-            color = MaterialTheme.colorScheme.onBackground,
+            color = atlasColors.ink,
             textAlign = TextAlign.Center,
         )
         Text(
             text = body,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = atlasColors.ink2,
             textAlign = TextAlign.Center,
         )
         if (action != null) action()

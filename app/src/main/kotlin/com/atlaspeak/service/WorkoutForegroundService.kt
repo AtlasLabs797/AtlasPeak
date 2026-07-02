@@ -54,7 +54,10 @@ class WorkoutForegroundService : LifecycleService() {
             )
             ACTION_STOP -> stopTimer(clearState = true)
         }
-        return START_STICKY
+        // BUG-058: START_STICKY relanzaba el servicio con intent=null tras presión de
+        // memoria, dejando un zombi sin timerJob. Con START_NOT_STICKY, si Android
+        // mata el servicio, el workout activo se reanuda desde la UI al volver.
+        return START_NOT_STICKY
     }
 
     override fun onDestroy() {
@@ -64,6 +67,14 @@ class WorkoutForegroundService : LifecycleService() {
 
     private fun startTimer(sessionId: String, startedAt: Long) {
         ensureNotificationChannel()
+        // Idempotente (#23 del informe): si ya hay un timer activo para esta misma
+        // sesión, sólo refrescamos la notificación; no machacamos startedAt ni
+        // reseteamos el cronómetro hacia atrás.
+        val existing = WorkoutTimerRegistry.state.value
+        if (existing.sessionId == sessionId && existing.startedAt != null && existing.running) {
+            notifyTimer(existing.elapsedSeconds)
+            return
+        }
         WorkoutTimerRegistry.update(
             WorkoutTimerState(
                 sessionId = sessionId,

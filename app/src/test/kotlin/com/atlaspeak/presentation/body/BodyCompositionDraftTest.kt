@@ -21,4 +21,12 @@ class BodyCompositionDraftTest {
 
         assertTrue(draft.isValidRaw())
     }
+
+    @Test
+    fun `raw validation rejects impossible body composition ranges`() {
+        assertFalse(BodyCompositionDraft(bodyFatPercent = "101").isValidRaw())
+        assertFalse(BodyCompositionDraft(waterPercent = "-1").isValidRaw())
+        assertFalse(BodyCompositionDraft(bodyAge = "180").isValidRaw())
+        assertFalse(BodyCompositionDraft(weightKg = "0").isValidRaw())
+    }
 }

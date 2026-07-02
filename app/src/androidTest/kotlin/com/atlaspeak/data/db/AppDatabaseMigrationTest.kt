@@ -70,6 +70,130 @@ class AppDatabaseMigrationTest {
         migrated.close()
     }
 
+    @Test
+    fun migration3To4AddsCardioPlanningColumnsWithoutDroppingPlan() {
+        helper.createDatabase(TEST_DB, 3).apply {
+            insertV3WeeklyPlan()
+            close()
+        }
+
+        val migrated = helper.runMigrationsAndValidate(
+            TEST_DB,
+            4,
+            true,
+            AppDatabase.MIGRATION_3_4,
+        )
+
+        migrated.query(
+            """
+            SELECT type, routine_id, cardio_type_id, cardio_target_duration_sec
+            FROM weekly_plan
+            WHERE day_of_week = 1
+            """.trimIndent(),
+        ).use { cursor ->
+            cursor.moveToFirst()
+            assertEquals("STRENGTH", cursor.getString(0))
+            assertEquals("routine-1", cursor.getString(1))
+            assertNull(cursor.getString(2))
+            assertNull(cursor.getString(3))
+        }
+        migrated.close()
+    }
+
+    @Test
+    fun migration4To5AddsOrderIndexWithoutDroppingPlan() {
+        helper.createDatabase(TEST_DB, 4).apply {
+            insertV4WeeklyPlan()
+            close()
+        }
+
+        val migrated = helper.runMigrationsAndValidate(
+            TEST_DB,
+            5,
+            true,
+            AppDatabase.MIGRATION_4_5,
+        )
+
+        migrated.query(
+            """
+            SELECT order_index, type, routine_id, notification_time
+            FROM weekly_plan
+            WHERE day_of_week = 1
+            """.trimIndent(),
+        ).use { cursor ->
+            cursor.moveToFirst()
+            assertEquals(0, cursor.getInt(0))
+            assertEquals("STRENGTH", cursor.getString(1))
+            assertEquals("routine-1", cursor.getString(2))
+            assertEquals("18:00", cursor.getString(3))
+        }
+        migrated.close()
+    }
+
+    @Test
+    fun migration4To5AssignsUniqueOrderIndexesPerDay() {
+        helper.createDatabase(TEST_DB, 4).apply {
+            insertV4WeeklyPlan(twoSessionsSameDay = true)
+            close()
+        }
+
+        val migrated = helper.runMigrationsAndValidate(
+            TEST_DB,
+            5,
+            true,
+            AppDatabase.MIGRATION_4_5,
+        )
+
+        migrated.query(
+            """
+            SELECT id, order_index
+            FROM weekly_plan
+            WHERE day_of_week = 1
+            ORDER BY order_index
+            """.trimIndent(),
+        ).use { cursor ->
+            cursor.moveToFirst()
+            assertEquals("weekly_plan_1", cursor.getString(0))
+            assertEquals(0, cursor.getInt(1))
+            cursor.moveToNext()
+            assertEquals("weekly_plan_2", cursor.getString(0))
+            assertEquals(1, cursor.getInt(1))
+        }
+        migrated.close()
+    }
+
+    @Test
+    fun migration5To6NormalizesCollidingOrderIndexes() {
+        helper.createDatabase(TEST_DB, 5).apply {
+            insertV5WeeklyPlanWithCollidingOrderIndexes()
+            close()
+        }
+
+        val migrated = helper.runMigrationsAndValidate(
+            TEST_DB,
+            6,
+            true,
+            AppDatabase.MIGRATION_5_6,
+        )
+
+        migrated.query(
+            """
+            SELECT id, order_index
+            FROM weekly_plan
+            WHERE day_of_week = 1
+            ORDER BY order_index
+            """.trimIndent(),
+        ).use { cursor ->
+            cursor.moveToFirst()
+            assertEquals("weekly_plan_1", cursor.getString(0))
+            assertEquals(0, cursor.getInt(1))
+            cursor.moveToNext()
+            assertEquals("weekly_plan_2", cursor.getString(0))
+            assertEquals(1, cursor.getInt(1))
+        }
+        migrated.close()
+    }
+
     private fun SupportSQLiteDatabase.insertV1BodyComposition() {
         execSQL(
             """
@@ -127,6 +251,169 @@ class AppDatabaseMigrationTest {
                 'Atlas User',
                 1700000000200
             )
+            """.trimIndent(),
+        )
+    }
+
+    private fun SupportSQLiteDatabase.insertV3WeeklyPlan() {
+        execSQL(
+            """
+            INSERT INTO routines (
+                id,
+                name,
+                created_at,
+                updated_at,
+                is_archived
+            ) VALUES (
+                'routine-1',
+                'Routine 1',
+                1700000000000,
+                1700000000000,
+                0
+            )
+            """.trimIndent(),
+        )
+        execSQL(
+            """
+            INSERT INTO weekly_plan (
+                id,
+                day_of_week,
+                routine_id,
+                is_rest_day,
+                notification_enabled,
+                notification_time
+            ) VALUES (
+                'weekly_plan_1',
+                1,
+                'routine-1',
+                0,
+                1,
+                '18:00'
+            )
+            """.trimIndent(),
+        )
+    }
+
+    private fun SupportSQLiteDatabase.insertV4WeeklyPlan(twoSessionsSameDay: Boolean = false) {
+        execSQL(
+            """
+            INSERT INTO routines (
+                id,
+                name,
+                created_at,
+                updated_at,
+                is_archived
+            ) VALUES (
+                'routine-1',
+                'Routine 1',
+                1700000000000,
+                1700000000000,
+                0
+            )
+            """.trimIndent(),
+        )
+        execSQL(
+            """
+            INSERT INTO weekly_plan (
+                id,
+                day_of_week,
+                type,
+                routine_id,
+                cardio_type_id,
+                cardio_target_duration_sec,
+                is_rest_day,
+                notification_enabled,
+                notification_time
+            ) VALUES (
+                'weekly_plan_1',
+                1,
+                'STRENGTH',
+                'routine-1',
+                NULL,
+                NULL,
+                0,
+                1,
+                '18:00'
+            )
+            """.trimIndent(),
+        )
+        if (twoSessionsSameDay) {
+            execSQL(
+                """
+                INSERT INTO routines (
+                    id,
+                    name,
+                    created_at,
+                    updated_at,
+                    is_archived
+                ) VALUES (
+                    'routine-2',
+                    'Routine 2',
+                    1700000000000,
+                    1700000000000,
+                    0
+                )
+                """.trimIndent(),
+            )
+            execSQL(
+                """
+                INSERT INTO weekly_plan (
+                    id,
+                    day_of_week,
+                    type,
+                    routine_id,
+                    cardio_type_id,
+                    cardio_target_duration_sec,
+                    is_rest_day,
+                    notification_enabled,
+                    notification_time
+                ) VALUES (
+                    'weekly_plan_2',
+                    1,
+                    'STRENGTH',
+                    'routine-2',
+                    NULL,
+                    NULL,
+                    0,
+                    1,
+                    '19:00'
+                )
+                """.trimIndent(),
+            )
+        }
+    }
+
+    private fun SupportSQLiteDatabase.insertV5WeeklyPlanWithCollidingOrderIndexes() {
+        execSQL(
+            """
+            INSERT INTO routines (
+                id,
+                name,
+                created_at,
+                updated_at,
+                is_archived
+            ) VALUES
+                ('routine-1', 'Routine 1', 1700000000000, 1700000000000, 0),
+                ('routine-2', 'Routine 2', 1700000000000, 1700000000000, 0)
+            """.trimIndent(),
+        )
+        execSQL("DROP INDEX IF EXISTS index_weekly_plan_day_of_week_order_index")
+        execSQL(
+            """
+            INSERT INTO weekly_plan (
+                id,
+                day_of_week,
+                order_index,
+                type,
+                routine_id,
+                cardio_type_id,
+                cardio_target_duration_sec,
+                is_rest_day,
+                notification_enabled,
+                notification_time
+            ) VALUES
+                ('weekly_plan_1', 1, 0, 'STRENGTH', 'routine-1', NULL, NULL, 0, 1, '18:00'),
+                ('weekly_plan_2', 1, 0, 'STRENGTH', 'routine-2', NULL, NULL, 0, 1, '19:00')
             """.trimIndent(),
         )
     }

@@ -61,7 +61,7 @@ import com.atlaspeak.data.db.entity.WorkoutSetEntity
         HcSleepStageEntity::class,
         HcHeartRateSampleEntity::class,
     ],
-    version = 3,
+    version = 6,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -220,6 +220,136 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL("CREATE UNIQUE INDEX IF NOT EXISTS index_user_profile_user_id ON user_profile(user_id)")
                 db.execSQL("UPDATE app_settings SET biometrics_enabled = 0")
                 db.execSQL("UPDATE auth_security SET failed_attempts = 0, locked_until = NULL")
+            }
+        }
+
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE weekly_plan ADD COLUMN type TEXT NOT NULL DEFAULT 'STRENGTH'")
+                db.execSQL("ALTER TABLE weekly_plan ADD COLUMN cardio_type_id TEXT")
+                db.execSQL("ALTER TABLE weekly_plan ADD COLUMN cardio_target_duration_sec INTEGER")
+            }
+        }
+
+        val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS weekly_plan_new (
+                        id TEXT NOT NULL,
+                        day_of_week INTEGER NOT NULL,
+                        order_index INTEGER NOT NULL DEFAULT 0,
+                        type TEXT NOT NULL DEFAULT 'STRENGTH',
+                        routine_id TEXT,
+                        cardio_type_id TEXT,
+                        cardio_target_duration_sec INTEGER,
+                        is_rest_day INTEGER NOT NULL DEFAULT 0,
+                        notification_enabled INTEGER NOT NULL DEFAULT 1,
+                        notification_time TEXT,
+                        PRIMARY KEY(id),
+                        FOREIGN KEY(routine_id) REFERENCES routines(id) ON UPDATE NO ACTION ON DELETE SET NULL
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO weekly_plan_new (
+                        id,
+                        day_of_week,
+                        order_index,
+                        type,
+                        routine_id,
+                        cardio_type_id,
+                        cardio_target_duration_sec,
+                        is_rest_day,
+                        notification_enabled,
+                        notification_time
+                    )
+                    SELECT
+                        id,
+                        day_of_week,
+                        ROW_NUMBER() OVER (PARTITION BY day_of_week ORDER BY id) - 1,
+                        type,
+                        routine_id,
+                        cardio_type_id,
+                        cardio_target_duration_sec,
+                        is_rest_day,
+                        notification_enabled,
+                        notification_time
+                    FROM weekly_plan
+                    """.trimIndent(),
+                )
+                db.execSQL("DROP TABLE weekly_plan")
+                db.execSQL("ALTER TABLE weekly_plan_new RENAME TO weekly_plan")
+                db.execSQL(
+                    """
+                    CREATE UNIQUE INDEX IF NOT EXISTS index_weekly_plan_day_of_week_order_index
+                    ON weekly_plan(day_of_week, order_index)
+                    """.trimIndent(),
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_weekly_plan_routine_id ON weekly_plan(routine_id)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_weekly_plan_cardio_type_id ON weekly_plan(cardio_type_id)")
+            }
+        }
+
+        val MIGRATION_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS weekly_plan_reindexed (
+                        id TEXT NOT NULL,
+                        day_of_week INTEGER NOT NULL,
+                        order_index INTEGER NOT NULL DEFAULT 0,
+                        type TEXT NOT NULL DEFAULT 'STRENGTH',
+                        routine_id TEXT,
+                        cardio_type_id TEXT,
+                        cardio_target_duration_sec INTEGER,
+                        is_rest_day INTEGER NOT NULL DEFAULT 0,
+                        notification_enabled INTEGER NOT NULL DEFAULT 1,
+                        notification_time TEXT,
+                        PRIMARY KEY(id),
+                        FOREIGN KEY(routine_id) REFERENCES routines(id) ON UPDATE NO ACTION ON DELETE SET NULL
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    """
+                    INSERT INTO weekly_plan_reindexed (
+                        id,
+                        day_of_week,
+                        order_index,
+                        type,
+                        routine_id,
+                        cardio_type_id,
+                        cardio_target_duration_sec,
+                        is_rest_day,
+                        notification_enabled,
+                        notification_time
+                    )
+                    SELECT
+                        id,
+                        day_of_week,
+                        ROW_NUMBER() OVER (PARTITION BY day_of_week ORDER BY order_index, id) - 1,
+                        type,
+                        routine_id,
+                        cardio_type_id,
+                        cardio_target_duration_sec,
+                        is_rest_day,
+                        notification_enabled,
+                        notification_time
+                    FROM weekly_plan
+                    """.trimIndent(),
+                )
+                db.execSQL("DROP TABLE weekly_plan")
+                db.execSQL("ALTER TABLE weekly_plan_reindexed RENAME TO weekly_plan")
+                db.execSQL(
+                    """
+                    CREATE UNIQUE INDEX IF NOT EXISTS index_weekly_plan_day_of_week_order_index
+                    ON weekly_plan(day_of_week, order_index)
+                    """.trimIndent(),
+                )
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_weekly_plan_routine_id ON weekly_plan(routine_id)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_weekly_plan_cardio_type_id ON weekly_plan(cardio_type_id)")
             }
         }
 

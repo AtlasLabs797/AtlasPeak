@@ -2,41 +2,42 @@ package com.atlaspeak.presentation.home
 
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.DirectionsBike
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.Bedtime
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FitnessCenter
-import androidx.compose.material.icons.filled.MonitorWeight
-import androidx.compose.material.icons.filled.TaskAlt
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -44,36 +45,19 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.atlaspeak.R
-import com.atlaspeak.domain.model.dashboard.DashboardConsistency
 import com.atlaspeak.domain.model.dashboard.DashboardFilters
 import com.atlaspeak.domain.model.dashboard.DashboardPeriod
 import com.atlaspeak.domain.model.dashboard.DashboardPoint
 import com.atlaspeak.domain.model.dashboard.DashboardSnapshot
 import com.atlaspeak.domain.model.dashboard.DashboardWidget
 import com.atlaspeak.presentation.component.AtlasPrimaryButton
-import com.atlaspeak.presentation.component.MetricValue
-import com.atlaspeak.presentation.component.PeriodSelector
-import com.atlaspeak.presentation.component.PeriodSelectorItem
+import com.atlaspeak.presentation.component.MonochromeBarChart
+import com.atlaspeak.presentation.component.MonochromeSparkline
 import com.atlaspeak.presentation.component.PremiumBackground
 import com.atlaspeak.presentation.component.PremiumCard
-import com.atlaspeak.presentation.component.PremiumIconBadge
-import com.atlaspeak.presentation.component.SectionHeader
 import com.atlaspeak.presentation.theme.AtlasBrushes
+import com.atlaspeak.presentation.theme.LocalAtlasColors
 import com.atlaspeak.presentation.theme.LocalSpacing
-import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
-import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
-import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottom
-import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStart
-import com.patrykandpatrick.vico.compose.cartesian.layer.rememberColumnCartesianLayer
-import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
-import com.patrykandpatrick.vico.compose.cartesian.marker.rememberDefaultCartesianMarker
-import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
-import com.patrykandpatrick.vico.core.cartesian.axis.HorizontalAxis
-import com.patrykandpatrick.vico.core.cartesian.axis.VerticalAxis
-import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
-import com.patrykandpatrick.vico.core.cartesian.data.CartesianValueFormatter
-import com.patrykandpatrick.vico.core.cartesian.data.columnSeries
-import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -83,6 +67,7 @@ import kotlin.math.roundToInt
 @Composable
 fun HomeRoute(
     onStartRoutine: (String) -> Unit,
+    onStartCardio: (String, Int) -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state = viewModel.state.collectAsStateWithLifecycle().value
@@ -92,7 +77,9 @@ fun HomeRoute(
     HomeScreen(
         state = state,
         onPeriodSelected = viewModel::selectPeriod,
+        onRetry = { viewModel.refresh() },
         onStartRoutine = onStartRoutine,
+        onStartCardio = onStartCardio,
     )
 }
 
@@ -100,169 +87,367 @@ fun HomeRoute(
 fun HomeScreen(
     state: HomeUiState,
     onPeriodSelected: (DashboardWidget, DashboardPeriod) -> Unit,
+    onRetry: () -> Unit,
     onStartRoutine: (String) -> Unit,
+    onStartCardio: (String, Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     PremiumBackground(modifier = modifier.fillMaxSize()) {
-        if (state.isLoading && state.snapshot == null) {
-            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+        when {
+            state.isLoading && state.snapshot == null -> {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = atlasColors.ink)
+                }
             }
-        } else if (state.snapshot == null) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(spacing.screen),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    text = stringResource(state.errorMessageRes ?: R.string.error_generic),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onBackground,
+            state.snapshot == null -> {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(spacing.screen),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(spacing.sm),
+                    ) {
+                        Text(
+                            text = stringResource(state.errorMessageRes ?: R.string.error_generic),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = atlasColors.ink,
+                        )
+                        AtlasPrimaryButton(
+                            onClick = onRetry,
+                            text = stringResource(R.string.action_retry),
+                        )
+                    }
+                }
+            }
+            else -> {
+                DashboardContent(
+                    greetingName = state.greetingName,
+                    snapshot = state.snapshot,
+                    todayWorkouts = state.todayWorkouts,
+                    filters = state.filters,
+                    errorMessageRes = state.errorMessageRes,
+                    onPeriodSelected = onPeriodSelected,
+                    onRetry = onRetry,
+                    onStartRoutine = onStartRoutine,
+                    onStartCardio = onStartCardio,
                 )
             }
-        } else {
-            DashboardContent(
-                snapshot = state.snapshot,
-                todayWorkout = state.todayWorkout,
-                filters = state.filters,
-                errorMessageRes = state.errorMessageRes,
-                onPeriodSelected = onPeriodSelected,
-                onStartRoutine = onStartRoutine,
-            )
         }
     }
 }
 
 @Composable
 private fun DashboardContent(
+    greetingName: String?,
     snapshot: DashboardSnapshot,
-    todayWorkout: TodayWorkoutUiState?,
+    todayWorkouts: List<TodayWorkoutUiState>,
     filters: DashboardFilters,
     @StringRes errorMessageRes: Int?,
     onPeriodSelected: (DashboardWidget, DashboardPeriod) -> Unit,
+    onRetry: () -> Unit,
     onStartRoutine: (String) -> Unit,
-    modifier: Modifier = Modifier,
+    onStartCardio: (String, Int) -> Unit,
 ) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     LazyColumn(
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = spacing.screen, vertical = spacing.screen),
+        modifier = Modifier.fillMaxSize(),
+        contentPadding = PaddingValues(
+            start = spacing.screen,
+            top = spacing.lg,
+            end = spacing.screen,
+            bottom = 112.dp,
+        ),
         verticalArrangement = Arrangement.spacedBy(spacing.cardGap),
     ) {
         item {
-            SectionHeader(
-                overline = stringResource(R.string.home_greeting_overline),
-                title = stringResource(R.string.home_greeting_title),
-            )
+            HomeHeader(greetingName = greetingName)
         }
-        if (errorMessageRes != null) {
+        errorMessageRes?.let { messageRes ->
             item {
-                Text(
-                    text = stringResource(errorMessageRes),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.error,
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        modifier = Modifier.weight(1f),
+                        text = stringResource(messageRes),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = atlasColors.risk,
+                    )
+                    AtlasPrimaryButton(
+                        onClick = onRetry,
+                        text = stringResource(R.string.action_retry),
+                    )
+                }
             }
         }
-        todayWorkout?.let { workout ->
-            item {
-                TodayWorkoutCard(
-                    workout = workout,
-                    onStartRoutine = { onStartRoutine(workout.routineId) },
-                )
-            }
+        item {
+            WeeklyLoadHero(snapshot = snapshot)
         }
         item {
-            WeeklyMinutesCard(snapshot.weeklyTrainingMinutes)
+            MetricCarousel(
+                snapshot = snapshot,
+                filters = filters,
+                onPeriodSelected = onPeriodSelected,
+            )
         }
-        item {
-            MetricCard(
-                titleRes = R.string.home_widget_volume_title,
-                icon = Icons.Filled.FitnessCenter,
-                value = stringResource(R.string.home_value_kg, snapshot.totalVolumeKg),
-                subtitle = stringResource(R.string.home_widget_volume_subtitle),
-                period = filters.totalVolumePeriod,
-                onPeriodSelected = { onPeriodSelected(DashboardWidget.TotalVolume, it) },
+        items(
+            items = todayWorkouts,
+            key = { workout -> "${workout.type}_${workout.orderIndex}_${workout.title}" },
+        ) { workout ->
+            TodayWorkoutCard(
+                workout = workout,
+                onStart = {
+                    if (!workout.canStart) return@TodayWorkoutCard
+                    if (workout.type == TodayWorkoutType.Cardio) {
+                        val cardioTypeId = workout.cardioTypeId ?: return@TodayWorkoutCard
+                        val targetSeconds = workout.cardioTargetDurationSec ?: return@TodayWorkoutCard
+                        onStartCardio(cardioTypeId, targetSeconds)
+                    } else {
+                        val routineId = workout.routineId ?: return@TodayWorkoutCard
+                        onStartRoutine(routineId)
+                    }
+                },
             )
         }
         item {
-            ConsistencyCard(
-                consistency = snapshot.consistency,
-                period = filters.consistencyPeriod,
-                onPeriodSelected = { onPeriodSelected(DashboardWidget.Consistency, it) },
+            SecondaryMetrics(snapshot = snapshot)
+        }
+    }
+}
+
+@Composable
+private fun HomeHeader(greetingName: String?) {
+    val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(spacing.xs),
+        ) {
+            Text(
+                text = currentDateLabel(),
+                style = MaterialTheme.typography.labelMedium,
+                color = atlasColors.ink3,
+            )
+            Text(
+                text = greetingName?.let { stringResource(R.string.home_greeting_name, it) }
+                    ?: stringResource(R.string.home_greeting_title),
+                style = MaterialTheme.typography.headlineMedium,
+                color = atlasColors.ink,
             )
         }
-        item {
-            ChartMetricCard(
-                titleRes = R.string.home_widget_body_weight_title,
-                icon = Icons.Filled.MonitorWeight,
-                value = snapshot.bodyWeightPoints.lastOrNull()?.let { stringResource(R.string.home_value_kg, it.value) }
-                    ?: stringResource(R.string.home_value_empty),
-                period = filters.bodyWeightPeriod,
-                onPeriodSelected = { onPeriodSelected(DashboardWidget.BodyWeight, it) },
-                points = snapshot.bodyWeightPoints,
-                chartType = DashboardChartType.Line,
+        Icon(
+            imageVector = Icons.Filled.Notifications,
+            contentDescription = null,
+            modifier = Modifier.size(24.dp),
+            tint = atlasColors.ink2,
+        )
+    }
+}
+
+@Composable
+private fun WeeklyLoadHero(snapshot: DashboardSnapshot) {
+    val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
+    val weeklyBars = weeklyLoadBars(snapshot)
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(spacing.sm),
+    ) {
+        Text(
+            text = stringResource(R.string.home_weekly_load_overline).uppercase(),
+            style = MaterialTheme.typography.labelMedium,
+            color = atlasColors.ink3,
+        )
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(
+                text = snapshot.weeklyTrainingMinutes.toString(),
+                style = MaterialTheme.typography.displayLarge,
+                color = atlasColors.ink,
+                maxLines = 1,
+            )
+            Text(
+                text = stringResource(R.string.home_hero_unit_min),
+                modifier = Modifier.padding(start = spacing.sm, bottom = 13.dp),
+                style = MaterialTheme.typography.bodyLarge,
+                color = atlasColors.ink3,
             )
         }
-        item {
-            ChartMetricCard(
-                titleRes = R.string.home_widget_steps_title,
-                icon = Icons.AutoMirrored.Filled.DirectionsWalk,
-                value = snapshot.dailySteps.lastOrNull()?.let { stringResource(R.string.home_value_steps, it.value.roundToInt()) }
-                    ?: stringResource(R.string.home_value_empty),
-                period = filters.dailyStepsPeriod,
-                onPeriodSelected = { onPeriodSelected(DashboardWidget.DailySteps, it) },
-                points = snapshot.dailySteps,
-                chartType = DashboardChartType.Columns,
+        Text(
+            text = stringResource(
+                R.string.home_delta_vs_plan,
+                snapshot.consistency.activeDays,
+                snapshot.consistency.targetDays.coerceAtLeast(1),
+            ),
+            style = MaterialTheme.typography.labelLarge,
+            color = atlasColors.ink,
+        )
+        if (weeklyBars.any { it > 0f }) {
+            MonochromeBarChart(
+                values = weeklyBars,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp),
             )
-        }
-        item {
-            ChartMetricCard(
-                titleRes = R.string.home_widget_heart_rate_title,
-                icon = Icons.Filled.Favorite,
-                value = snapshot.heartRate.lastOrNull()?.let { stringResource(R.string.home_value_bpm, it.value.roundToInt()) }
-                    ?: stringResource(R.string.home_value_empty),
-                period = filters.heartRatePeriod,
-                onPeriodSelected = { onPeriodSelected(DashboardWidget.HeartRate, it) },
-                points = snapshot.heartRate,
-                chartType = DashboardChartType.Line,
-            )
-        }
-        item {
-            MetricCard(
-                titleRes = R.string.home_widget_activity_title,
-                icon = Icons.Filled.AccessTime,
-                value = stringResource(R.string.home_value_minutes, snapshot.totalActivitySeconds / 60),
-                subtitle = stringResource(R.string.home_widget_activity_subtitle),
-                period = filters.totalActivityPeriod,
-                onPeriodSelected = { onPeriodSelected(DashboardWidget.TotalActivity, it) },
-            )
-        }
-        item {
-            MetricCard(
-                titleRes = R.string.home_widget_sleep_title,
-                icon = Icons.Filled.Bedtime,
-                value = snapshot.averageSleepHours?.let { stringResource(R.string.home_value_hours, it) }
-                    ?: stringResource(R.string.home_value_empty),
-                subtitle = stringResource(R.string.home_widget_sleep_subtitle),
-                period = filters.sleepPeriod,
-                onPeriodSelected = { onPeriodSelected(DashboardWidget.Sleep, it) },
+        } else {
+            Text(
+                text = stringResource(R.string.home_weekly_load_empty),
+                style = MaterialTheme.typography.bodySmall,
+                color = atlasColors.ink3,
             )
         }
     }
 }
 
 @Composable
-private fun WeeklyMinutesCard(minutes: Int, modifier: Modifier = Modifier) {
+private fun MetricCarousel(
+    snapshot: DashboardSnapshot,
+    filters: DashboardFilters,
+    onPeriodSelected: (DashboardWidget, DashboardPeriod) -> Unit,
+) {
     val spacing = LocalSpacing.current
-    val colors = MaterialTheme.colorScheme
+    val tiles = listOf(
+        DashboardTile(
+            labelRes = R.string.home_widget_volume_title,
+            value = formatWhole(snapshot.totalVolumeKg),
+            unitRes = R.string.unit_kg,
+            icon = Icons.Filled.FitnessCenter,
+            points = snapshot.volumePoints,
+            periodLabel = periodLabel(filters.totalVolumePeriod),
+            onClick = { onPeriodSelected(DashboardWidget.TotalVolume, filters.totalVolumePeriod.next()) },
+        ),
+        DashboardTile(
+            labelRes = R.string.home_widget_steps_title,
+            value = snapshot.dailySteps.lastOrNull()?.value?.roundToInt()?.toString()
+                ?: stringResource(R.string.home_value_empty),
+            unitRes = R.string.unit_steps,
+            icon = Icons.AutoMirrored.Filled.DirectionsWalk,
+            points = snapshot.dailySteps,
+            periodLabel = periodLabel(filters.dailyStepsPeriod),
+            onClick = { onPeriodSelected(DashboardWidget.DailySteps, filters.dailyStepsPeriod.next()) },
+        ),
+        DashboardTile(
+            labelRes = R.string.home_widget_heart_rate_title,
+            value = snapshot.heartRate.lastOrNull()?.value?.roundToInt()?.toString()
+                ?: stringResource(R.string.home_value_empty),
+            unitRes = R.string.unit_bpm,
+            icon = Icons.Filled.Favorite,
+            points = snapshot.heartRate,
+            periodLabel = periodLabel(filters.heartRatePeriod),
+            onClick = { onPeriodSelected(DashboardWidget.HeartRate, filters.heartRatePeriod.next()) },
+        ),
+    )
+    LazyRow(
+        horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+        contentPadding = PaddingValues(end = spacing.lg),
+    ) {
+        items(tiles) { tile ->
+            MetricTile(tile = tile)
+        }
+    }
+}
+
+@Composable
+private fun MetricTile(tile: DashboardTile) {
+    val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
+    PremiumCard(
+        modifier = Modifier
+            .width(164.dp)
+            .height(154.dp),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable(onClick = tile.onClick)
+                .padding(spacing.card),
+            verticalArrangement = Arrangement.spacedBy(spacing.xs),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = tile.icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = atlasColors.ink2,
+                )
+                Spacer(Modifier.weight(1f))
+                Text(
+                    text = tile.periodLabel.uppercase(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = atlasColors.ink3,
+                    maxLines = 1,
+                )
+            }
+            Spacer(Modifier.weight(1f))
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(
+                    text = tile.value,
+                    style = MaterialTheme.typography.displaySmall,
+                    color = atlasColors.ink,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = stringResource(tile.unitRes),
+                    modifier = Modifier.padding(start = spacing.xs, bottom = 5.dp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = atlasColors.ink3,
+                    maxLines = 1,
+                )
+            }
+            Text(
+                text = stringResource(tile.labelRes).uppercase(),
+                style = MaterialTheme.typography.labelSmall,
+                color = atlasColors.ink3,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (tile.points.isNotEmpty()) {
+                MonochromeSparkline(
+                    values = tile.points.map { it.value.toFloat() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(24.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun periodLabel(period: DashboardPeriod): String = when (period) {
+    DashboardPeriod.Week -> stringResource(R.string.dashboard_period_week)
+    DashboardPeriod.Month -> stringResource(R.string.dashboard_period_month)
+    DashboardPeriod.ThreeMonths -> stringResource(R.string.dashboard_period_three_months)
+    DashboardPeriod.Year -> stringResource(R.string.dashboard_period_year)
+    DashboardPeriod.YearToDate -> stringResource(R.string.dashboard_period_year_to_date)
+}
+
+@Composable
+private fun TodayWorkoutCard(
+    workout: TodayWorkoutUiState,
+    onStart: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     PremiumCard(modifier = modifier.fillMaxWidth()) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(AtlasBrushes.subtleSurface(colors))
+                .background(AtlasBrushes.subtleSurface(MaterialTheme.colorScheme))
                 .padding(spacing.card),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
@@ -271,344 +456,171 @@ private fun WeeklyMinutesCard(minutes: Int, modifier: Modifier = Modifier) {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(spacing.sm),
                 ) {
-                    Surface(
-                        shape = CircleShape,
-                        color = colors.primary.copy(alpha = 0.16f),
-                        contentColor = colors.primary,
-                    ) {
-                        Icon(
-                            modifier = Modifier.padding(spacing.sm),
-                            imageVector = Icons.Filled.AccessTime,
-                            contentDescription = null,
-                        )
-                    }
                     Text(
+                        text = stringResource(R.string.home_today_session_overline).uppercase(),
                         modifier = Modifier.weight(1f),
-                        text = stringResource(R.string.home_weekly_minutes_title),
-                        style = MaterialTheme.typography.titleMedium,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = atlasColors.ink3,
                     )
-                }
-                MetricValue(
-                    value = minutes.toString(),
-                    unit = stringResource(R.string.home_hero_unit_min),
-                    emphasized = true,
-                )
-                MiniActivityBars(activeBars = if (minutes == 0) 0 else (minutes / 30).coerceIn(1, 7))
-            }
-        }
-    }
-}
-
-@Composable
-private fun TodayWorkoutCard(
-    workout: TodayWorkoutUiState,
-    onStartRoutine: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val spacing = LocalSpacing.current
-    PremiumCard(modifier = modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(spacing.card),
-            verticalArrangement = Arrangement.spacedBy(spacing.sm),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
-            ) {
-                PremiumIconBadge {
-                    Icon(Icons.Filled.FitnessCenter, contentDescription = null)
-                }
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(spacing.xxs),
-                ) {
-                    Text(
-                        text = stringResource(R.string.home_today_workout_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    Text(
-                        text = stringResource(R.string.home_today_workout_body, workout.routineName),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-            AtlasPrimaryButton(
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !workout.completed,
-                onClick = onStartRoutine,
-                text = stringResource(
-                    if (workout.completed) {
-                        R.string.home_today_workout_completed
-                    } else {
-                        R.string.home_today_workout_start
-                    },
-                ),
-            )
-        }
-    }
-}
-
-@Composable
-private fun MetricCard(
-    @StringRes titleRes: Int,
-    icon: ImageVector,
-    value: String,
-    subtitle: String,
-    period: DashboardPeriod,
-    onPeriodSelected: (DashboardPeriod) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    DashboardCardScaffold(
-        titleRes = titleRes,
-        icon = icon,
-        period = period,
-        onPeriodSelected = onPeriodSelected,
-        modifier = modifier,
-    ) {
-        MetricValue(value = value)
-        Text(
-            text = subtitle,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
-@Composable
-private fun ConsistencyCard(
-    consistency: DashboardConsistency,
-    period: DashboardPeriod,
-    onPeriodSelected: (DashboardPeriod) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val spacing = LocalSpacing.current
-    val value = stringResource(R.string.home_value_consistency, consistency.activeDays, consistency.targetDays)
-    val subtitle = stringResource(
-        if (consistency.usesWeeklyPlan) {
-            R.string.home_widget_consistency_plan
-        } else {
-            R.string.home_widget_consistency_period
-        },
-    )
-    DashboardCardScaffold(
-        titleRes = R.string.home_widget_consistency_title,
-        icon = Icons.Filled.TaskAlt,
-        period = period,
-        onPeriodSelected = onPeriodSelected,
-        modifier = modifier,
-    ) {
-        MetricValue(value = value)
-        Text(
-            text = subtitle,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        MiniActivityBars(
-            activeBars = consistency.activeDays,
-            totalBars = consistency.targetDays.coerceAtMost(7).coerceAtLeast(1),
-            modifier = Modifier.padding(top = spacing.xs),
-        )
-    }
-}
-
-@Composable
-private fun MiniActivityBars(
-    activeBars: Int,
-    modifier: Modifier = Modifier,
-    totalBars: Int = 7,
-) {
-    val spacing = LocalSpacing.current
-    val colors = MaterialTheme.colorScheme
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(spacing.xs),
-        verticalAlignment = Alignment.Bottom,
-    ) {
-        repeat(totalBars.coerceAtLeast(1)) { index ->
-            val active = index < activeBars.coerceAtLeast(0)
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .height((18 + (index % 3) * 8).dp)
-                    .clip(MaterialTheme.shapes.extraSmall)
-                    .background(
-                        if (active) {
-                            colors.primary
-                        } else {
-                            colors.surfaceVariant
-                        },
-                    ),
-            )
-        }
-    }
-}
-
-@Composable
-private fun ChartMetricCard(
-    @StringRes titleRes: Int,
-    icon: ImageVector,
-    value: String,
-    period: DashboardPeriod,
-    onPeriodSelected: (DashboardPeriod) -> Unit,
-    points: List<DashboardPoint>,
-    chartType: DashboardChartType,
-    modifier: Modifier = Modifier,
-) {
-    DashboardCardScaffold(
-        titleRes = titleRes,
-        icon = icon,
-        period = period,
-        onPeriodSelected = onPeriodSelected,
-        modifier = modifier,
-    ) {
-        MetricValue(value = value)
-        if (points.isEmpty()) {
-            Text(
-                text = stringResource(R.string.home_chart_empty),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        } else {
-            DashboardChart(
-                points = points,
-                type = chartType,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(150.dp),
-            )
-        }
-    }
-}
-
-@Composable
-private fun DashboardCardScaffold(
-    @StringRes titleRes: Int,
-    icon: ImageVector,
-    period: DashboardPeriod,
-    onPeriodSelected: (DashboardPeriod) -> Unit,
-    modifier: Modifier = Modifier,
-    content: @Composable ColumnScope.() -> Unit,
-) {
-    val spacing = LocalSpacing.current
-    PremiumCard(modifier = modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(spacing.card),
-            verticalArrangement = Arrangement.spacedBy(spacing.sm),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
-            ) {
-                PremiumIconBadge {
                     Icon(
-                        imageVector = icon,
+                        imageVector = if (workout.type == TodayWorkoutType.Cardio) {
+                            Icons.AutoMirrored.Filled.DirectionsBike
+                        } else {
+                            Icons.Filled.FitnessCenter
+                        },
                         contentDescription = null,
+                        modifier = Modifier.size(22.dp),
+                        tint = atlasColors.ink2,
                     )
                 }
                 Text(
-                    modifier = Modifier.weight(1f),
-                    text = stringResource(titleRes),
-                    style = MaterialTheme.typography.titleMedium,
-                    maxLines = 2,
+                    text = workout.title,
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = atlasColors.ink,
+                    maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                Text(
+                    text = workout.statusMessageRes?.let { stringResource(it) }
+                        ?: stringResource(R.string.home_today_workout_body, workout.title),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = if (workout.statusMessageRes != null) atlasColors.risk else atlasColors.ink2,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                AtlasPrimaryButton(
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !workout.completed && workout.canStart,
+                    onClick = onStart,
+                    leadingIcon = Icons.Filled.PlayArrow,
+                    text = stringResource(
+                        if (workout.completed) {
+                            R.string.home_today_workout_completed
+                        } else if (workout.type == TodayWorkoutType.Cardio) {
+                            R.string.home_today_cardio_start
+                        } else {
+                            R.string.home_today_workout_start
+                        },
+                    ),
+                )
             }
-            DashboardPeriodSelector(period, onPeriodSelected)
-            content()
         }
     }
 }
 
 @Composable
-private fun DashboardPeriodSelector(
-    selectedPeriod: DashboardPeriod,
-    onPeriodSelected: (DashboardPeriod) -> Unit,
-) {
-    PeriodSelector(
-        items = DashboardPeriod.entries.map { PeriodSelectorItem(it, it.labelRes()) },
-        selected = selectedPeriod,
-        onSelected = onPeriodSelected,
-    )
+private fun SecondaryMetrics(snapshot: DashboardSnapshot) {
+    val spacing = LocalSpacing.current
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
+        CompactMetricRow(
+            labelRes = R.string.home_widget_activity_title,
+            value = stringResource(R.string.home_value_minutes, snapshot.totalActivitySeconds / 60),
+            icon = Icons.Filled.Schedule,
+        )
+        CompactMetricRow(
+            labelRes = R.string.home_widget_consistency_title,
+            value = stringResource(
+                R.string.home_value_consistency,
+                snapshot.consistency.activeDays,
+                snapshot.consistency.targetDays.coerceAtLeast(1),
+            ),
+            icon = Icons.Filled.FitnessCenter,
+        )
+    }
 }
 
 @Composable
-private fun DashboardChart(
-    points: List<DashboardPoint>,
-    type: DashboardChartType,
-    modifier: Modifier = Modifier,
+private fun CompactMetricRow(
+    @StringRes labelRes: Int,
+    value: String,
+    icon: ImageVector,
 ) {
-    val modelProducer = remember { CartesianChartModelProducer() }
-    val labels = remember(points) { points.map { it.timestamp.formatDate() } }
-    val bottomFormatter = remember(labels) {
-        CartesianValueFormatter { _, value, _ ->
-            labels.getOrNull(value.roundToInt()).orEmpty()
+    val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.large)
+            .background(atlasColors.surface)
+            .padding(spacing.card),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+    ) {
+        Surface(
+            shape = CircleShape,
+            color = atlasColors.fillActive,
+            contentColor = atlasColors.ink2,
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                modifier = Modifier
+                    .padding(spacing.xs)
+                    .size(18.dp),
+            )
         }
-    }
-    val marker = rememberDefaultCartesianMarker(
-        label = rememberTextComponent(color = MaterialTheme.colorScheme.onSurface),
-    )
-    LaunchedEffect(points, type) {
-        modelProducer.runTransaction {
-            when (type) {
-                DashboardChartType.Line -> lineSeries {
-                    series(points.indices.toList(), points.map { it.value })
-                }
-                DashboardChartType.Columns -> columnSeries {
-                    series(points.indices.toList(), points.map { it.value })
-                }
-            }
-        }
-    }
-    val chartDescription = stringResource(
-        R.string.home_chart_summary,
-        points.size,
-        points.firstOrNull()?.timestamp?.formatDate().orEmpty(),
-        points.lastOrNull()?.timestamp?.formatDate().orEmpty(),
-        points.lastOrNull()?.value ?: 0.0,
-    )
-    val chart = when (type) {
-        DashboardChartType.Line -> rememberCartesianChart(
-            rememberLineCartesianLayer(),
-            startAxis = VerticalAxis.rememberStart(),
-            bottomAxis = HorizontalAxis.rememberBottom(valueFormatter = bottomFormatter),
-            marker = marker,
+        Text(
+            text = stringResource(labelRes),
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyMedium,
+            color = atlasColors.ink2,
         )
-        DashboardChartType.Columns -> rememberCartesianChart(
-            rememberColumnCartesianLayer(),
-            startAxis = VerticalAxis.rememberStart(),
-            bottomAxis = HorizontalAxis.rememberBottom(valueFormatter = bottomFormatter),
-            marker = marker,
+        Text(
+            text = value,
+            style = MaterialTheme.typography.labelLarge,
+            color = atlasColors.ink,
         )
     }
-    CartesianChartHost(
-        chart = chart,
-        modelProducer = modelProducer,
-        modifier = modifier.semantics { contentDescription = chartDescription },
-    )
 }
 
-@StringRes
-private fun DashboardPeriod.labelRes(): Int = when (this) {
-    DashboardPeriod.Week -> R.string.progress_period_week
-    DashboardPeriod.Month -> R.string.progress_period_month
-    DashboardPeriod.ThreeMonths -> R.string.progress_period_three_months
-    DashboardPeriod.Year -> R.string.progress_period_year
-    DashboardPeriod.YearToDate -> R.string.progress_period_ytd
+private data class DashboardTile(
+    @StringRes val labelRes: Int,
+    val value: String,
+    @StringRes val unitRes: Int,
+    val icon: ImageVector,
+    val points: List<DashboardPoint>,
+    val periodLabel: String,
+    val onClick: () -> Unit,
+)
+
+private fun DashboardPeriod.next(): DashboardPeriod = when (this) {
+    DashboardPeriod.Week -> DashboardPeriod.Month
+    DashboardPeriod.Month -> DashboardPeriod.ThreeMonths
+    DashboardPeriod.ThreeMonths -> DashboardPeriod.Year
+    DashboardPeriod.Year -> DashboardPeriod.YearToDate
+    DashboardPeriod.YearToDate -> DashboardPeriod.Week
 }
 
-private fun Long.formatDate(): String {
-    val formatter = DateTimeFormatter.ofPattern("dd MMM", Locale.getDefault())
-    return Instant.ofEpochMilli(this).atZone(ZoneId.systemDefault()).format(formatter)
+private fun weeklyLoadBars(snapshot: DashboardSnapshot): List<Float> {
+    // Antes (#5 del informe): fórmula determinista inventada que no reflejaba los
+    // minutos reales. Ahora pintamos minutos/día normalizados al máximo de la
+    // semana, con hueco para los días futuros (0f) y los días sin entrenar (0.04f
+    // base para que la barra sea visible pero no engañe).
+    val today = java.time.LocalDate.now()
+    val mondayThisWeek = today.minusDays((today.dayOfWeek.value - 1).toLong())
+    val pointsByDate = snapshot.weeklyMinutesPoints.associateBy { point ->
+        java.time.Instant.ofEpochMilli(point.timestamp)
+            .atZone(java.time.ZoneId.systemDefault())
+            .toLocalDate()
+    }
+    val maxMinutes = pointsByDate.values.maxOfOrNull { it.value }?.takeIf { it > 0.0 } ?: 0.0
+    return (0L until 7L).map { offset ->
+        val date = mondayThisWeek.plusDays(offset)
+        val minutes = pointsByDate[date]?.value ?: 0.0
+        when {
+            maxMinutes <= 0.0 -> 0f
+            else -> (minutes / maxMinutes).toFloat().coerceIn(0f, 1f)
+        }
+    }
 }
 
-private enum class DashboardChartType {
-    Line,
-    Columns,
+private fun formatWhole(value: Double): String =
+    "%,d".format(Locale.US, value.roundToInt()).replace(',', ' ')
+
+private fun currentDateLabel(): String {
+    val formatter = DateTimeFormatter.ofPattern("EEEE dd · MMMM", Locale.getDefault())
+    return Instant.ofEpochMilli(System.currentTimeMillis())
+        .atZone(ZoneId.systemDefault())
+        .format(formatter)
+        .uppercase(Locale.getDefault())
 }

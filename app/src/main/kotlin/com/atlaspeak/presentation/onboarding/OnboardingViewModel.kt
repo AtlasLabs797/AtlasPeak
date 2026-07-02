@@ -4,11 +4,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.atlaspeak.domain.model.onboarding.OnboardingStep
 import com.atlaspeak.domain.model.profile.UserProfile
+import com.atlaspeak.domain.model.profile.Gender
+import com.atlaspeak.domain.model.profile.Goal
 import com.atlaspeak.domain.repository.OnboardingRepository
 import com.atlaspeak.domain.repository.ProfileRepository
 import com.atlaspeak.domain.usecase.planning.NotificationSettingsUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -81,10 +84,22 @@ class OnboardingViewModel @Inject constructor(
     private fun finish(snapshot: OnboardingUiState) {
         viewModelScope.launch {
             mutableState.update { it.copy(isSubmitting = true, message = null) }
-            val profile = snapshot.toProfile()
-            if (profile != null) profileRepository.saveProfile(profile)
-            onboardingRepository.setOnboardingCompleted(true)
-            mutableState.update { it.copy(isSubmitting = false, completed = true) }
+            try {
+                val profile = snapshot.toProfile()
+                if (profile != null) profileRepository.saveProfile(profile)
+                onboardingRepository.setOnboardingCompleted(true)
+                mutableState.update { it.copy(isSubmitting = false, completed = true) }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                mutableState.update { it.copy(isSubmitting = false, message = OnboardingMessage.GenericError) }
+            }
+        }
+    }
+
+    fun previousStep() {
+        mutableState.update {
+            it.copy(currentStep = it.currentStep.previous(), message = null)
         }
     }
 
@@ -100,12 +115,18 @@ class OnboardingViewModel @Inject constructor(
         return steps[nextIndex]
     }
 
+    private fun OnboardingStep.previous(): OnboardingStep {
+        val steps = OnboardingStep.entries
+        val previousIndex = (ordinal - 1).coerceAtLeast(0)
+        return steps[previousIndex]
+    }
+
     private fun OnboardingUiState.toProfile(): UserProfile? {
         val name = displayName.trim().ifBlank { null }
         val parsedAge = age.toIntOrNull()
         val parsedHeight = heightCm.replace(',', '.').toDoubleOrNull()
-        val parsedGender = gender.trim().ifBlank { null }
-        val parsedGoal = goalType.trim().ifBlank { null }
+        val parsedGender = Gender.fromStorageValue(gender.trim().ifBlank { null })
+        val parsedGoal = Goal.fromStorageValue(goalType.trim().ifBlank { null })
         if (name == null && parsedAge == null && parsedHeight == null && parsedGender == null && parsedGoal == null) {
             return null
         }

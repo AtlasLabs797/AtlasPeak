@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsRun
 import androidx.compose.material.icons.filled.Flag
@@ -23,10 +22,13 @@ import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -39,10 +41,13 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.atlaspeak.R
 import com.atlaspeak.domain.model.cardio.CardioMode
+import com.atlaspeak.presentation.component.AtlasDialog
 import com.atlaspeak.presentation.component.AtlasPrimaryButton
 import com.atlaspeak.presentation.component.AtlasSecondaryButton
+import com.atlaspeak.presentation.component.AtlasTextField
 import com.atlaspeak.presentation.component.PremiumBackground
 import com.atlaspeak.presentation.component.PremiumCard
+import com.atlaspeak.presentation.theme.LocalAtlasColors
 import com.atlaspeak.presentation.theme.LocalSpacing
 
 @Composable
@@ -53,6 +58,7 @@ fun ActiveCardioRoute(
 ) {
     val state = viewModel.state.collectAsStateWithLifecycle().value
     val context = LocalContext.current
+    var showCancelDialog by rememberSaveable { mutableStateOf(false) }
     val locationLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
@@ -81,7 +87,30 @@ fun ActiveCardioRoute(
     }
 
     BackHandler(enabled = state.session != null && state.completedSessionId == null) {
-        viewModel.cancelCardio()
+        showCancelDialog = true
+    }
+
+    if (showCancelDialog) {
+        AtlasDialog(
+            onDismissRequest = { showCancelDialog = false },
+            title = stringResource(R.string.cardio_cancel_dialog_title),
+            message = stringResource(R.string.cardio_cancel_dialog_body),
+            confirmButton = {
+                AtlasPrimaryButton(
+                    onClick = {
+                        showCancelDialog = false
+                        viewModel.cancelCardio()
+                    },
+                    text = stringResource(R.string.cardio_cancel_dialog_discard),
+                )
+            },
+            dismissButton = {
+                AtlasSecondaryButton(
+                    onClick = { showCancelDialog = false },
+                    text = stringResource(R.string.cardio_cancel_dialog_keep),
+                )
+            },
+        )
     }
 
     ActiveCardioScreen(
@@ -89,7 +118,7 @@ fun ActiveCardioRoute(
         onManualDistanceChanged = viewModel::onManualDistanceChanged,
         onManualSpeedChanged = viewModel::onManualSpeedChanged,
         onCompleteCardio = viewModel::completeCardio,
-        onCancelCardio = viewModel::cancelCardio,
+        onCancelCardio = { showCancelDialog = true },
     )
 }
 
@@ -121,7 +150,7 @@ fun ActiveCardioScreen(
                 CardioHeaderCard(state)
                 ActiveCardioMessageText(state.message)
                 CardioMetricsGrid(state)
-                if (state.requiresManualMetrics) {
+                if (state.shouldShowManualMetrics) {
                     ManualDistanceCard(
                         distance = state.manualDistanceKm,
                         speed = state.manualAvgSpeedKmh,
@@ -150,6 +179,7 @@ fun ActiveCardioScreen(
 @Composable
 private fun CardioHeaderCard(state: ActiveCardioUiState) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     val session = state.session ?: return
     PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -163,30 +193,41 @@ private fun CardioHeaderCard(state: ActiveCardioUiState) {
                 horizontalArrangement = Arrangement.spacedBy(spacing.sm),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.AutoMirrored.Filled.DirectionsRun, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.DirectionsRun,
+                    contentDescription = null,
+                    tint = atlasColors.ink2,
+                )
                 Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.workout_live_overline).uppercase(),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = atlasColors.ink3,
+                    )
                     Text(
                         text = session.cardioTypeName,
                         style = MaterialTheme.typography.headlineSmall,
+                        color = atlasColors.ink,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
                         text = stringResource(if (state.mode is CardioMode.Countdown) R.string.cardio_active_mode_countdown else R.string.cardio_active_mode_timer),
                         style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = atlasColors.ink2,
                     )
                 }
             }
             Text(
-                text = stringResource(R.string.cardio_active_elapsed, formatElapsed(state.elapsedSeconds)),
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.primary,
+                text = formatElapsed(state.elapsedSeconds),
+                style = MaterialTheme.typography.displayMedium,
+                color = atlasColors.ink,
             )
             state.remainingSeconds?.let { remaining ->
                 Text(
                     text = stringResource(R.string.cardio_active_remaining, formatElapsed(remaining)),
                     style = MaterialTheme.typography.titleMedium,
+                    color = atlasColors.ink2,
                 )
             }
         }
@@ -196,17 +237,18 @@ private fun CardioHeaderCard(state: ActiveCardioUiState) {
 @Composable
 private fun CardioMetricsGrid(state: ActiveCardioUiState) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     Column(verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
         Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
             MetricCard(
                 modifier = Modifier.weight(1f),
-                icon = { Icon(Icons.Filled.Route, contentDescription = null) },
+                icon = { Icon(Icons.Filled.Route, contentDescription = null, tint = atlasColors.ink2) },
                 labelRes = R.string.cardio_metric_distance,
                 value = stringResource(R.string.cardio_metric_distance_value, state.distanceKm),
             )
             MetricCard(
                 modifier = Modifier.weight(1f),
-                icon = { Icon(Icons.Filled.Speed, contentDescription = null) },
+                icon = { Icon(Icons.Filled.Speed, contentDescription = null, tint = atlasColors.ink2) },
                 labelRes = R.string.cardio_metric_current_speed,
                 value = stringResource(R.string.cardio_metric_speed_value, state.currentSpeedKmh ?: 0.0),
             )
@@ -214,13 +256,13 @@ private fun CardioMetricsGrid(state: ActiveCardioUiState) {
         Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
             MetricCard(
                 modifier = Modifier.weight(1f),
-                icon = { Icon(Icons.Filled.Timer, contentDescription = null) },
+                icon = { Icon(Icons.Filled.Timer, contentDescription = null, tint = atlasColors.ink2) },
                 labelRes = R.string.cardio_metric_avg_speed,
                 value = stringResource(R.string.cardio_metric_speed_value, state.averageSpeedKmh ?: 0.0),
             )
             MetricCard(
                 modifier = Modifier.weight(1f),
-                icon = { Icon(Icons.Filled.Flag, contentDescription = null) },
+                icon = { Icon(Icons.Filled.Flag, contentDescription = null, tint = atlasColors.ink2) },
                 labelRes = R.string.cardio_metric_points,
                 value = state.route.size.toString(),
             )
@@ -236,6 +278,7 @@ private fun MetricCard(
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     PremiumCard(modifier = modifier.fillMaxWidth().heightIn(min = 104.dp)) {
         Column(
             modifier = Modifier.padding(spacing.card),
@@ -245,11 +288,12 @@ private fun MetricCard(
             Text(
                 text = stringResource(labelRes),
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = atlasColors.ink3,
             )
             Text(
                 text = value,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleLarge,
+                color = atlasColors.ink,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -265,6 +309,7 @@ private fun ManualDistanceCard(
     onSpeedChange: (String) -> Unit,
 ) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     PremiumCard(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier
@@ -275,27 +320,26 @@ private fun ManualDistanceCard(
             Text(
                 text = stringResource(R.string.cardio_manual_distance_title),
                 style = MaterialTheme.typography.titleMedium,
+                color = atlasColors.ink,
             )
             Text(
                 text = stringResource(R.string.cardio_manual_distance_body),
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = atlasColors.ink2,
             )
-            OutlinedTextField(
+            AtlasTextField(
                 modifier = Modifier.fillMaxWidth(),
                 value = distance,
                 onValueChange = onDistanceChange,
-                label = { Text(stringResource(R.string.cardio_manual_distance_label)) },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                singleLine = true,
+                label = stringResource(R.string.cardio_manual_distance_label),
+                keyboardType = KeyboardType.Decimal,
             )
-            OutlinedTextField(
+            AtlasTextField(
                 modifier = Modifier.fillMaxWidth(),
                 value = speed,
                 onValueChange = onSpeedChange,
-                label = { Text(stringResource(R.string.cardio_manual_speed_label)) },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                singleLine = true,
+                label = stringResource(R.string.cardio_manual_speed_label),
+                keyboardType = KeyboardType.Decimal,
             )
         }
     }
@@ -304,6 +348,7 @@ private fun ManualDistanceCard(
 @Composable
 private fun ActiveCardioMessageText(message: ActiveCardioMessage?) {
     if (message == null) return
+    val atlasColors = LocalAtlasColors.current
     val res = when (message) {
         ActiveCardioMessage.SessionMissing -> R.string.cardio_active_missing_session
         ActiveCardioMessage.LocationPermissionDenied -> R.string.cardio_location_permission_denied
@@ -313,7 +358,7 @@ private fun ActiveCardioMessageText(message: ActiveCardioMessage?) {
     Text(
         text = stringResource(res),
         style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.error,
+        color = atlasColors.risk,
     )
 }
 
