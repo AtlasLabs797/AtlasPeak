@@ -10,6 +10,22 @@
 
 ## [Unreleased]
 
+### 2026-07-02 - Rama puente para PR a main
+
+**Cambiado**
+- Creada rama puente `codex/v-01.07-main-bridge` desde `main` para poder abrir PR aunque
+  `codex/v-01.07-update` y `main` no comparten historia Git.
+- `gradlew` marcado como ejecutable (`100755`) para que GitHub Actions en Linux pueda ejecutar
+  `./gradlew`.
+- Añadido checksum SHA-256 de `aapt2-8.9.1-12782657-linux.jar` a
+  `gradle/verification-metadata.xml`; CI Linux descarga ese artifact aunque Windows use el
+  artifact `aapt2` de Windows.
+
+**Verificado**
+- El snapshot inicial de la rama puente tuvo el mismo tree hash que `origin/codex/v-01.07-update`
+  antes de los fixes CI-only.
+- `.\gradlew.bat --offline :app:testDebugUnitTest :app:jacocoDebugDomainDataCoverageVerification :app:assembleDebug :app:lintDebug :app:compileDebugAndroidTestKotlin :app:packageReleaseUpdate --no-daemon --no-configuration-cache --console=plain` pasa.
+
 ### 2026-07-02 - Revisión integral · Lote 1: correcciones UX (Alto/Medio)
 
 **Añadido**
