@@ -136,10 +136,3 @@ fun MonochromeBarChart(
         footer?.invoke(this)
     }
 }
-
-@Composable
-fun MiniChartHeight(content: @Composable () -> Unit) {
-    Box(modifier = Modifier.height(88.dp)) {
-        content()
-    }
-}

@@ -5,16 +5,10 @@
     <string name="app_name">Atlas Peak</string>
 
     <!-- Navegación -->
-    <string name="nav_home">Inicio</string>
-    <string name="nav_train">Entrenar</string>
-    <string name="nav_progress">Progreso</string>
-    <string name="nav_body">Cuerpo</string>
-    <string name="nav_profile">Perfil</string>
 
     <!-- Acciones comunes -->
     <string name="action_save">Guardar</string>
     <string name="action_cancel">Cancelar</string>
-    <string name="action_delete">Eliminar</string>
     <string name="action_close">Cerrar</string>
     <string name="action_edit">Editar</string>
     <string name="action_start">Iniciar</string>
@@ -23,7 +17,6 @@
     <string name="action_retry">Reintentar</string>
     <string name="action_back">Volver</string>
     <string name="action_undo">Deshacer</string>
-    <string name="action_confirm">Confirmar</string>
 
     <!-- Duraciones legibles -->
     <string name="duration_hours_minutes">%1$d h %2$d min</string>
@@ -36,10 +29,6 @@
     <string name="onboarding_welcome_body">Atlas Peak guarda tus entrenamientos en local, sin tracking y con backup cifrado opcional.</string>
     <string name="onboarding_hero_decoration_cd">Resumen visual de entrenamiento y progreso</string>
     <string name="onboarding_get_started">Empezar</string>
-    <string name="onboarding_google_optional">Conectar con Google (opcional)</string>
-    <string name="onboarding_google_title">Google es opcional</string>
-    <string name="onboarding_google_body">La conexión real se activará en Copias de seguridad. Ahora puedes seguir offline.</string>
-    <string name="onboarding_google_status">No desbloquea datos locales ni crea cuenta en Atlas Peak.</string>
     <string name="onboarding_profile_title">Perfil básico</string>
     <string name="onboarding_profile_body">Estos datos ayudan a estimar calorías. Puedes saltarlo.</string>
     <string name="onboarding_profile_name">Nombre</string>
@@ -95,7 +84,6 @@
     <string name="workout_no_routines">Crea tu primera rutina.</string>
     <string name="workout_routine_summary">%1$d ejercicios - %2$d min</string>
     <string name="workout_archive_routine_cd">Archivar rutina</string>
-    <string name="workout_routine_detail_title">Detalle</string>
     <string name="workout_routine_start_title">Listo para entrenar</string>
     <string name="workout_routine_exercise_line">%1$d. %2$s - %3$d x %4$d - %5$d s</string>
     <string name="workout_ordered_exercise">%1$d. %2$s</string>
@@ -122,7 +110,6 @@
     <string name="workout_exit_dialog_discard">Descartar entrenamiento</string>
     <string name="workout_exit_dialog_keep">Seguir entrenando</string>
     <string name="workout_live_overline">En curso</string>
-    <string name="workout_active_progress">%1$d / %2$d ejercicios</string>
     <string name="workout_active_exercise_progress">Ejercicio %1$d / %2$d</string>
     <string name="workout_active_volume_value">Vol · %1$.0f kg</string>
     <string name="workout_active_objective">Objetivo · %1$d x %2$d · descanso %3$d s</string>
@@ -135,7 +122,6 @@
     <string name="workout_add_exercise_dialog_title">Añadir ejercicio a la sesión</string>
     <string name="workout_add_exercise_empty">No hay ejercicios disponibles.</string>
     <string name="workout_add_exercise_already_added">Ya en sesión</string>
-    <string name="workout_set_number">Set %1$d</string>
     <string name="workout_table_set">Set</string>
     <string name="workout_table_kg">Kg</string>
     <string name="workout_table_reps">Reps</string>
@@ -150,7 +136,6 @@
     <string name="workout_delete_set_confirm">Eliminar set</string>
     <string name="workout_weight_series_cd">Peso serie %1$d</string>
     <string name="workout_reps_series_cd">Repeticiones serie %1$d</string>
-    <string name="workout_rest_title">Descanso</string>
     <string name="workout_rest_active">Descanso activo</string>
     <string name="workout_rest_next_set">Siguiente: Serie %1$d - %2$.0f kg</string>
     <string name="workout_rest_progress_cd">Descanso: %1$d segundos restantes.</string>
@@ -198,7 +183,6 @@
     <string name="cardio_cancel_dialog_keep">Seguir entrenando</string>
     <string name="cardio_active_mode_timer">Timer</string>
     <string name="cardio_active_mode_countdown">Countdown</string>
-    <string name="cardio_active_elapsed">Tiempo: %1$s</string>
     <string name="cardio_active_remaining">Restante: %1$s</string>
     <string name="cardio_metric_distance">Distancia</string>
     <string name="cardio_metric_current_speed">Velocidad actual</string>
@@ -266,7 +250,6 @@
     <string name="progress_group_summary">%1$d ejercicios - %2$.1f kg</string>
 
     <!-- Inicio / dashboard -->
-    <string name="home_greeting_overline">Hoy</string>
     <string name="home_greeting_title">Tu progreso</string>
     <string name="home_greeting_name">Hola, %1$s</string>
     <string name="home_hero_unit_min">min</string>
@@ -279,37 +262,22 @@
     <string name="dashboard_period_year">Año</string>
     <string name="dashboard_period_year_to_date">YTD</string>
     <string name="home_today_session_overline">Sesión de hoy</string>
-    <string name="home_today_workout_title">Entrenamiento de hoy</string>
     <string name="home_today_workout_body">%1$s planificado</string>
     <string name="home_today_workout_start">Iniciar entrenamiento</string>
     <string name="home_today_cardio_start">Iniciar cardio</string>
     <string name="home_today_workout_completed">Completado hoy</string>
     <string name="home_today_cardio_incomplete">Plan incompleto: falta duracion objetivo.</string>
-    <string name="home_weekly_minutes_title">Minutos de entrenamiento esta semana</string>
     <string name="home_widget_volume_title">Volumen total</string>
-    <string name="home_widget_volume_subtitle">Kg levantados en el periodo</string>
     <string name="home_widget_consistency_title">Consistencia</string>
-    <string name="home_widget_consistency_plan">Días activos vs plan semanal</string>
-    <string name="home_widget_consistency_period">Días activos vs periodo</string>
     <string name="home_widget_activity_title">Tiempo total de actividad</string>
-    <string name="home_widget_activity_subtitle">Fuerza y cardio completados</string>
-    <string name="home_widget_body_weight_title">Peso corporal</string>
     <string name="home_widget_steps_title">Pasos diarios</string>
     <string name="home_widget_heart_rate_title">Frecuencia cardíaca mínima diaria</string>
-    <string name="home_widget_sleep_title">Horas de sueño</string>
-    <string name="home_widget_sleep_subtitle">Promedio de sesiones importadas</string>
     <string name="home_value_minutes">%1$d min</string>
-    <string name="home_value_kg">%1$.1f kg</string>
-    <string name="home_value_steps">%1$d pasos</string>
-    <string name="home_value_bpm">%1$d bpm</string>
-    <string name="home_value_hours">%1$.1f h</string>
     <string name="home_value_consistency">%1$d / %2$d días</string>
     <string name="home_value_empty">--</string>
     <string name="unit_kg">kg</string>
     <string name="unit_steps">pasos</string>
     <string name="unit_bpm">bpm</string>
-    <string name="home_chart_empty">Sin datos en este periodo.</string>
-    <string name="home_chart_summary">Gráfico del dashboard con %1$d puntos, de %2$s a %3$s, último valor %4$.1f.</string>
 
     <!-- Perfil / plan semanal / notificaciones -->
     <string name="profile_subtitle">Planificación, permisos y copias de seguridad.</string>
@@ -337,13 +305,9 @@
     <string name="weekly_plan_type_label">Tipo de sesion</string>
     <string name="weekly_plan_select_routine">Seleccionar rutina</string>
     <string name="weekly_plan_select_cardio">Seleccionar cardio</string>
-    <string name="weekly_plan_no_routine">Sin rutina</string>
     <string name="weekly_plan_no_session">Sin sesión</string>
     <string name="weekly_plan_cardio_minutes">Minutos de cardio</string>
     <string name="weekly_plan_rest_day">Día de descanso</string>
-    <string name="weekly_plan_rest_day_confirm_title">¿Marcar como descanso?</string>
-    <string name="weekly_plan_rest_day_confirm_body">Esto eliminará las sesiones planificadas de este día.</string>
-    <string name="weekly_plan_rest_day_confirm_action">Marcar descanso</string>
     <string name="weekly_plan_rest_day_confirm_again">Ese día tiene sesiones. Vuelve a activar descanso para eliminarlas.</string>
     <string name="weekly_plan_reminder_enabled">Recordatorio</string>
     <string name="weekly_plan_reminder_time">Hora de recordatorio</string>
@@ -372,11 +336,6 @@
     <string name="notification_settings_daily_time">Hora del resumen diario</string>
     <string name="notification_settings_weekly_summary">Resumen semanal</string>
     <string name="notification_settings_weekly_summary_body">Lunes a las 08:30, sujeto a políticas de Android.</string>
-    <string name="rest_timer_settings_title">Temporizador de descanso</string>
-    <string name="rest_timer_settings_sound">Sonido al terminar</string>
-    <string name="rest_timer_settings_sound_body">Reproduce un aviso sonoro cuando acaba el descanso.</string>
-    <string name="rest_timer_settings_vibration">Vibración al terminar</string>
-    <string name="rest_timer_settings_vibration_body">Vibra cuando acaba el descanso.</string>
     <string name="notification_channel_training_reminders">Recordatorios de entrenamiento</string>
     <string name="notification_channel_training_reminders_desc">Avisos del plan semanal.</string>
     <string name="notification_channel_motivation">Mensajes motivacionales</string>
@@ -483,11 +442,8 @@
     <string name="health_rationale_body">Atlas Peak lee pasos, calorias activas, sueno, frecuencia cardiaca y composicion corporal para mostrar progreso y dashboard. Escribe entrenamientos completados y las metricas corporales que introduces manualmente. Los datos se guardan en este dispositivo, sin tracking ni backend propio, y puedes revocar el acceso desde Health Connect cuando quieras.</string>
 
     <string name="error_generic">Algo salió mal. Inténtalo de nuevo.</string>
-    <string name="error_no_connection">Sin conexión a internet.</string>
     <!-- Pantallas base -->
-    <string name="screen_home_title">Inicio</string>
     <string name="screen_train_title">Entrenar</string>
-    <string name="screen_progress_title">Progreso</string>
     <string name="screen_body_title">Cuerpo</string>
     <string name="screen_profile_title">Perfil</string>
     <string name="screen_backup_restore_title">Backup y restauración</string>

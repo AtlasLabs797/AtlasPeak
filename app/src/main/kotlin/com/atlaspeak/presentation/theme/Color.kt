@@ -9,8 +9,10 @@ val AtlasSurface2 = Color(0xFF131316)
 val AtlasSurface3 = Color(0xFF1A1A1F)
 val AtlasInk = Color(0xFFFAFAFA)
 val AtlasInk2 = Color(0xFF9D9DA6)
-val AtlasInk3 = Color(0xFF67676E)
-val AtlasInk4 = Color(0xFF5E5E66)
+// ink3/ink4 aclarados para cumplir contraste WCAG AA (≥4.5:1) sobre ground oscuro,
+// donde antes fallaban (3.53:1 / 3.08:1) usados como color de texto en labels/captions.
+val AtlasInk3 = Color(0xFF8A8A92)
+val AtlasInk4 = Color(0xFF7E7E86)
 val AtlasOnAccent = Color(0xFF0A0A0B)
 val AtlasRisk = Color(0xFFFF5A4D)
 val AtlasWarn = Color(0xFFE0B341)
@@ -69,7 +71,8 @@ val AtlasLightColors = AtlasColors(
     ink = AtlasOnAccent,
     ink2 = Color(0xFF5A5A60),
     ink3 = Color(0xFF6E6E76),
-    ink4 = Color(0xFFA8A8AE),
+    // ink4 oscurecido: #A8A8AE fallaba contraste AA (2.26:1) sobre ground claro.
+    ink4 = Color(0xFF71717A),
     onAccent = Color(0xFFFAFAFA),
     line1 = AtlasOnAccent.copy(alpha = 0.08f),
     line2 = AtlasOnAccent.copy(alpha = 0.12f),

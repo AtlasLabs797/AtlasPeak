@@ -2,6 +2,7 @@ package com.atlaspeak.presentation.onboarding
 
 import android.Manifest
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -121,6 +122,7 @@ fun OnboardingRoute(
             }
         },
         onSkip = viewModel::skipOptionalStep,
+        onBack = viewModel::previousStep,
         onDisplayNameChanged = viewModel::onDisplayNameChanged,
         onAgeChanged = viewModel::onAgeChanged,
         onHeightChanged = viewModel::onHeightChanged,
@@ -134,6 +136,7 @@ fun OnboardingScreen(
     state: OnboardingUiState,
     onPrimaryAction: () -> Unit,
     onSkip: () -> Unit,
+    onBack: () -> Unit,
     onDisplayNameChanged: (String) -> Unit,
     onAgeChanged: (String) -> Unit,
     onHeightChanged: (String) -> Unit,
@@ -144,6 +147,10 @@ fun OnboardingScreen(
     val spacing = LocalSpacing.current
     val atlasColors = LocalAtlasColors.current
     val totalSteps = OnboardingStep.entries.size
+    // Permite corregir pasos anteriores; en el primer paso deja salir de la app (sin interceptar).
+    BackHandler(enabled = state.currentStep != OnboardingStep.Welcome && !state.isSubmitting) {
+        onBack()
+    }
     PremiumBackground(modifier = modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -200,13 +207,27 @@ fun OnboardingScreen(
                 onClick = onPrimaryAction,
                 text = stringResource(primaryActionRes(state.currentStep)),
             )
-            if (state.currentStep != OnboardingStep.Done) {
-                AtlasGhostButton(
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !state.isSubmitting,
-                    onClick = onSkip,
-                    text = stringResource(R.string.action_skip),
-                )
+            val showBack = state.currentStep != OnboardingStep.Welcome
+            val showSkip = state.currentStep != OnboardingStep.Done
+            if (showBack || showSkip) {
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                    if (showBack) {
+                        AtlasGhostButton(
+                            modifier = Modifier.weight(1f),
+                            enabled = !state.isSubmitting,
+                            onClick = onBack,
+                            text = stringResource(R.string.action_back),
+                        )
+                    }
+                    if (showSkip) {
+                        AtlasGhostButton(
+                            modifier = Modifier.weight(1f),
+                            enabled = !state.isSubmitting,
+                            onClick = onSkip,
+                            text = stringResource(R.string.action_skip),
+                        )
+                    }
+                }
             }
         }
     }

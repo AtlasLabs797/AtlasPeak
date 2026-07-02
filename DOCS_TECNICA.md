@@ -65,7 +65,6 @@ presentation/
 service/         WorkoutForegroundService, CardioForegroundService
 worker/          BackupWorker, DailySummaryWorker, WeeklySummaryWorker, TrainingReminderWorker
 di/              módulos Hilt (Database, Network, Repository, Security…)
-feature/         FeatureFlags
 util/            extensiones, formatters, constantes
 MainActivity.kt
 ```
@@ -420,9 +419,9 @@ outliers.
 
 ## 13. Testing
 
-- **Unit (MockK):** UseCases, ViewModels, `EncryptionManager`, lógica de conflictos HC.
+- **Unit:** UseCases, ViewModels, `EncryptionManager`, lógica de conflictos HC con fakes manuales.
 - **Integración (Room in-memory):** DAOs, repos, migraciones.
-- **Flows (Turbine):** StateFlows de ViewModels, emisiones de `LocationTracker`.
+- **Flows/corrutinas:** StateFlows de ViewModels y emisiones de `LocationTracker` con `kotlinx-coroutines-test`.
 - **Compose UI:** pantallas críticas (ActiveWorkout, Onboarding, Backup).
 - **WorkManager:** workers con `work-testing`.
 - Objetivo: **≥70%** cobertura en `domain` y `data`.
@@ -456,11 +455,11 @@ outliers.
 
 ---
 
-## 14. Feature flags
+## 14. Features premium diferidas
 
-`feature/FeatureFlags.kt`. v1 todo gratuito. Las pantallas con features potencialmente
-premium consultan el flag antes de renderizar contenido restringido. Cambiar a premium en el
-futuro = cambiar la fuente de los flags, sin tocar UI.
+v1 no tiene billing, restricciones premium ni clase `feature/FeatureFlags.kt`. No se mantiene
+una capa de flags muerta: cuando exista una feature restringida real, se añadirá el mecanismo
+junto con su fuente de verdad y tests.
 
 ---
 

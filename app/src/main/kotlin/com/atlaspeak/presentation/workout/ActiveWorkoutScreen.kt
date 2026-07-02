@@ -221,6 +221,7 @@ ActiveWorkoutScreen(
         onAddExercise = viewModel::addExerciseDuringWorkout,
         onSkipRest = viewModel::skipRestTimer,
         onCompleteWorkout = viewModel::completeWorkout,
+        onCancelWorkout = { showExitDialog = true },
     )
 }
 
@@ -240,6 +241,7 @@ fun ActiveWorkoutScreen(
     onAddExercise: (String) -> Unit,
     onSkipRest: () -> Unit,
     onCompleteWorkout: () -> Unit,
+    onCancelWorkout: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
@@ -285,6 +287,18 @@ fun ActiveWorkoutScreen(
                             .padding(spacing.screen),
                         verticalArrangement = Arrangement.spacedBy(spacing.cardGap),
                     ) {
+                        // Salida visible de la sesión (además del gesto atrás): abre el diálogo de descarte.
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.End,
+                        ) {
+                            IconButton(onClick = onCancelWorkout) {
+                                Icon(
+                                    Icons.Filled.Close,
+                                    contentDescription = stringResource(R.string.action_cancel),
+                                )
+                            }
+                        }
                         ProgressCard(
                             routineName = session.routineName.orEmpty(),
                             completedExercises = state.completedExerciseCount,

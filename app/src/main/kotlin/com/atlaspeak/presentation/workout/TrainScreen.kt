@@ -41,6 +41,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -1442,7 +1443,10 @@ private fun MonochromeToggle(
     val atlasColors = LocalAtlasColors.current
     Surface(
         onClick = { onCheckedChange(!checked) },
-        modifier = Modifier.size(28.dp),
+        // Área táctil mínima de 48dp aunque el visual mida 28dp (accesibilidad).
+        modifier = Modifier
+            .minimumInteractiveComponentSize()
+            .size(28.dp),
         shape = RoundedCornerShape(6.dp),
         color = if (checked) atlasColors.ink else atlasColors.fillSoft,
         contentColor = if (checked) atlasColors.onAccent else atlasColors.ink3,

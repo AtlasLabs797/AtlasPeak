@@ -27,6 +27,9 @@ Nota: genero y objetivo se eligen con selectores, no escribiendo texto libre.
    cardio al aire libre). Puedes concederlos ahora o luego.
 5. **¡Listo!** Ya puedes entrenar. La app no pide contraseña para entrar.
 
+Puedes usar **"Volver"** (o el gesto atrás) para regresar a un paso anterior y corregir un dato
+antes de terminar.
+
 ---
 
 ## Las 5 pestañas
@@ -56,7 +59,9 @@ reordenar. La duración estimada se calcula sola.
 **Entrenar → elige una rutina → Iniciar.** Verás un ejercicio por pantalla (desliza para
 cambiar). Marca cada serie al completarla; aparece el **temporizador de descanso** con un
 anillo y un botón de "Saltar". Al terminar verás un resumen (volumen, duración, récords).
-El cronómetro sigue corriendo aunque salgas de la app (notificación persistente).
+El cronómetro sigue corriendo aunque salgas de la app (notificación persistente). Si quieres
+abandonar la sesión, pulsa la **✕** arriba a la derecha (o el gesto atrás): la app te pedirá
+confirmación antes de descartarla.
 
 ### Hacer cardio
 **Entrenar → Cardio → elige un tipo → Iniciar.** Dos modos: **cronómetro** (cuenta hacia

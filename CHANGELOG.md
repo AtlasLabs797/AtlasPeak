@@ -10,6 +10,52 @@
 
 ## [Unreleased]
 
+### 2026-07-02 - Revisión integral · Lote 1: correcciones UX (Alto/Medio)
+
+**Añadido**
+- Botón de salida visible (icono ✕) en la pantalla de entrenamiento de fuerza activo
+  (`ActiveWorkoutScreen`): antes solo se podía abandonar con el gesto atrás. Abre el mismo
+  diálogo de descarte ya existente (`workout_exit_dialog_*`). Reutiliza `action_cancel`.
+- Navegación hacia atrás en el onboarding (`OnboardingScreen`/`OnboardingViewModel.previousStep`):
+  botón "Volver" junto a "Saltar" y `BackHandler` que retrocede de paso en vez de salir de la app
+  (salvo en el primer paso). Reutiliza `action_back`.
+
+**Corregido**
+- Contraste WCAG AA: `ink3`/`ink4` fallaban como color de texto. `AtlasInk3` #67676E→#8A8A92 y
+  `AtlasInk4` #5E5E66→#7E7E86 (tema oscuro), e `ink4` claro #A8A8AE→#71717A. Solo se tocó `Color.kt`.
+- Accesibilidad: `MonochromeToggle` (toggle GPS del formulario de cardio) pasa de 28dp de área táctil
+  a 48dp mínimos vía `minimumInteractiveComponentSize()`, manteniendo el visual de 28dp.
+
+**Verificado**
+- `.\gradlew.bat --offline testDebugUnitTest assembleDebug assembleRelease` pasa.
+- `.\gradlew.bat lintDebug --no-configuration-cache` → `BUILD SUCCESSFUL` (0 warnings nuevos).
+
+### 2026-07-02 - Revisión integral · Lote 0: limpieza de código muerto
+
+**Eliminado**
+- Código muerto verificado sin referencias: `feature/FeatureFlags.kt` (flags premium inertes),
+  `domain/usecase/workout/RestTimerFeedbackUseCase.kt` (wrapper nunca cableado; el modelo
+  `RestTimerFeedbackSettings` y su repo se conservan porque sí se usan), `presentation/theme/Elevation.kt`
+  (`AtlasElevation`) y el composable `MiniChartHeight` de `MonochromeCharts.kt`.
+- 44 claves de string sin usar, en ambos locales (`values/` y `values-en/`), manteniendo paridad 427↔427.
+  Regeneradas por diff (claves declaradas vs `R.string`/`@string`), preservando `weekly_plan_rest_day_confirm_*`
+  cuyo sibling `_again` sí se usa.
+- Dependencias de test sin usar: `mockk`, `mockk-android` y `turbine` (0 imports; los tests usan fakes a
+  mano). Se conservan `compose-ui-test-junit4`/`ui-test-manifest`: aunque también están sin usar, quitarlas
+  altera el grafo transitivo de `androidTest` (resuelve `savedstate-android:1.3.1`) y rompe la verificación
+  de dependencias (`verification-metadata.xml` solo cubre 1.3.2). Se dejan hasta que haya tests instrumentados.
+
+**Cambiado**
+- `CLAUDE.md §2`, `SPEC.md` y `DOCS_TECNICA.md`: testing actualizado a la realidad (JUnit5 + fakes hechos
+  a mano + Room in-memory + kotlinx-coroutines-test) en lugar de "MockK + Turbine".
+- `SPEC.md` y `DOCS_TECNICA.md`: los flags premium quedan diferidos; se elimina la referencia normativa a
+  `feature/FeatureFlags.kt` tras borrar la clase muerta.
+
+**Verificado**
+- `.\gradlew.bat --offline testDebugUnitTest assembleDebug` pasa.
+- `.\gradlew.bat --offline assembleRelease` pasa.
+- `.\gradlew.bat lintDebug --no-configuration-cache` → `BUILD SUCCESSFUL` (0 warnings nuevos).
+
 ### 2026-07-01 - Fase G theme switching
 
 **Anadido**

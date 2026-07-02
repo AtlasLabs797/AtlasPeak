@@ -61,7 +61,7 @@ Este archivo (`CLAUDE.md`) define **cómo** se construye. `SPEC.md` define **qu�
 | Location | FusedLocationProvider |
 | Maps | Google Maps Compose |
 | Background | WorkManager + Foreground Services |
-| Testing | JUnit5 + MockK + Turbine + Room in-memory + Compose Testing |
+| Testing | JUnit5 + fakes hechos a mano (repos de prueba) + Room in-memory + kotlinx-coroutines-test |
 
 **Las versiones exactas viven SOLO en `gradle/libs.versions.toml`.** No pongas versiones
 hardcodeadas en `build.gradle.kts`. Si necesitas subir una versión, edita el catálogo

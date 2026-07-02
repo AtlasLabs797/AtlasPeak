@@ -97,6 +97,12 @@ class OnboardingViewModel @Inject constructor(
         }
     }
 
+    fun previousStep() {
+        mutableState.update {
+            it.copy(currentStep = it.currentStep.previous(), message = null)
+        }
+    }
+
     private fun nextStep() {
         mutableState.update {
             it.copy(currentStep = it.currentStep.next(), message = null)
@@ -107,6 +113,12 @@ class OnboardingViewModel @Inject constructor(
         val steps = OnboardingStep.entries
         val nextIndex = (ordinal + 1).coerceAtMost(steps.lastIndex)
         return steps[nextIndex]
+    }
+
+    private fun OnboardingStep.previous(): OnboardingStep {
+        val steps = OnboardingStep.entries
+        val previousIndex = (ordinal - 1).coerceAtLeast(0)
+        return steps[previousIndex]
     }
 
     private fun OnboardingUiState.toProfile(): UserProfile? {

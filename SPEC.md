@@ -38,7 +38,7 @@
 | 1 | `play-services-drive` deprecado desde 2019 | Reemplazado por Google Drive REST API v3 via Retrofit directo |
 | 2 | Google API Client library (pesada, conflictos OkHttp) | Eliminada — Drive se consume con Retrofit+OkHttp directamente |
 | 3 | Wear OS dependency incorrecta (`androidx.wear:wear`) | Diferida a v2; si se reactiva, usar `play-services-wearable` + `wear.compose` |
-| 4 | Mockito en proyecto 100% Kotlin | Reemplazado por MockK |
+| 4 | Mockito en proyecto 100% Kotlin | Descartado; los tests actuales usan fakes manuales y `kotlinx-coroutines-test` |
 | 5 | "E2E encryption con Keystore" en Health Connect | Corregido: Keystore es para almacenamiento local, no tránsito a HC |
 | 6 | Rate limiting aplicado a Google Sign-In | Obsoleto: no hay contraseña de entrada en v1 |
 | 7 | Health Connect full integration como feature premium | Eliminado de premium — es core gratuito |
@@ -51,7 +51,7 @@
 | 14 | Retrofit sin propósito claro | Aclarado: exclusivamente para Drive REST API v3 |
 | 15 | Timeline 30 meses injustificado | Recalculado: 36 semanas full-time (~9 meses) |
 | 16 | Sin política de conflictos de sync | Definida: dato más reciente tiene prioridad |
-| 17 | Sin modelo de feature flags | Añadida arquitectura de flags desde día 1 |
+| 17 | Sin modelo de feature flags | Flags premium diferidos hasta que haya billing o features restringidas reales |
 | 18 | "Analytics local" sin definición | Eliminado — zero tracking, sin sistema de analytics |
 | 19 | **PBKDF2 iterations insuficientes (100k)** | Actualizado a 200.000 iter. PBKDF2-HMAC-SHA256 |
 | 20 | **Sin Foreground Service para entrenamiento activo** | Añadido `WorkoutForegroundService` y `CardioForegroundService` |
@@ -76,7 +76,7 @@
 La app cubre el ciclo completo del entrenamiento: planificar rutinas, ejecutar sesiones de fuerza o cardio, monitorear composición corporal, visualizar progreso mediante gráficos y sincronizar con el ecosistema de salud del dispositivo (Health Connect en v1; Wear OS diferido a v2).
 
 **Distribución:** APK de desarrollo personal → publicación en Google Play Store cuando esté completa.  
-**Monetización:** v1 completamente gratuita. Arquitectura preparada para features premium en versiones futuras mediante feature flags, sin billing library todavía.  
+**Monetización:** v1 completamente gratuita. Las features premium quedan diferidas a versiones futuras; sin feature flags activos ni billing library todavía.
 **Idiomas:** Español e Inglés (internacionalización completa desde el día 1).  
 **Privacy-first:** zero tracking externo, sin Firebase, sin Crashlytics, sin ningún SDK de telemetría de terceros.
 
@@ -397,7 +397,7 @@ Wear OS comunicación:       Diferido a v2 (DataClient + MessageClient)
 Wear OS UI:                 Diferido a v2 (Wear Compose)
 Versioning:                 Git + GitHub
 CI/CD:                      GitHub Actions
-Testing:                    JUnit5 + MockK + Compose Testing + Room in-memory
+Testing:                    JUnit5 + fakes manuales + Room in-memory + kotlinx-coroutines-test
 Crash reporting:            Android Vitals (Google Play Console, sin SDK)
 ```
 
@@ -495,13 +495,10 @@ dependencies {
 
     // ── Testing ──────────────────────────────────────────────────────────────
     testImplementation(libs.junit.jupiter)
-    testImplementation(libs.mockk)
     testImplementation(libs.androidx.room.testing)
     testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(libs.turbine)  // testing de Flows
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-    androidTestImplementation(libs.mockk.android)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.work.testing)
 }
@@ -954,8 +951,6 @@ atlas-peak/
 │       │   └── WeeklySummaryWorker.kt
 │       │
 │       ├── di/                      ← Hilt modules (Database, Network, Repository...)
-│       ├── feature/
-│       │   └── FeatureFlags.kt      ← flags para futuro premium
 │       ├── util/                    ← extensiones, formatters, constantes
 │       └── MainActivity.kt
 │
@@ -1004,20 +999,11 @@ Presentation ←→ Domain ←→ Data
 - Expone `StateFlow<CardioSessionState>` (ubicaciones, distancia, velocidad, tiempo)
 - Requiere permisos `FOREGROUND_SERVICE_LOCATION` + `ACCESS_FINE_LOCATION`
 
-### 5.4 Feature Flags
+### 5.4 Features premium diferidas
 
-```kotlin
-// feature/FeatureFlags.kt
-object FeatureFlags {
-    // v1: todo gratuito. En el futuro, leer desde DataStore o servidor de flags.
-    val ADVANCED_ANALYTICS    get() = true
-    val AUTO_MONTHLY_EXPORT   get() = true
-    val UNLIMITED_ROUTINES    get() = true
-    val AI_COACHING           get() = false   // reservado, no implementado en v1
-}
-```
-
-Cada pantalla con feature potencialmente premium comprueba el flag antes de renderizar contenido restringido. Cambiar billing en el futuro = cambiar la fuente de los flags, sin tocar UI.
+v1 no tiene features premium, billing ni clase `FeatureFlags`. No mantener flags muertos "por si acaso":
+cuando exista una feature restringida real, se añadirá el mecanismo junto con su fuente de verdad
+(DataStore, billing o backend futuro) y sus tests.
 
 ---
 
@@ -1396,7 +1382,6 @@ jobs:
 - Implementar `AppDatabase.kt` con SQLCipher, todas las entidades y DAOs
 - Seed data: grupos musculares, ejercicios preset, tipos de cardio preset
 - `SplashScreen` con `core-splashscreen`
-- `FeatureFlags.kt`
 - Wear OS queda fuera de v1; se conserva solo el diseño en `SPEC.md §2.10`.
 
 **FASE 2 — Seguridad local y Google opcional (2 semanas)**
@@ -1504,9 +1489,9 @@ jobs:
 - Verificar que el keystore de release está correctamente configurado y NO en el repo
 
 **FASE 15 — Testing (3 semanas)**
-- **Unit tests (MockK):** todos los Use Cases, ViewModels, EncryptionManager, lógica de conflictos HC
+- **Unit tests:** todos los Use Cases, ViewModels, EncryptionManager, lógica de conflictos HC
 - **Integración (Room in-memory):** DAOs, repositorios, migraciones
-- **Flows (Turbine):** StateFlows de ViewModels, emissions de LocationTracker
+- **Flows/corrutinas:** StateFlows de ViewModels, emissions de LocationTracker con fakes manuales y `kotlinx-coroutines-test`
 - **Compose UI tests:** pantallas críticas (ActiveWorkout, Onboarding, Backup)
 - **WorkManager tests:** workers con `work-testing`
 - Target mínimo: **70% cobertura en capas domain y data**
@@ -1547,7 +1532,7 @@ jobs:
 |----------|------------------------|-------|
 | SQLCipher para cifrado DB | EncryptedRoom (androidx.security) | EncryptedRoom está deprecated desde 2023 |
 | Retrofit directo para Drive | Google API Client library | API Client trae deps conflictivas con OkHttp y pesa ~5MB extra |
-| MockK para testing | Mockito | Mockito es Java; MockK es Kotlin-native, mejor integración con coroutines |
+| Fakes manuales en tests actuales | MockK/Turbine sin uso | Mantiene el grafo de dependencias pequeño; reintroducir librerías solo cuando aporten valor real |
 | Clave backup derivada de passphrase | Clave ligada al Keystore del dispositivo | Permite restaurar en nuevo dispositivo si se recuerda la passphrase |
 | ForegroundService para workout timer | ViewModel con CountDownTimer | ViewModel se destruye cuando la app pasa a background |
 | i18n desde Fase 1 | Internacionalizar en Fase final | Añadirlo al final obliga a revisar las 27 pantallas una por una |

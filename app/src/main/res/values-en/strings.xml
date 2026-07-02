@@ -2,15 +2,9 @@
 <resources>
     <string name="app_name">Atlas Peak</string>
 
-    <string name="nav_home">Home</string>
-    <string name="nav_train">Train</string>
-    <string name="nav_progress">Progress</string>
-    <string name="nav_body">Body</string>
-    <string name="nav_profile">Profile</string>
 
     <string name="action_save">Save</string>
     <string name="action_cancel">Cancel</string>
-    <string name="action_delete">Delete</string>
     <string name="action_close">Close</string>
     <string name="action_edit">Edit</string>
     <string name="action_start">Start</string>
@@ -19,7 +13,6 @@
     <string name="action_retry">Retry</string>
     <string name="action_back">Back</string>
     <string name="action_undo">Undo</string>
-    <string name="action_confirm">Confirm</string>
 
     <string name="duration_hours_minutes">%1$d h %2$d min</string>
     <string name="duration_minutes">%1$d min</string>
@@ -30,10 +23,6 @@
     <string name="onboarding_welcome_body">Atlas Peak stores your training locally, with no tracking and optional encrypted backup.</string>
     <string name="onboarding_hero_decoration_cd">Visual summary of training and progress</string>
     <string name="onboarding_get_started">Get started</string>
-    <string name="onboarding_google_optional">Connect with Google (optional)</string>
-    <string name="onboarding_google_title">Google is optional</string>
-    <string name="onboarding_google_body">The real connection is enabled from Backups. You can continue offline now.</string>
-    <string name="onboarding_google_status">It does not unlock local data or create an Atlas Peak account.</string>
     <string name="onboarding_profile_title">Basic profile</string>
     <string name="onboarding_profile_body">These details help estimate calories. You can skip this.</string>
     <string name="onboarding_profile_name">Name</string>
@@ -88,7 +77,6 @@
     <string name="workout_no_routines">Create your first routine.</string>
     <string name="workout_routine_summary">%1$d exercises - %2$d min</string>
     <string name="workout_archive_routine_cd">Archive routine</string>
-    <string name="workout_routine_detail_title">Detail</string>
     <string name="workout_routine_start_title">Ready to train</string>
     <string name="workout_routine_exercise_line">%1$d. %2$s - %3$d x %4$d - %5$d s</string>
     <string name="workout_ordered_exercise">%1$d. %2$s</string>
@@ -115,7 +103,6 @@
     <string name="workout_exit_dialog_discard">Discard workout</string>
     <string name="workout_exit_dialog_keep">Keep training</string>
     <string name="workout_live_overline">In progress</string>
-    <string name="workout_active_progress">%1$d / %2$d exercises</string>
     <string name="workout_active_exercise_progress">Exercise %1$d / %2$d</string>
     <string name="workout_active_volume_value">Vol · %1$.0f kg</string>
     <string name="workout_active_objective">Goal · %1$d x %2$d · rest %3$d s</string>
@@ -128,7 +115,6 @@
     <string name="workout_add_exercise_dialog_title">Add exercise to session</string>
     <string name="workout_add_exercise_empty">No exercises available.</string>
     <string name="workout_add_exercise_already_added">Already in session</string>
-    <string name="workout_set_number">Set %1$d</string>
     <string name="workout_table_set">Set</string>
     <string name="workout_table_kg">Kg</string>
     <string name="workout_table_reps">Reps</string>
@@ -143,7 +129,6 @@
     <string name="workout_delete_set_confirm">Delete set</string>
     <string name="workout_weight_series_cd">Weight set %1$d</string>
     <string name="workout_reps_series_cd">Reps set %1$d</string>
-    <string name="workout_rest_title">Rest</string>
     <string name="workout_rest_active">Active rest</string>
     <string name="workout_rest_next_set">Next: Set %1$d - %2$.0f kg</string>
     <string name="workout_rest_progress_cd">Rest: %1$d seconds remaining.</string>
@@ -190,7 +175,6 @@
     <string name="cardio_cancel_dialog_keep">Keep training</string>
     <string name="cardio_active_mode_timer">Timer</string>
     <string name="cardio_active_mode_countdown">Countdown</string>
-    <string name="cardio_active_elapsed">Time: %1$s</string>
     <string name="cardio_active_remaining">Remaining: %1$s</string>
     <string name="cardio_metric_distance">Distance</string>
     <string name="cardio_metric_current_speed">Current speed</string>
@@ -255,7 +239,6 @@
     <string name="progress_chart_summary">Chart %1$s with %2$d points, from %3$s to %4$s, latest value %5$.1f.</string>
     <string name="progress_group_summary">%1$d exercises - %2$.1f kg</string>
 
-    <string name="home_greeting_overline">Today</string>
     <string name="home_greeting_title">Your progress</string>
     <string name="home_greeting_name">Hi, %1$s</string>
     <string name="home_hero_unit_min">min</string>
@@ -268,37 +251,22 @@
     <string name="dashboard_period_year">Year</string>
     <string name="dashboard_period_year_to_date">YTD</string>
     <string name="home_today_session_overline">Today session</string>
-    <string name="home_today_workout_title">Today workout</string>
     <string name="home_today_workout_body">%1$s planned</string>
     <string name="home_today_workout_start">Start workout</string>
     <string name="home_today_cardio_start">Start cardio</string>
     <string name="home_today_workout_completed">Completed today</string>
     <string name="home_today_cardio_incomplete">Incomplete plan: target duration is missing.</string>
-    <string name="home_weekly_minutes_title">Training minutes this week</string>
     <string name="home_widget_volume_title">Total volume</string>
-    <string name="home_widget_volume_subtitle">Kg lifted in the period</string>
     <string name="home_widget_consistency_title">Consistency</string>
-    <string name="home_widget_consistency_plan">Active days vs weekly plan</string>
-    <string name="home_widget_consistency_period">Active days vs period</string>
     <string name="home_widget_activity_title">Total activity time</string>
-    <string name="home_widget_activity_subtitle">Completed strength and cardio</string>
-    <string name="home_widget_body_weight_title">Body weight</string>
     <string name="home_widget_steps_title">Daily steps</string>
     <string name="home_widget_heart_rate_title">Daily minimum heart rate</string>
-    <string name="home_widget_sleep_title">Sleep hours</string>
-    <string name="home_widget_sleep_subtitle">Average imported sessions</string>
     <string name="home_value_minutes">%1$d min</string>
-    <string name="home_value_kg">%1$.1f kg</string>
-    <string name="home_value_steps">%1$d steps</string>
-    <string name="home_value_bpm">%1$d bpm</string>
-    <string name="home_value_hours">%1$.1f h</string>
     <string name="home_value_consistency">%1$d / %2$d days</string>
     <string name="home_value_empty">--</string>
     <string name="unit_kg">kg</string>
     <string name="unit_steps">steps</string>
     <string name="unit_bpm">bpm</string>
-    <string name="home_chart_empty">No data in this period.</string>
-    <string name="home_chart_summary">Dashboard chart with %1$d points, from %2$s to %3$s, latest value %4$.1f.</string>
 
     <!-- Profile / weekly plan / notifications -->
     <string name="profile_subtitle">Planning, permissions, and backups.</string>
@@ -326,13 +294,9 @@
     <string name="weekly_plan_type_label">Session type</string>
     <string name="weekly_plan_select_routine">Select routine</string>
     <string name="weekly_plan_select_cardio">Select cardio</string>
-    <string name="weekly_plan_no_routine">No routine</string>
     <string name="weekly_plan_no_session">No session</string>
     <string name="weekly_plan_cardio_minutes">Cardio minutes</string>
     <string name="weekly_plan_rest_day">Rest day</string>
-    <string name="weekly_plan_rest_day_confirm_title">Mark as rest day?</string>
-    <string name="weekly_plan_rest_day_confirm_body">This will remove the planned sessions for this day.</string>
-    <string name="weekly_plan_rest_day_confirm_action">Mark rest day</string>
     <string name="weekly_plan_rest_day_confirm_again">This day has sessions. Turn rest day on again to remove them.</string>
     <string name="weekly_plan_reminder_enabled">Reminder</string>
     <string name="weekly_plan_reminder_time">Reminder time</string>
@@ -361,11 +325,6 @@
     <string name="notification_settings_daily_time">Daily summary time</string>
     <string name="notification_settings_weekly_summary">Weekly summary</string>
     <string name="notification_settings_weekly_summary_body">Monday at 08:30, subject to Android policies.</string>
-    <string name="rest_timer_settings_title">Rest timer</string>
-    <string name="rest_timer_settings_sound">Sound when finished</string>
-    <string name="rest_timer_settings_sound_body">Plays an audio cue when the rest ends.</string>
-    <string name="rest_timer_settings_vibration">Vibrate when finished</string>
-    <string name="rest_timer_settings_vibration_body">Vibrates when the rest ends.</string>
     <string name="notification_channel_training_reminders">Training reminders</string>
     <string name="notification_channel_training_reminders_desc">Weekly plan alerts.</string>
     <string name="notification_channel_motivation">Motivational messages</string>
@@ -472,10 +431,7 @@
     <string name="health_rationale_body">Atlas Peak reads steps, active calories, sleep, heart rate, and body composition to show progress and dashboard data. It writes completed workouts and the body metrics you enter manually. Data stays on this device, with no tracking or owned backend, and you can revoke access from Health Connect at any time.</string>
 
     <string name="error_generic">Something went wrong. Please try again.</string>
-    <string name="error_no_connection">No internet connection.</string>
-    <string name="screen_home_title">Home</string>
     <string name="screen_train_title">Train</string>
-    <string name="screen_progress_title">Progress</string>
     <string name="screen_body_title">Body</string>
     <string name="screen_profile_title">Profile</string>
     <string name="screen_backup_restore_title">Backup and restore</string>
