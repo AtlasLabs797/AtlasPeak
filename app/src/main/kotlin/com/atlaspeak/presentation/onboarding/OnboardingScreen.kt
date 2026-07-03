@@ -2,6 +2,7 @@ package com.atlaspeak.presentation.onboarding
 
 import android.Manifest
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedContent
@@ -28,13 +29,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.RocketLaunch
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -67,6 +66,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.atlaspeak.R
 import com.atlaspeak.domain.model.onboarding.OnboardingStep
+import com.atlaspeak.presentation.component.AtlasChip
 import com.atlaspeak.presentation.component.AtlasGhostButton
 import com.atlaspeak.presentation.component.AtlasPrimaryButton
 import com.atlaspeak.presentation.component.AtlasTextField
@@ -75,6 +75,7 @@ import com.atlaspeak.presentation.component.PremiumCard
 import com.atlaspeak.presentation.component.StepDots
 import com.atlaspeak.presentation.theme.AtlasBrushes
 import com.atlaspeak.presentation.theme.AtlasMotion
+import com.atlaspeak.presentation.theme.LocalAtlasColors
 import com.atlaspeak.presentation.theme.LocalSpacing
 
 @Composable
@@ -121,6 +122,7 @@ fun OnboardingRoute(
             }
         },
         onSkip = viewModel::skipOptionalStep,
+        onBack = viewModel::previousStep,
         onDisplayNameChanged = viewModel::onDisplayNameChanged,
         onAgeChanged = viewModel::onAgeChanged,
         onHeightChanged = viewModel::onHeightChanged,
@@ -134,6 +136,7 @@ fun OnboardingScreen(
     state: OnboardingUiState,
     onPrimaryAction: () -> Unit,
     onSkip: () -> Unit,
+    onBack: () -> Unit,
     onDisplayNameChanged: (String) -> Unit,
     onAgeChanged: (String) -> Unit,
     onHeightChanged: (String) -> Unit,
@@ -142,7 +145,12 @@ fun OnboardingScreen(
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     val totalSteps = OnboardingStep.entries.size
+    // Permite corregir pasos anteriores; en el primer paso deja salir de la app (sin interceptar).
+    BackHandler(enabled = state.currentStep != OnboardingStep.Welcome && !state.isSubmitting) {
+        onBack()
+    }
     PremiumBackground(modifier = modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -159,7 +167,7 @@ fun OnboardingScreen(
                     totalSteps,
                 ),
                 style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = atlasColors.ink3,
             )
             OnboardingHero(step = state.currentStep)
             AnimatedContent(
@@ -174,12 +182,12 @@ fun OnboardingScreen(
                     Text(
                         text = stringResource(step.titleRes()),
                         style = MaterialTheme.typography.headlineMedium,
-                        color = MaterialTheme.colorScheme.onBackground,
+                        color = atlasColors.ink,
                     )
                     Text(
                         text = stringResource(step.bodyRes()),
                         style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = atlasColors.ink2,
                     )
                     StepBody(
                         state = state,
@@ -199,13 +207,27 @@ fun OnboardingScreen(
                 onClick = onPrimaryAction,
                 text = stringResource(primaryActionRes(state.currentStep)),
             )
-            if (state.currentStep != OnboardingStep.Done) {
-                AtlasGhostButton(
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !state.isSubmitting,
-                    onClick = onSkip,
-                    text = stringResource(R.string.action_skip),
-                )
+            val showBack = state.currentStep != OnboardingStep.Welcome
+            val showSkip = state.currentStep != OnboardingStep.Done
+            if (showBack || showSkip) {
+                Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
+                    if (showBack) {
+                        AtlasGhostButton(
+                            modifier = Modifier.weight(1f),
+                            enabled = !state.isSubmitting,
+                            onClick = onBack,
+                            text = stringResource(R.string.action_back),
+                        )
+                    }
+                    if (showSkip) {
+                        AtlasGhostButton(
+                            modifier = Modifier.weight(1f),
+                            enabled = !state.isSubmitting,
+                            onClick = onSkip,
+                            text = stringResource(R.string.action_skip),
+                        )
+                    }
+                }
             }
         }
     }
@@ -214,6 +236,7 @@ fun OnboardingScreen(
 @Composable
 private fun OnboardingHero(step: OnboardingStep) {
     val colors = MaterialTheme.colorScheme
+    val atlasColors = LocalAtlasColors.current
     val decorationCd = stringResource(R.string.onboarding_hero_decoration_cd)
     Box(
         modifier = Modifier
@@ -239,7 +262,7 @@ private fun OnboardingHero(step: OnboardingStep) {
             Icon(
                 imageVector = step.icon(),
                 contentDescription = null,
-                tint = colors.primary,
+                tint = atlasColors.ink,
                 modifier = Modifier.size(48.dp),
             )
         }
@@ -257,16 +280,6 @@ private fun StepBody(
 ) {
     val spacing = LocalSpacing.current
     when (state.currentStep) {
-        OnboardingStep.Google -> {
-            PremiumCard(modifier = Modifier.fillMaxWidth()) {
-                Text(
-                    modifier = Modifier.padding(spacing.card),
-                    text = stringResource(R.string.onboarding_google_status),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
         OnboardingStep.Profile -> {
             PremiumCard(modifier = Modifier.fillMaxWidth()) {
                 Column(
@@ -330,18 +343,19 @@ private fun ChoiceSelector(
     onSelected: (String) -> Unit,
 ) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     Column(verticalArrangement = Arrangement.spacedBy(spacing.xs)) {
         Text(
             text = label,
             style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = atlasColors.ink3,
         )
         LazyRow(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
             items(options, key = { it }) { option ->
-                FilterChip(
+                AtlasChip(
                     selected = selected == option,
                     onClick = { onSelected(option) },
-                    label = { Text(option) },
+                    text = option,
                 )
             }
         }
@@ -358,14 +372,13 @@ private fun OnboardingMessageText(message: OnboardingMessage?) {
     Text(
         text = stringResource(messageRes),
         style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.error,
+        color = LocalAtlasColors.current.risk,
         textAlign = TextAlign.Start,
     )
 }
 
 private fun OnboardingStep.icon(): ImageVector = when (this) {
     OnboardingStep.Welcome -> Icons.Filled.RocketLaunch
-    OnboardingStep.Google -> Icons.Filled.Cloud
     OnboardingStep.Profile -> Icons.Filled.Person
     OnboardingStep.Notifications -> Icons.Filled.Notifications
     OnboardingStep.HealthConnect -> Icons.Filled.Favorite
@@ -375,7 +388,6 @@ private fun OnboardingStep.icon(): ImageVector = when (this) {
 
 private fun OnboardingStep.titleRes(): Int = when (this) {
     OnboardingStep.Welcome -> R.string.onboarding_welcome_title
-    OnboardingStep.Google -> R.string.onboarding_google_title
     OnboardingStep.Profile -> R.string.onboarding_profile_title
     OnboardingStep.Notifications -> R.string.onboarding_notifications_title
     OnboardingStep.HealthConnect -> R.string.onboarding_health_title
@@ -385,7 +397,6 @@ private fun OnboardingStep.titleRes(): Int = when (this) {
 
 private fun OnboardingStep.bodyRes(): Int = when (this) {
     OnboardingStep.Welcome -> R.string.onboarding_welcome_body
-    OnboardingStep.Google -> R.string.onboarding_google_body
     OnboardingStep.Profile -> R.string.onboarding_profile_body
     OnboardingStep.Notifications -> R.string.onboarding_notifications_body
     OnboardingStep.HealthConnect -> R.string.onboarding_health_body
@@ -396,7 +407,6 @@ private fun OnboardingStep.bodyRes(): Int = when (this) {
 private fun primaryActionRes(step: OnboardingStep): Int = when (step) {
     OnboardingStep.Welcome -> R.string.onboarding_get_started
     OnboardingStep.Done -> R.string.action_start
-    OnboardingStep.Google -> R.string.action_continue
     OnboardingStep.Notifications,
     OnboardingStep.Location,
     OnboardingStep.HealthConnect,

@@ -90,11 +90,44 @@ class DashboardUseCase(
             ).averageHours(sleepWindow),
             totalActivitySeconds = strengthSessions.sumDurationsIn(activityWindow) +
                 cardioSessions.sumDurationsIn(activityWindow),
+            volumePoints = strengthSessions
+                .filter { it.isIn(volumeWindow) }
+                .sumVolumeByDay(volumeWindow),
+            weeklyMinutesPoints = (
+                strengthSessions.sumMinutesByDay(weeklyWindow) +
+                    cardioSessions.sumMinutesByDay(weeklyWindow)
+                ),
         )
     }
 
     private fun List<DashboardSessionSummary>.sumDurationsIn(window: PeriodWindow): Int {
         return filter { it.isIn(window) }.sumOf { it.durationSeconds }
+    }
+
+    private fun List<DashboardSessionSummary>.sumVolumeByDay(window: PeriodWindow): List<DashboardPoint> {
+        val zone = ZoneId.systemDefault()
+        return filter { it.isIn(window) }
+            .groupBy { Instant.ofEpochMilli(it.startTime).atZone(zone).toLocalDate() }
+            .toSortedMap()
+            .map { (date, sessions) ->
+                DashboardPoint(
+                    timestamp = date.atStartOfDay(zone).toInstant().toEpochMilli(),
+                    value = sessions.sumOf { it.totalVolumeKg ?: 0.0 },
+                )
+            }
+    }
+
+    private fun List<DashboardSessionSummary>.sumMinutesByDay(window: PeriodWindow): List<DashboardPoint> {
+        val zone = ZoneId.systemDefault()
+        return filter { it.isIn(window) }
+            .groupBy { Instant.ofEpochMilli(it.startTime).atZone(zone).toLocalDate() }
+            .toSortedMap()
+            .map { (date, sessions) ->
+                DashboardPoint(
+                    timestamp = date.atStartOfDay(zone).toInstant().toEpochMilli(),
+                    value = sessions.sumOf { it.durationSeconds }.toDouble() / SECONDS_PER_MINUTE.toDouble(),
+                )
+            }
     }
 
     private fun DashboardSessionSummary.isIn(window: PeriodWindow): Boolean {

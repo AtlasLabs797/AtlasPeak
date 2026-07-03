@@ -6,12 +6,15 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.atlaspeak.domain.model.workout.ActiveWorkoutExercise
+import com.atlaspeak.domain.model.workout.Exercise
 import com.atlaspeak.domain.model.workout.RestTimerFeedbackSettings
 import com.atlaspeak.domain.model.workout.WorkoutSession
 import com.atlaspeak.domain.model.workout.WorkoutSet
+import com.atlaspeak.domain.repository.ExerciseRepository
 import com.atlaspeak.domain.repository.WorkoutRepository
 import com.atlaspeak.domain.repository.WorkoutSettingsRepository
 import com.atlaspeak.domain.usecase.workout.CompleteWorkoutSessionUseCase
+import com.atlaspeak.domain.usecase.workout.DiscardWorkoutSessionUseCase
 import com.atlaspeak.domain.usecase.workout.StartWorkoutSessionUseCase
 import com.atlaspeak.presentation.navigation.AppRoute
 import com.atlaspeak.service.WorkoutForegroundService
@@ -33,8 +36,10 @@ class ActiveWorkoutViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val startWorkoutSessionUseCase: StartWorkoutSessionUseCase,
     private val completeWorkoutSessionUseCase: CompleteWorkoutSessionUseCase,
+    private val discardWorkoutSessionUseCase: DiscardWorkoutSessionUseCase,
     private val workoutRepository: WorkoutRepository,
     private val workoutSettingsRepository: WorkoutSettingsRepository,
+    private val exerciseRepository: ExerciseRepository,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
     private val routineId: String = requireNotNull(savedStateHandle[AppRoute.ActiveWorkout.ROUTINE_ID])
@@ -46,6 +51,7 @@ class ActiveWorkoutViewModel @Inject constructor(
     init {
         startWorkout()
         loadRestFeedbackSettings()
+        loadAvailableExercisesForQuickAdd()
         viewModelScope.launch {
             WorkoutTimerRegistry.state.collect { timer ->
                 mutableState.update { current ->
@@ -64,11 +70,21 @@ class ActiveWorkoutViewModel @Inject constructor(
 
     fun onSetCompleted(set: WorkoutSet, completed: Boolean, restSeconds: Int) {
         viewModelScope.launch {
+            val completedAt = if (completed) System.currentTimeMillis() else null
+            val previousMax = if (completed && set.weightKg != null && completedAt != null) {
+                workoutRepository.maxCompletedWeightBefore(set.exerciseId, completedAt)
+            } else {
+                null
+            }
             val updated = set.copy(
                 completed = completed,
                 actualReps = if (completed) set.actualReps ?: set.plannedReps else set.actualReps,
-                completedAt = if (completed) System.currentTimeMillis() else null,
-                isPersonalRecord = if (completed) set.isPersonalRecord else false,
+                completedAt = completedAt,
+                isPersonalRecord = if (completed) {
+                    set.isPersonalRecord || set.weightKg?.let { weight -> weight > (previousMax ?: 0.0) } == true
+                } else {
+                    false
+                },
             )
             workoutRepository.upsertSet(updated)
             reloadSession()
@@ -99,6 +115,42 @@ class ActiveWorkoutViewModel @Inject constructor(
         }
     }
 
+    fun onRepsTextChanged(set: WorkoutSet, value: String) {
+        val sanitized = value.filter { it.isDigit() }.take(3)
+        mutableState.update { state ->
+            state.copy(
+                inputDrafts = state.inputDrafts + (
+                    set.id to (state.inputDrafts[set.id] ?: set.toInputDraft()).copy(repsText = sanitized)
+                    ),
+            )
+        }
+    }
+
+    fun onWeightTextChanged(set: WorkoutSet, value: String) {
+        val sanitized = value.decimalInput()
+        mutableState.update { state ->
+            state.copy(
+                inputDrafts = state.inputDrafts + (
+                    set.id to (state.inputDrafts[set.id] ?: set.toInputDraft()).copy(weightText = sanitized)
+                    ),
+            )
+        }
+    }
+
+    fun onSetInputCommitted(set: WorkoutSet) {
+        val draft = mutableState.value.inputDrafts[set.id] ?: return
+        viewModelScope.launch {
+            workoutRepository.upsertSet(
+                set.copy(
+                    actualReps = draft.repsText.ifBlank { null }?.toIntOrNull(),
+                    weightKg = draft.weightText.ifBlank { null }?.toDoubleOrNull(),
+                ),
+            )
+            mutableState.update { it.copy(inputDrafts = it.inputDrafts - set.id) }
+            reloadSession()
+        }
+    }
+
     fun addSet(exercise: ActiveWorkoutExercise) {
         val sessionId = mutableState.value.session?.id ?: return
         val lastSet = exercise.sets.maxByOrNull { it.setNumber }
@@ -122,11 +174,76 @@ class ActiveWorkoutViewModel @Inject constructor(
         }
     }
 
-    fun removeSet(set: WorkoutSet) {
+    /**
+     * (#16 del informe) Añade un ejercicio extra durante una sesión activa. Crea 3
+     * sets vacíos planificados (10 reps) y lo inserta al final de la rutina. Se
+     * evita duplicar el mismo ejercicio si ya está en la sesión.
+     */
+    fun addExerciseDuringWorkout(exerciseId: String) {
+        val session = mutableState.value.session ?: return
+        if (session.exercises.any { it.exerciseId == exerciseId }) return
         viewModelScope.launch {
-            workoutRepository.deleteSet(set.id)
+            val exercise = exerciseRepository.exercises().firstOrNull { it.id == exerciseId } ?: return@launch
+            val newSets = (1..DEFAULT_NEW_EXERCISE_SETS).map { setNumber ->
+                WorkoutSet(
+                    id = UUID.randomUUID().toString(),
+                    sessionId = session.id,
+                    exerciseId = exercise.id,
+                    exerciseName = exercise.name,
+                    setNumber = setNumber,
+                    plannedReps = DEFAULT_NEW_EXERCISE_REPS,
+                    actualReps = null,
+                    weightKg = null,
+                    completed = false,
+                    completedAt = null,
+                    isPersonalRecord = false,
+                )
+            }
+            newSets.forEach { workoutRepository.upsertSet(it) }
             reloadSession()
         }
+    }
+
+    private fun loadAvailableExercisesForQuickAdd() {
+        viewModelScope.launch {
+            val exercises = runCatching { exerciseRepository.exercises() }.getOrDefault(emptyList())
+            mutableState.update { it.copy(availableExercises = exercises) }
+        }
+    }
+
+    fun requestRemoveSet(set: WorkoutSet) {
+        if (set.hasEnteredData()) {
+            mutableState.update { it.copy(pendingSetDeletion = set) }
+        } else {
+            deleteSetWithUndo(set)
+        }
+    }
+
+    fun cancelRemoveSet() {
+        mutableState.update { it.copy(pendingSetDeletion = null) }
+    }
+
+    fun confirmRemoveSet() {
+        val set = mutableState.value.pendingSetDeletion ?: return
+        deleteSetWithUndo(set)
+    }
+
+    fun undoRemoveSet() {
+        val set = mutableState.value.deletedSetForUndo ?: return
+        viewModelScope.launch {
+            workoutRepository.upsertSet(set)
+            mutableState.update {
+                it.copy(
+                    deletedSetForUndo = null,
+                    pendingSetDeletion = null,
+                )
+            }
+            reloadSession()
+        }
+    }
+
+    fun clearDeletedSetNotice() {
+        mutableState.update { it.copy(deletedSetForUndo = null) }
     }
 
     fun moveExercise(index: Int, offset: Int) {
@@ -158,6 +275,25 @@ class ActiveWorkoutViewModel @Inject constructor(
             val summary = completeWorkoutSessionUseCase(session.id) ?: return@launch
             ContextCompat.startForegroundService(context, WorkoutForegroundService.stopIntent(context))
             mutableState.update { it.copy(summary = summary, restTimer = null, completedSessionId = session.id) }
+        }
+    }
+
+    fun discardWorkout() {
+        val session = mutableState.value.session ?: return
+        viewModelScope.launch {
+            discardWorkoutSessionUseCase(session.id)
+            ContextCompat.startForegroundService(context, WorkoutForegroundService.stopIntent(context))
+            restJob?.cancel()
+            mutableState.update {
+                it.copy(
+                    session = null,
+                    restTimer = null,
+                    inputDrafts = emptyMap(),
+                    pendingSetDeletion = null,
+                    deletedSetForUndo = null,
+                    discarded = true,
+                )
+            }
         }
     }
 
@@ -217,6 +353,21 @@ class ActiveWorkoutViewModel @Inject constructor(
         mutableState.update { it.copy(session = workoutRepository.session(id)?.withCurrentExerciseOrder()) }
     }
 
+    private fun deleteSetWithUndo(set: WorkoutSet) {
+        viewModelScope.launch {
+            workoutRepository.deleteSet(set.id)
+            mutableState.update {
+                it.copy(
+                    inputDrafts = it.inputDrafts - set.id,
+                    pendingSetDeletion = null,
+                    deletedSetForUndo = set,
+                    deletedSetEventId = it.deletedSetEventId + 1,
+                )
+            }
+            reloadSession()
+        }
+    }
+
     private fun WorkoutSession.withCurrentExerciseOrder(): WorkoutSession {
         if (exerciseOrder.isEmpty()) return this
         val orderIndex = exerciseOrder.withIndex().associate { it.value to it.index }
@@ -232,15 +383,24 @@ class ActiveWorkoutViewModel @Inject constructor(
         if (totalSeconds <= 0) return
         restJob?.cancel()
         val timerId = UUID.randomUUID().toString()
+        val endsAt = System.currentTimeMillis() + totalSeconds * 1000L
         restJob = viewModelScope.launch {
-            for (remaining in totalSeconds downTo 0) {
+            while (true) {
+                val remaining = ((endsAt - System.currentTimeMillis()) / 1000L).toInt().coerceIn(0, totalSeconds)
                 mutableState.update {
                     it.copy(restTimer = RestTimerUiState(timerId, totalSeconds, remaining))
                 }
-                delay(if (remaining > 0) 1000 else 420)
+                if (remaining == 0) break
+                delay(250)
             }
+            delay(420)
             mutableState.update { it.copy(restTimer = null) }
         }
+    }
+
+    private companion object {
+        const val DEFAULT_NEW_EXERCISE_SETS = 3
+        const val DEFAULT_NEW_EXERCISE_REPS = 10
     }
 }
 
@@ -251,6 +411,12 @@ data class ActiveWorkoutUiState(
     val restTimer: RestTimerUiState? = null,
     val summary: com.atlaspeak.domain.model.workout.WorkoutSummary? = null,
     val completedSessionId: String? = null,
+    val discarded: Boolean = false,
+    val inputDrafts: Map<String, WorkoutSetInputDraft> = emptyMap(),
+    val pendingSetDeletion: WorkoutSet? = null,
+    val deletedSetForUndo: WorkoutSet? = null,
+    val deletedSetEventId: Long = 0L,
+    val availableExercises: List<Exercise> = emptyList(),
     val timerServiceStartHandled: Boolean = false,
     val restFeedbackSettings: RestTimerFeedbackSettings = RestTimerFeedbackSettings(
         soundEnabled = true,
@@ -273,6 +439,11 @@ data class RestTimerUiState(
     val progress: Float = if (totalSeconds <= 0) 0f else remainingSeconds / totalSeconds.toFloat()
 }
 
+data class WorkoutSetInputDraft(
+    val weightText: String,
+    val repsText: String,
+)
+
 enum class ActiveWorkoutMessage {
     RoutineMissing,
     TimerServiceUnavailable,
@@ -291,4 +462,15 @@ private fun String.decimalInput(): String {
         }
     }
     return builder.toString().take(6)
+}
+
+private fun WorkoutSet.toInputDraft(): WorkoutSetInputDraft {
+    return WorkoutSetInputDraft(
+        weightText = weightKg?.let { if (it % 1.0 == 0.0) it.toInt().toString() else it.toString() }.orEmpty(),
+        repsText = actualReps?.toString().orEmpty(),
+    )
+}
+
+private fun WorkoutSet.hasEnteredData(): Boolean {
+    return completed || actualReps != null || weightKg != null
 }

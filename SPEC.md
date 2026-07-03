@@ -38,7 +38,7 @@
 | 1 | `play-services-drive` deprecado desde 2019 | Reemplazado por Google Drive REST API v3 via Retrofit directo |
 | 2 | Google API Client library (pesada, conflictos OkHttp) | Eliminada — Drive se consume con Retrofit+OkHttp directamente |
 | 3 | Wear OS dependency incorrecta (`androidx.wear:wear`) | Diferida a v2; si se reactiva, usar `play-services-wearable` + `wear.compose` |
-| 4 | Mockito en proyecto 100% Kotlin | Reemplazado por MockK |
+| 4 | Mockito en proyecto 100% Kotlin | Descartado; los tests actuales usan fakes manuales y `kotlinx-coroutines-test` |
 | 5 | "E2E encryption con Keystore" en Health Connect | Corregido: Keystore es para almacenamiento local, no tránsito a HC |
 | 6 | Rate limiting aplicado a Google Sign-In | Obsoleto: no hay contraseña de entrada en v1 |
 | 7 | Health Connect full integration como feature premium | Eliminado de premium — es core gratuito |
@@ -51,7 +51,7 @@
 | 14 | Retrofit sin propósito claro | Aclarado: exclusivamente para Drive REST API v3 |
 | 15 | Timeline 30 meses injustificado | Recalculado: 36 semanas full-time (~9 meses) |
 | 16 | Sin política de conflictos de sync | Definida: dato más reciente tiene prioridad |
-| 17 | Sin modelo de feature flags | Añadida arquitectura de flags desde día 1 |
+| 17 | Sin modelo de feature flags | Flags premium diferidos hasta que haya billing o features restringidas reales |
 | 18 | "Analytics local" sin definición | Eliminado — zero tracking, sin sistema de analytics |
 | 19 | **PBKDF2 iterations insuficientes (100k)** | Actualizado a 200.000 iter. PBKDF2-HMAC-SHA256 |
 | 20 | **Sin Foreground Service para entrenamiento activo** | Añadido `WorkoutForegroundService` y `CardioForegroundService` |
@@ -76,7 +76,7 @@
 La app cubre el ciclo completo del entrenamiento: planificar rutinas, ejecutar sesiones de fuerza o cardio, monitorear composición corporal, visualizar progreso mediante gráficos y sincronizar con el ecosistema de salud del dispositivo (Health Connect en v1; Wear OS diferido a v2).
 
 **Distribución:** APK de desarrollo personal → publicación en Google Play Store cuando esté completa.  
-**Monetización:** v1 completamente gratuita. Arquitectura preparada para features premium en versiones futuras mediante feature flags, sin billing library todavía.  
+**Monetización:** v1 completamente gratuita. Las features premium quedan diferidas a versiones futuras; sin feature flags activos ni billing library todavía.
 **Idiomas:** Español e Inglés (internacionalización completa desde el día 1).  
 **Privacy-first:** zero tracking externo, sin Firebase, sin Crashlytics, sin ningún SDK de telemetría de terceros.
 
@@ -177,7 +177,7 @@ Panel con scroll vertical. Todos los widgets tienen selector de período individ
 | Masa ósea (kg) | ❌ | ✅ |
 | Edad corporal | ❌ | ✅ |
 
-> **Importante sobre báscula inteligente (Xiaomi / Renpho):** La integración es **indirecta**. La báscula sincroniza datos con su app propietaria (Zepp Life, Renpho App). En v1 Atlas Peak no pide permisos de lectura corporal de Health Connect: exporta a Health Connect las métricas corporales introducidas en Atlas Peak y puede leer pasos, calorías, sueño y frecuencia cardíaca. La lectura corporal desde básculas queda pendiente de una decisión explícita de producto/Play porque aumenta el alcance de permisos de salud.
+> **Importante sobre báscula inteligente (Xiaomi / Renpho):** La integración es **indirecta**. La báscula sincroniza datos con su app propietaria (Zepp Life, Renpho App) y esa app escribe en Health Connect. Atlas Peak puede leer peso, grasa corporal, masa magra y masa de agua corporal desde Health Connect si el usuario concede esos permisos. `% Agua corporal`, grasa visceral, proteína, masa ósea y edad corporal siguen siendo manuales.
 
 - Pantalla principal: tabla de valores actuales + gráficos de evolución por métrica (scroll vertical)
 - Entrada manual disponible para todos los campos en cualquier momento
@@ -188,12 +188,14 @@ Panel con scroll vertical. Todos los widgets tienen selector de período individ
 ### 2.7 PLANIFICACIÓN SEMANAL
 
 - Configurar días de entrenamiento de la semana (Lunes a Domingo)
-- Asignar una rutina específica a cada día de entrenamiento
-- Marcar días explícitamente como descanso
-- Cards visuales por día: nombre de rutina + checkbox de completado del día
-- La semana empieza en lunes
-- Configurar hora de notificación de recordatorio por día (independiente por día)
-- Si no hay plan configurado: el widget de consistencia en el dashboard muestra días activos vs total de días del período
+- Cada día puede tener cero, una o varias sesiones planificadas.
+- Una sesión puede ser fuerza (rutina) o cardio (tipo + duración objetivo).
+- Se permite fuerza + cardio el mismo día y doble sesión del mismo tipo.
+- Marcar días explícitamente como descanso eliminando sesiones del día.
+- Cards visuales por día: lista de sesiones + checkbox de completado por sesión.
+- La semana empieza en lunes.
+- Configurar hora de notificación de recordatorio por sesión.
+- Si no hay plan configurado: el widget de consistencia en el dashboard muestra días activos vs total de días del período.
 - **Ubicación en navegación:** Tab "Perfil" → sub-pantalla "Planificación"
 
 ### 2.8 NOTIFICACIONES
@@ -220,6 +222,10 @@ READ_STEPS
 READ_ACTIVE_CALORIES_BURNED
 READ_SLEEP
 READ_HEART_RATE
+READ_WEIGHT
+READ_BODY_FAT
+READ_LEAN_BODY_MASS
+READ_BODY_WATER_MASS
 ```
 
 **Permisos de ESCRITURA requeridos:**
@@ -231,9 +237,12 @@ WRITE_LEAN_BODY_MASS
 WRITE_BODY_WATER_MASS
 ```
 
-- **Import desde Health Connect:** pasos diarios, calorías activas, sueño, frecuencia cardíaca
+- **Import desde Health Connect:** pasos diarios, calorías activas, sueño, frecuencia cardíaca,
+  peso, grasa corporal, masa magra y masa de agua corporal.
 - **Export a Health Connect:** sesiones de entrenamiento completadas, peso, grasa, masa muscular,
   masa de agua corporal
+- La sincronización es parcial por capacidad: si falta un permiso de sueño, por ejemplo, no se
+  bloquea la importación de pasos ni la exportación de entrenamientos.
 - `HcSyncLog`: tabla que registra el último timestamp de lectura y escritura por tipo de dato
 - **Política de conflicto:** dato con timestamp más reciente gana — Atlas Peak no sobreescribe si el dato local es más reciente
 
@@ -323,11 +332,15 @@ Si el usuario olvida la passphrase usada para cifrar un backup, esa copia no se 
   1. Listar backups disponibles con fecha y tamaño
   2. Seleccionar backup
   3. Download + descifrar con passphrase de backup
-  4. Transacción Room completa: DROP + INSERT de todos los datos
+  4. Decodificar JSON y aplicar `BackupSnapshotUpgrader` al schema actual.
+  5. Transacción Room completa: DROP + INSERT de todos los datos
 - **Export manual:** JSON (estructura completa exportable) o CSV (un archivo por tipo: sesiones, sets, cardio, composición corporal)
 - Export guarda en almacenamiento privado de la app, luego comparte via Android `ShareSheet` — el usuario elige dónde enviarlo (Drive, email, etc.)
 - Export incluye: rutinas, ejercicios, sesiones, sets, cardio, composición corporal, plan semanal
-- Export JSON/CSV en claro no exige contraseña tras retirar el gate local; el usuario decide dónde compartirlo.
+- Export JSON/CSV en claro no exige contraseña tras retirar el gate local; la UI muestra una
+  confirmación explícita porque contiene datos deportivos/personales sensibles.
+- Export CSV neutraliza celdas textuales con prefijo de formula de hoja de calculo (`=`, `+`, `-`, `@`) anteponiendo apostrofe en la salida.
+- Los exports temporales se limpian automáticamente para reducir exposición residual.
 
 ### 2.14 ONBOARDING (PRIMER LANZAMIENTO)
 
@@ -384,7 +397,7 @@ Wear OS comunicación:       Diferido a v2 (DataClient + MessageClient)
 Wear OS UI:                 Diferido a v2 (Wear Compose)
 Versioning:                 Git + GitHub
 CI/CD:                      GitHub Actions
-Testing:                    JUnit5 + MockK + Compose Testing + Room in-memory
+Testing:                    JUnit5 + fakes manuales + Room in-memory + kotlinx-coroutines-test
 Crash reporting:            Android Vitals (Google Play Console, sin SDK)
 ```
 
@@ -482,13 +495,10 @@ dependencies {
 
     // ── Testing ──────────────────────────────────────────────────────────────
     testImplementation(libs.junit.jupiter)
-    testImplementation(libs.mockk)
     testImplementation(libs.androidx.room.testing)
     testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(libs.turbine)  // testing de Flows
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-    androidTestImplementation(libs.mockk.android)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.work.testing)
 }
@@ -731,10 +741,14 @@ PLANIFICACIÓN SEMANAL
 weekly_plan
   id                TEXT    PK
   day_of_week       INTEGER NOT NULL    -- 1=Lunes ... 7=Domingo
+  order_index       INTEGER NOT NULL    -- orden de sesión dentro del día
   routine_id        TEXT                FK → routines.id, nullable
   is_rest_day       INTEGER NOT NULL DEFAULT 0
   notification_enabled INTEGER NOT NULL DEFAULT 1
   notification_time TEXT                -- "HH:mm", nullable
+  type              TEXT    NOT NULL DEFAULT 'STRENGTH' -- STRENGTH / CARDIO
+  cardio_type_id    TEXT                FK → cardio_types.id, nullable
+  cardio_target_duration_sec INTEGER    nullable
 
 ────────────────────────────────────────────────────────────
 SINCRONIZACIÓN Y CONFIGURACIÓN
@@ -937,8 +951,6 @@ atlas-peak/
 │       │   └── WeeklySummaryWorker.kt
 │       │
 │       ├── di/                      ← Hilt modules (Database, Network, Repository...)
-│       ├── feature/
-│       │   └── FeatureFlags.kt      ← flags para futuro premium
 │       ├── util/                    ← extensiones, formatters, constantes
 │       └── MainActivity.kt
 │
@@ -987,20 +999,11 @@ Presentation ←→ Domain ←→ Data
 - Expone `StateFlow<CardioSessionState>` (ubicaciones, distancia, velocidad, tiempo)
 - Requiere permisos `FOREGROUND_SERVICE_LOCATION` + `ACCESS_FINE_LOCATION`
 
-### 5.4 Feature Flags
+### 5.4 Features premium diferidas
 
-```kotlin
-// feature/FeatureFlags.kt
-object FeatureFlags {
-    // v1: todo gratuito. En el futuro, leer desde DataStore o servidor de flags.
-    val ADVANCED_ANALYTICS    get() = true
-    val AUTO_MONTHLY_EXPORT   get() = true
-    val UNLIMITED_ROUTINES    get() = true
-    val AI_COACHING           get() = false   // reservado, no implementado en v1
-}
-```
-
-Cada pantalla con feature potencialmente premium comprueba el flag antes de renderizar contenido restringido. Cambiar billing en el futuro = cambiar la fuente de los flags, sin tocar UI.
+v1 no tiene features premium, billing ni clase `FeatureFlags`. No mantener flags muertos "por si acaso":
+cuando exista una feature restringida real, se añadirá el mecanismo junto con su fuente de verdad
+(DataStore, billing o backend futuro) y sus tests.
 
 ---
 
@@ -1154,6 +1157,8 @@ la propia marca de exito del backup anterior.
 - El backup cifrado contiene las tablas necesarias para restaurar (`users` incluido). El
   export manual JSON/CSV, al no estar cifrado, excluye `users` y `auth_security`.
 - El export manual en claro no exige reautenticacion local tras retirar el gate de entrada.
+- El export CSV neutraliza celdas textuales con prefijo de formula de hoja de calculo
+  (`=`, `+`, `-`, `@`) anteponiendo apostrofe en la salida.
 
 ### 7.6 Puntos Débiles Conocidos y Aceptados
 
@@ -1264,9 +1269,10 @@ echo "sdk.dir=/Users/TU_USUARIO/Library/Android/sdk" > local.properties
 ### 8.5 Firma del APK (signing)
 
 ```bash
-# Crear keystore (hacer UNA VEZ, guardar en lugar seguro)
+# Crear keystore (hacer UNA VEZ, guardar fuera del repo)
+mkdir -p "$HOME/.atlaspeak/release"
 keytool -genkey -v \
-  -keystore atlas-peak-release.jks \
+  -keystore "$HOME/.atlaspeak/release/atlas-peak-release.jks" \
   -keyalg RSA -keysize 2048 \
   -validity 10000 \
   -alias atlas-peak
@@ -1280,12 +1286,20 @@ echo "google-services.json" >> .gitignore
 echo "local.properties" >> .gitignore
 ```
 
-`keystore.properties` (local, no en repo):
+`keystore.properties` (local, no en repo; recomendado fuera del árbol del proyecto):
 ```properties
-storeFile=../atlas-peak-release.jks
+storeFile=atlas-peak-release.jks
 storePassword=TU_PASSWORD
 keyAlias=atlas-peak
 keyPassword=TU_PASSWORD
+```
+
+Gradle busca primero `ATLAS_PEAK_KEYSTORE_PROPERTIES` y, como compatibilidad local, después
+`keystore.properties` en la raíz. Para release:
+
+```bash
+export ATLAS_PEAK_KEYSTORE_PROPERTIES="$HOME/.atlaspeak/release/keystore.properties"
+./gradlew assembleRelease
 ```
 
 ### 8.6 CI/CD con GitHub Actions
@@ -1368,7 +1382,6 @@ jobs:
 - Implementar `AppDatabase.kt` con SQLCipher, todas las entidades y DAOs
 - Seed data: grupos musculares, ejercicios preset, tipos de cardio preset
 - `SplashScreen` con `core-splashscreen`
-- `FeatureFlags.kt`
 - Wear OS queda fuera de v1; se conserva solo el diseño en `SPEC.md §2.10`.
 
 **FASE 2 — Seguridad local y Google opcional (2 semanas)**
@@ -1433,7 +1446,9 @@ jobs:
 
 **FASE 10 — Health Connect (3 semanas)**
 - `HealthConnectManager.kt`: toda la lógica de permisos, lectura y escritura
-- Import: pasos, calorías, sueño, frecuencia cardíaca → Room
+- Import: pasos, calorías, sueño, frecuencia cardíaca, peso, grasa corporal, masa magra y
+  masa de agua corporal → Room
+- Sync parcial por capacidad: un permiso denegado no bloquea el resto.
 - Export: workout sessions → HC ExerciseSession records
 - Export: weight, body fat, lean body mass, water → HC records correspondientes
 - `HcSyncLog`: registro de timestamps de sync
@@ -1442,7 +1457,8 @@ jobs:
 - Integración con Dashboard (pasos, FC, sueño vienen de HC)
 
 **FASE 11 — Plan Semanal + Notificaciones (2 semanas)**
-- `WeeklyPlanScreen`: cards por día, asignación de rutinas, hora de notificación por día
+- `WeeklyPlanScreen`: cards por día, lista de sesiones fuerza/cardio, hora de notificación
+  por sesión
 - `DailySummaryWorker` + `WeeklySummaryWorker` + `TrainingReminderWorker`
 - Canales de notificación (3 canales separados)
 - `NotificationHelper` con templates de mensajes motivacionales
@@ -1454,7 +1470,8 @@ jobs:
 - `DriveBackupManager.kt`: serialize → encrypt (AES-256-GCM, clave derivada de passphrase) → upload
 - `BackupRestoreScreen`: listar backups, crear manual, restaurar
 - `BackupWorker`: backup automático diario si hay cambios
-- Export JSON completo sin auth secrets + CSV ZIP por tipo, sin step-up local
+- Export JSON completo sin auth secrets + CSV ZIP por tipo, sin step-up local, con aviso
+  explícito de datos en claro
 - `BackupRestoreScreen` incluye opciones de export y Share Sheet
 
 **FASE 13 — Wear OS diferido a v2**
@@ -1472,9 +1489,9 @@ jobs:
 - Verificar que el keystore de release está correctamente configurado y NO en el repo
 
 **FASE 15 — Testing (3 semanas)**
-- **Unit tests (MockK):** todos los Use Cases, ViewModels, EncryptionManager, lógica de conflictos HC
+- **Unit tests:** todos los Use Cases, ViewModels, EncryptionManager, lógica de conflictos HC
 - **Integración (Room in-memory):** DAOs, repositorios, migraciones
-- **Flows (Turbine):** StateFlows de ViewModels, emissions de LocationTracker
+- **Flows/corrutinas:** StateFlows de ViewModels, emissions de LocationTracker con fakes manuales y `kotlinx-coroutines-test`
 - **Compose UI tests:** pantallas críticas (ActiveWorkout, Onboarding, Backup)
 - **WorkManager tests:** workers con `work-testing`
 - Target mínimo: **70% cobertura en capas domain y data**
@@ -1515,7 +1532,7 @@ jobs:
 |----------|------------------------|-------|
 | SQLCipher para cifrado DB | EncryptedRoom (androidx.security) | EncryptedRoom está deprecated desde 2023 |
 | Retrofit directo para Drive | Google API Client library | API Client trae deps conflictivas con OkHttp y pesa ~5MB extra |
-| MockK para testing | Mockito | Mockito es Java; MockK es Kotlin-native, mejor integración con coroutines |
+| Fakes manuales en tests actuales | MockK/Turbine sin uso | Mantiene el grafo de dependencias pequeño; reintroducir librerías solo cuando aporten valor real |
 | Clave backup derivada de passphrase | Clave ligada al Keystore del dispositivo | Permite restaurar en nuevo dispositivo si se recuerda la passphrase |
 | ForegroundService para workout timer | ViewModel con CountDownTimer | ViewModel se destruye cuando la app pasa a background |
 | i18n desde Fase 1 | Internacionalizar en Fase final | Añadirlo al final obliga a revisar las 27 pantallas una por una |

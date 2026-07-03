@@ -27,6 +27,9 @@ Nota: genero y objetivo se eligen con selectores, no escribiendo texto libre.
    cardio al aire libre). Puedes concederlos ahora o luego.
 5. **¡Listo!** Ya puedes entrenar. La app no pide contraseña para entrar.
 
+Puedes usar **"Volver"** (o el gesto atrás) para regresar a un paso anterior y corregir un dato
+antes de terminar.
+
 ---
 
 ## Las 5 pestañas
@@ -43,6 +46,10 @@ Nota: genero y objetivo se eligen con selectores, no escribiendo texto libre.
 
 ## Cómo… (tareas frecuentes)
 
+### Editar tu perfil
+**Perfil → Editar perfil.** Cambia nombre, edad, altura, género y objetivo. Los cambios se
+guardan localmente en el dispositivo.
+
 ### Crear una rutina
 **Entrenar → Rutinas → +**. Ponle nombre y un color, añade ejercicios (de la biblioteca o
 crea los tuyos), define series, repeticiones, peso objetivo y descanso. Arrastra para
@@ -52,13 +59,15 @@ reordenar. La duración estimada se calcula sola.
 **Entrenar → elige una rutina → Iniciar.** Verás un ejercicio por pantalla (desliza para
 cambiar). Marca cada serie al completarla; aparece el **temporizador de descanso** con un
 anillo y un botón de "Saltar". Al terminar verás un resumen (volumen, duración, récords).
-El cronómetro sigue corriendo aunque salgas de la app (notificación persistente).
+El cronómetro sigue corriendo aunque salgas de la app (notificación persistente). Si quieres
+abandonar la sesión, pulsa la **✕** arriba a la derecha (o el gesto atrás): la app te pedirá
+confirmación antes de descartarla.
 
 ### Hacer cardio
 **Entrenar → Cardio → elige un tipo → Iniciar.** Dos modos: **cronómetro** (cuenta hacia
 arriba) o **cuenta atrás** (desde un objetivo). Con GPS verás distancia, velocidad y, al
-acabar, el mapa de tu ruta. Sin GPS (máquinas de gimnasio) introduces distancia y velocidad
-a mano.
+acabar, el mapa de tu ruta. Sin GPS (máquinas de gimnasio) puedes cerrar la sesión con el
+tiempo y añadir distancia; la velocidad se calcula si hay distancia y duración.
 
 ### Ver tu progreso
 **Progreso.** Tres vistas: historial completo, evolución por ejercicio (peso máximo y
@@ -70,8 +79,9 @@ inteligente** que escribe en Health Connect (Zepp Life, Renpho…), Atlas Peak p
 datos automáticamente. Algunos valores (grasa visceral, masa ósea…) son solo manuales.
 
 ### Planificar tu semana
-**Perfil → Planificación.** Asigna una rutina a cada día o márcalo como descanso. Configura
-la hora del recordatorio por día. La semana empieza en lunes.
+**Perfil → Planificación.** Cada día puede tener una o varias sesiones: fuerza, cardio o
+ambas. Configura la hora del recordatorio por sesión. Si un día no tiene sesiones, queda como
+descanso. La semana empieza en lunes.
 
 ### Copia de seguridad
 **Perfil → Copias de seguridad.** Si conectaste Google, la app guarda una copia **cifrada**
@@ -81,8 +91,9 @@ restaurar una. Se guardan las 5 más recientes.
 esa copia no se puede recuperar.
 
 ### Exportar tus datos
-**Perfil → Exportar.** Saca todo en **JSON** (completo) o **CSV** (por tipo) y compártelo a
-donde quieras. Tus datos son tuyos y portables.
+**Perfil → Copias de seguridad.** Saca todo en **JSON** (completo) o **CSV** (por tipo) y compártelo a
+donde quieras. Estos exports van en claro: antes de compartirlos, la app avisa porque pueden
+incluir entrenamientos, cardio, composición corporal, sueño, frecuencia cardíaca y rutas.
 
 ### Actualizar sin perder datos
 Instala el APK nuevo encima del anterior. No desinstales Atlas Peak antes de actualizar: en
@@ -104,8 +115,9 @@ Tres tipos, todos activables/desactivables en **Perfil → Ajustes**:
 
 ## Salud y privacidad
 
-- **Health Connect:** Atlas Peak **lee** pasos, calorías, sueño y frecuencia cardíaca, y
-  **escribe** tus entrenamientos, peso, grasa, masa muscular y agua. Tú controlas los
+- **Health Connect:** Atlas Peak **lee** pasos, calorías, sueño, frecuencia cardíaca, peso,
+  grasa corporal, masa magra y masa de agua corporal, y **escribe** tus entrenamientos, peso,
+  grasa, masa muscular y agua. Tú controlas los
   permisos y puedes revocarlos cuando quieras desde Health Connect.
 - **Privacidad:** sin publicidad, sin rastreadores, sin compartir datos con nadie. Todo
   vive en tu móvil; la copia de Drive está cifrada y solo tú la abres.
@@ -119,9 +131,10 @@ Tres tipos, todos activables/desactivables en **Perfil → Ajustes**:
 **¿Funciona sin internet?** Sí. Solo necesitas conexión para la copia de seguridad en Drive
 y para iniciar sesión con Google la primera vez (si decides usarla).
 
-**¿Puedo cambiar el idioma?** Sí, **Perfil → Ajustes → Idioma** (Sistema / Español / Inglés).
+**¿Puedo cambiar el idioma?** Ahora mismo no desde la UI; la app usa los idiomas incluidos y
+el idioma del sistema. Si alguien te prometió un selector aquí, era documentación vieja.
 
-**¿Y el modo oscuro?** **Perfil → Ajustes → Tema** (Sistema / Claro / Oscuro).
+**¿Y el modo oscuro?** Sigue el tema del sistema; no hay selector visible propio todavía.
 
 **¿La app pide contraseña para entrar?** No. Solo se pide una contraseña cuando quieres cifrar
 o restaurar una copia de seguridad.
@@ -132,3 +145,12 @@ solo guarde un archivo cifrado que nadie más puede leer.
 ---
 
 *Atlas Peak — Guía de usuario — se actualiza con cada cambio visible*
+
+---
+
+## Plan por defecto
+
+En una instalacion limpia, Atlas Peak trae un plan base de 5 dias: fuerza lunes, martes,
+jueves y viernes; cardio el miercoles; descanso sabado y domingo. En Perfil -> Planificacion
+puedes añadir varias sesiones por dia, combinar fuerza + cardio, elegir tipo de cardio y
+minutos objetivo.

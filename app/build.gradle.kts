@@ -1,3 +1,4 @@
+import java.io.File
 import java.util.Properties
 import java.security.MessageDigest
 import org.gradle.testing.jacoco.tasks.JacocoCoverageVerification
@@ -21,10 +22,10 @@ val secrets = Properties().apply {
 fun secret(key: String, default: String = "") = secrets.getProperty(key, default)
 
 val atlasApplicationId = "com.atlaspeak"
-val atlasVersionCode = 105
-val atlasVersionName = "V-01.05"
+val atlasVersionCode = 107
+val atlasVersionName = "V-01.07"
 
-fun sha256Hex(file: java.io.File): String {
+fun sha256Hex(file: File): String {
     val digest = MessageDigest.getInstance("SHA-256")
     file.inputStream().use { input ->
         val buffer = ByteArray(8192)
@@ -38,9 +39,17 @@ fun sha256Hex(file: java.io.File): String {
 }
 
 // ── Firma de release (LOCAL, gitignored). Ver SPEC.md §8.5 ──────────────────────────────────
-val keystoreFile = rootProject.file("keystore.properties")
+val keystoreFile = System.getenv("ATLAS_PEAK_KEYSTORE_PROPERTIES")
+    ?.takeIf { it.isNotBlank() }
+    ?.let { file(it) }
+    ?: rootProject.file("keystore.properties")
 val keystoreProps = Properties().apply {
     if (keystoreFile.exists()) keystoreFile.inputStream().use { load(it) }
+}
+fun keystoreStoreFile(): File {
+    val configured = keystoreProps.getProperty("storeFile").orEmpty()
+    val storeFile = File(configured)
+    return if (storeFile.isAbsolute) storeFile else keystoreFile.parentFile.resolve(configured)
 }
 
 android {
@@ -75,7 +84,7 @@ android {
     signingConfigs {
         if (keystoreFile.exists()) {
             create("release") {
-                storeFile = file(keystoreProps.getProperty("storeFile"))
+                storeFile = keystoreStoreFile()
                 storePassword = keystoreProps.getProperty("storePassword")
                 keyAlias = keystoreProps.getProperty("keyAlias")
                 keyPassword = keystoreProps.getProperty("keyPassword")
@@ -189,13 +198,10 @@ dependencies {
 
     // Testing
     testImplementation(libs.junit.jupiter)
-    testImplementation(libs.mockk)
     testImplementation(libs.androidx.room.testing)
     testImplementation(libs.kotlinx.coroutines.test)
-    testImplementation(libs.turbine)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
-    androidTestImplementation(libs.mockk.android)
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.core)
     androidTestImplementation(libs.androidx.test.runner)
@@ -275,7 +281,7 @@ tasks.register("packageReleaseUpdate") {
         }
         if (!keystoreFile.exists()) {
             throw org.gradle.api.GradleException(
-                "keystore.properties is required to generate an installable update. Unsigned releases cannot update the installed app.",
+                "Release signing is required. Set ATLAS_PEAK_KEYSTORE_PROPERTIES to an external keystore.properties file.",
             )
         }
 

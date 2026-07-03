@@ -22,7 +22,8 @@ Esto reduce privacidad frente a screenshots, screen recording y vista de recient
    mitigado con AES-256-GCM y clave derivada de contraseña (Google solo ve binario cifrado).
    **Aquí el atacante puede hacer fuerza bruta offline** → por eso PBKDF2 con 600k iter.
 4. **Secretos en el repositorio** (Maps key, OAuth id, keystore) → mitigado con
-   `.gitignore` + `secrets.properties`. Riesgo humano, vigilancia continua.
+   `.gitignore`, `secrets.properties` y keystore de release fuera del arbol del repo.
+   Riesgo humano, vigilancia continua.
 5. **Tráfico de red** (solo Drive) → solo HTTPS, sin cleartext, Bearer token.
 
 Fuera de alcance: no hay servidor que atacar, no hay multiusuario, no hay PII en tránsito
@@ -35,6 +36,105 @@ salvo lo que el propio Google maneja en su OAuth.
 Estos se detectaron al auditar el spec **antes** de escribir código. Los fixes están
 reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de versiones.
 
+### SEC-039 - Residuos de buffers cifrados en backup Drive
+- **Estado:** Resuelto / riesgo residual aceptado
+- **Fecha:** 2026-07-01
+- **Severidad:** Media
+- **Sintoma:** los bytes cifrados descargados/subidos quedaban en memoria hasta GC tras la operacion.
+- **Causa raiz:** se limpiaban payload/plaintext, pero no el buffer cifrado intermedio.
+- **Solucion:** `DriveBackupManager` limpia best-effort `encrypted` en create y restore.
+- **Riesgo residual:** el JSON se decodifica como `String` para kotlinx serialization y no puede
+  zerarse de forma fiable en JVM; se mantiene limitado al proceso local.
+- **Prevencion:** nuevos flujos de backup deben preferir buffers mutables y borrado best-effort.
+
+### SEC-038 - Origen de composicion corporal no debe degradar silenciosamente a Manual
+- **Estado:** Resuelto
+- **Fecha:** 2026-07-01
+- **Severidad:** Media
+- **Sintoma:** un source desconocido en datos corporales podia mostrarse como Manual, ocultando
+  integraciones futuras, datos corruptos o importaciones mal clasificadas.
+- **Causa raiz:** mapper defensivo en exceso con `else -> Manual`.
+- **Solucion:** mapeo exhaustivo y fallo explicito si aparece un source no soportado.
+- **Prevencion:** toda nueva fuente corporal requiere enum, mapper, strings/UI y migracion si aplica.
+
+### SEC-037 - Cambio de contrasena de backup automatico podia ser ambiguo
+- **Estado:** Resuelto
+- **Fecha:** 2026-07-01
+- **Severidad:** Media
+- **Sintoma:** la pantalla permitia escribir una contrasena nueva mientras el backup automatico
+  ya estaba activo, pero no habia accion explicita para actualizar la credencial guardada ni
+  recordatorio de que backups antiguos siguen ligados a la contrasena previa.
+- **Causa raiz:** el toggle de auto-backup mezclaba activacion y persistencia de contrasena;
+  una edicion posterior del campo podia interpretarse como cambio aplicado cuando no lo estaba.
+- **Solucion:** se anade accion "Actualizar contrasena guardada" y se muestra la advertencia
+  SEC-002 sobre backups previos antes de cambiar la credencial cifrada localmente.
+- **Prevencion:** cambios de passphrase deben ser accion explicita y advertir compatibilidad de
+  backups antiguos; no loguear ni persistir texto claro.
+
+### SEC-036 - Passphrase de auto-backup materializada como String inmutable
+- **Estado:** Resuelto
+- **Fecha:** 2026-07-01
+- **Severidad:** Media
+- **Sintoma:** `BackupCredentialStore.saveAutoBackupPassword()` convertia el `CharArray` de la
+  passphrase a `String` mediante `concatToString()`, dejando una copia inmutable en heap hasta GC.
+- **Causa raiz:** se buscaba convertir a UTF-8 para cifrar con Keystore, pero se uso la ruta
+  comoda `String -> ByteArray`.
+- **Solucion:** la conversion se realiza ahora mediante `CharsetEncoder`/`ByteBuffer` mutables;
+  el `CharArray` original y los buffers intermedios se limpian al terminar.
+- **Prevencion:** no volver a usar `String` para passphrases ni passwords en flujos de backup;
+  si se necesita texto, usar buffers mutables y borrado best-effort.
+
+### SEC-035 - Grant silencioso de Drive indistinguible de fallo transitorio
+- **Estado:** Resuelto
+- **Fecha:** 2026-07-01
+- **Severidad:** Alta
+- **Sintoma:** el auto-backup podia no subir nada si Drive requeria consentimiento o si el grant
+  silencioso fallaba, pero el worker lo trataba como exito sin diagnostico.
+- **Causa raiz:** `DriveAccessTokenProvider` devolvia `String?`, y `null` significaba tanto
+  "no autorizado" como "fallo transitorio". Ademas la solicitud no usaba el Web Client ID
+  configurado en `BuildConfig` para offline access.
+- **Solucion:** el provider devuelve `DriveAccessTokenResult` tipado, la solicitud usa
+  `requestOfflineAccess(BuildConfig.OAUTH_WEB_CLIENT_ID)` cuando esta configurado, y
+  `BackupWorkerRunner` reintenta solo fallos transitorios.
+- **Prevencion:** cualquier nuevo flujo OAuth debe exponer resultados tipados y no colapsar
+  errores en `null`; los tokens/access grants nunca se loguean.
+
+### SEC-033 - Keystore release dentro del proyecto
+- **Estado:** Resuelto
+- **Fecha:** 2026-06-28
+- **Severidad:** Alta
+- **Sintoma:** `keystore.properties` y `atlas-peak-release.jks` existian dentro del directorio del proyecto. No estaban trackeados por Git, pero seguian siendo material sensible local facil de copiar, sincronizar o subir por error.
+- **Causa raiz:** la configuracion de signing aceptaba el camino comodo de dejar la firma junto al repo.
+- **Solucion:** los archivos locales se movieron fuera del arbol del proyecto y Gradle soporta `ATLAS_PEAK_KEYSTORE_PROPERTIES`; en el repo queda solo `keystore.properties.template`.
+- **Prevencion:** la release debe usar keystore externo; si ese directorio ya se compartio, rotar la clave de firma antes de distribuir builds publicas.
+
+### SEC-032 - Exports JSON/CSV en claro sin confirmacion visible
+- **Estado:** Resuelto / riesgo residual aceptado
+- **Fecha:** 2026-06-28
+- **Severidad:** Media
+- **Sintoma:** el usuario podia exportar datos deportivos/personales en JSON/CSV claro sin un aviso inmediato en el flujo.
+- **Causa raiz:** se acepto el export portable tras retirar el gate local, pero la UI no separaba suficiente "backup cifrado" de "export en claro".
+- **Solucion:** `BackupRestoreScreen` exige confirmacion explicita antes de JSON/CSV, mantiene la exclusion de `users` y `auth_security`, y `LocalBackupExportManager` limpia exports temporales antiguos.
+- **Prevencion:** cualquier nuevo export en claro debe declarar datos incluidos y pasar por confirmacion visible; no venderlo como backup cifrado.
+
+### SEC-031 - Health Connect bloqueaba sync parcial por permisos mezclados
+- **Estado:** Resuelto
+- **Fecha:** 2026-06-28
+- **Severidad:** Media
+- **Sintoma:** un permiso denegado podia bloquear toda la sincronizacion Health Connect, mezclando lectura de salud y exportacion de entrenamientos.
+- **Causa raiz:** `HealthConnectManager` usaba una lista global de permisos obligatorios.
+- **Solucion:** sync parcial por capacidad y permisos separados; se añadieron permisos de lectura corporal para peso, grasa, masa magra y masa de agua corporal.
+- **Prevencion:** nuevos tipos Health Connect deben añadirse como capacidad independiente con minimo privilegio, UI/documentacion y test.
+
+### SEC-029 - Export CSV permitia formula injection en hojas de calculo
+- **Estado:** Resuelto
+- **Fecha:** 2026-06-08
+- **Severidad:** Media
+- **Sintoma:** el export manual CSV serializaba texto de tablas exportables, incluido texto importado desde Health Connect como titulo/notas de sueno, sin neutralizar valores que empiezan por `=`, `+`, `-` o `@`. Al abrir el CSV en una hoja de calculo, esas celdas podian evaluarse como formulas.
+- **Causa raiz:** `BackupExportFormatter.escapeCsv()` solo escapaba sintaxis CSV (comillas, coma y saltos de linea), pero confundia CSV valido con CSV seguro para hojas de calculo.
+- **Solucion:** `BackupExportFormatter` antepone apostrofe a celdas textuales cuyo primer caracter significativo sea prefijo de formula. Los primitivos JSON numericos se mantienen como numeros para no romper exportaciones legitimas.
+- **Prevencion:** `BackupExportFormatterTest.csv export neutralizes spreadsheet formulas in text cells` cubre `=`, `+`, `-` y `@` sobre `hc_sleep_sessions`, y comprueba que un numero negativo JSON real no se neutraliza.
+
 ### SEC-028 - Hardening de supply chain en CI y Gradle
 - **Estado:** Resuelto
 - **Fecha:** 2026-05-30
@@ -43,6 +143,25 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
 - **Causa raiz:** se confiaba en defaults de GitHub/Gradle y en HTTPS, que no fijan integridad de artefactos ni reducen permisos por si solos.
 - **Solucion:** `.github/workflows/ci.yml` declara `permissions: contents: read` y pinnea `actions/checkout`, `actions/setup-java` y `gradle/actions/setup-gradle` a commit SHA. `gradle-wrapper.properties` fija `distributionSha256Sum` para Gradle 8.11.1 y se versiona `gradle/verification-metadata.xml` con SHA-256 de artefactos resueltos.
 - **Prevencion:** cualquier cambio de Action, Gradle o dependencia debe actualizar el SHA/checksum/verification metadata junto al cambio.
+- **2026-06-23:** agregados checksums SHA-256 faltantes de `compose-bom`, `junit-bom`,
+  `kotlinx-coroutines-bom` y `guava-parent` para mantener `dependencyVerification` activo
+  en unit tests, lint y compilacion androidTest.
+
+### SEC-030 - Compatibilidad de backups con plan semanal
+- **Estado:** Resuelto
+- **Fecha:** 2026-06-23
+- **Severidad:** Media
+- **Sintoma:** las migraciones de `weekly_plan` agregan columnas para cardio y multiples
+  sesiones por dia. Sin upgrade del snapshot, un backup antiguo descifrado correctamente
+  seria rechazado por columnas faltantes antes del restore.
+- **Causa raiz:** el restore valida columnas exactas contra el schema vivo; eso es correcto,
+  pero exige que cada migracion de columnas tenga un paso equivalente en `BackupSnapshotUpgrader`
+  y que el decode lo aplique antes de restaurar.
+- **Solucion:** `BackupJsonCodec.decode()` aplica `BackupSnapshotUpgrader`; el schema de backup
+  sube a 5, v2->v3 rellena columnas de cardio, v3->v4 anade `weekly_plan.order_index` y
+  v4->v5 reindexa por dia para evitar colisiones del indice unico.
+- **Prevencion:** tests cubren snapshots antiguos con columnas de planificacion cardio y
+  `order_index` antes de restaurar.
 
 ### SEC-027 - Restore de backup validaba columnas, pero no forma/tipo de valores
 - **Estado:** Resuelto
@@ -124,6 +243,9 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
 - **Causa raiz:** el permiso de ubicacion es runtime y el FGS de tipo `location` no puede asumirse concedido.
 - **Solucion:** `ActiveCardio` solicita `ACCESS_FINE_LOCATION` solo para tipos con GPS. Si se deniega o el tipo es manual, la sesion usa cronometro local y exige distancia/velocidad manuales antes de guardarse. `ACCESS_BACKGROUND_LOCATION` sigue ausente.
 - **Prevencion:** Fase 13 debe validar el flujo en Android 14/15 real: GPS concedido, GPS denegado y cardio manual.
+- **Actualizacion 2026-07-01:** cardio sin GPS o con permiso de ubicacion denegado arranca
+  `CardioForegroundService` con tipo `health` para mantener cronometro/notificacion sin pedir
+  ubicacion. El tipo `location` se usa solo cuando hay tracking GPS real.
 
 ### SEC-015 - Composicion corporal muestra datos de salud sensibles
 - **Estado:** Aceptado por SEC-026
@@ -194,8 +316,8 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
 - **Severidad:** Media
 - **Sintoma:** una sesion ya abierta podia exportar datos de salud/entrenamiento en claro por ShareSheet sin volver a pedir contrasena.
 - **Causa raiz:** el flujo de export manual excluia hashes y lockout, pero no distinguia entre sesion autenticada y accion sensible de exfiltracion.
-- **Solucion:** al retirar la contraseña de entrada, el step-up local deja de existir. `BackupRestoreViewModel.exportJson()` y `exportCsv()` escriben exports manuales sin contraseña; la UI avisa que son cleartext. Los backups cifrados siguen usando passphrase.
-- **Prevencion:** mantener los exports manuales excluyendo `users` y `auth_security`; no confundirlos con backup cifrado.
+- **Solucion:** al retirar la contraseña de entrada, el step-up local deja de existir. Los exports manuales siguen sin contraseña, pero ahora requieren confirmacion explicita de datos en claro. Los backups cifrados siguen usando passphrase.
+- **Prevencion:** mantener los exports manuales excluyendo `users` y `auth_security`; no confundirlos con backup cifrado ni quitar el aviso visible.
 
 ### SEC-023 - Restore de backup aceptaba columnas desconocidas hasta SQLite
 - **Estado:** Resuelto

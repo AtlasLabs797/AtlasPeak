@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import com.atlaspeak.presentation.theme.AtlasMotion
+import com.atlaspeak.presentation.theme.LocalAtlasColors
 import com.atlaspeak.presentation.theme.LocalSpacing
 
 @Composable
@@ -28,6 +29,7 @@ fun StepDots(
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(spacing.xs),
@@ -46,9 +48,9 @@ fun StepDots(
             )
             val color by animateColorAsState(
                 targetValue = when {
-                    isCurrent -> MaterialTheme.colorScheme.primary
-                    isPast -> MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
-                    else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.55f)
+                    isCurrent -> atlasColors.ink
+                    isPast -> atlasColors.spark
+                    else -> atlasColors.lineStrong
                 },
                 animationSpec = tween(AtlasMotion.DurationMedium, easing = AtlasMotion.EmphasizedEasing),
                 label = "",

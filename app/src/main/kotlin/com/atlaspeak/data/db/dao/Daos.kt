@@ -24,6 +24,7 @@ import com.atlaspeak.data.db.entity.UserProfileEntity
 import com.atlaspeak.data.db.entity.WeeklyPlanEntity
 import com.atlaspeak.data.db.entity.WorkoutSessionEntity
 import com.atlaspeak.data.db.entity.WorkoutSetEntity
+import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface UserDao {
@@ -81,6 +82,12 @@ interface ExerciseDao {
 
 @Dao
 interface RoutineDao {
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertRoutines(routines: List<RoutineEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertRoutineExercises(exercises: List<RoutineExerciseEntity>)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertRoutine(routine: RoutineEntity)
 
@@ -92,6 +99,9 @@ interface RoutineDao {
 
     @Query("SELECT * FROM routines WHERE (:includeArchived = 1 OR is_archived = 0)")
     suspend fun getRoutines(includeArchived: Boolean = false): List<RoutineEntity>
+
+    @Query("SELECT COUNT(*) FROM routines WHERE id LIKE 'default_5day_%'")
+    suspend fun countDefaultRoutines(): Int
 
     @Query("SELECT * FROM routines WHERE id = :id")
     suspend fun getRoutine(id: String): RoutineEntity?
@@ -214,6 +224,12 @@ interface SettingsDao {
     @Query("SELECT * FROM app_settings WHERE id = 1")
     suspend fun getSettings(): AppSettingsEntity?
 
+    @Query("SELECT * FROM app_settings WHERE id = 1")
+    fun observeSettings(): Flow<AppSettingsEntity?>
+
+    @Query("UPDATE app_settings SET theme = :theme WHERE id = 1")
+    suspend fun updateTheme(theme: String)
+
     @Query("UPDATE app_settings SET biometrics_enabled = :enabled WHERE id = 1")
     suspend fun updateBiometricsEnabled(enabled: Boolean)
 
@@ -241,13 +257,28 @@ interface SettingsDao {
         dailySummaryTime: String,
         weeklySummaryEnabled: Boolean,
     )
+
+    @Query(
+        """
+        UPDATE app_settings
+        SET rest_sound_enabled = :soundEnabled,
+            rest_vibration_enabled = :vibrationEnabled
+        WHERE id = 1
+        """,
+    )
+    suspend fun updateRestTimerFeedbackSettings(soundEnabled: Boolean, vibrationEnabled: Boolean)
 }
 
 data class WeeklyPlanRow(
     val id: String,
     val dayOfWeek: Int,
+    val orderIndex: Int,
+    val type: String,
     val routineId: String?,
     val routineName: String?,
+    val cardioTypeId: String?,
+    val cardioTypeName: String?,
+    val cardioTargetDurationSec: Int?,
     val isRestDay: Boolean,
     val notificationEnabled: Boolean,
     val notificationTime: String?,
@@ -255,22 +286,37 @@ data class WeeklyPlanRow(
 
 @Dao
 interface WeeklyPlanDao {
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertDefaultDays(days: List<WeeklyPlanEntity>)
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(day: WeeklyPlanEntity)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(days: List<WeeklyPlanEntity>)
+
+    @Query("DELETE FROM weekly_plan WHERE day_of_week = :dayOfWeek")
+    suspend fun deleteDay(dayOfWeek: Int)
 
     @Query(
         """
         SELECT
             weekly_plan.id AS id,
             weekly_plan.day_of_week AS dayOfWeek,
+            weekly_plan.order_index AS orderIndex,
+            weekly_plan.type AS type,
             weekly_plan.routine_id AS routineId,
             routines.name AS routineName,
+            weekly_plan.cardio_type_id AS cardioTypeId,
+            cardio_types.name_es AS cardioTypeName,
+            weekly_plan.cardio_target_duration_sec AS cardioTargetDurationSec,
             weekly_plan.is_rest_day AS isRestDay,
             weekly_plan.notification_enabled AS notificationEnabled,
             weekly_plan.notification_time AS notificationTime
         FROM weekly_plan
         LEFT JOIN routines ON routines.id = weekly_plan.routine_id
-        ORDER BY weekly_plan.day_of_week
+        LEFT JOIN cardio_types ON cardio_types.id = weekly_plan.cardio_type_id
+        ORDER BY weekly_plan.day_of_week, weekly_plan.order_index
         """,
     )
     suspend fun getPlan(): List<WeeklyPlanRow>
@@ -280,18 +326,24 @@ interface WeeklyPlanDao {
         SELECT
             weekly_plan.id AS id,
             weekly_plan.day_of_week AS dayOfWeek,
+            weekly_plan.order_index AS orderIndex,
+            weekly_plan.type AS type,
             weekly_plan.routine_id AS routineId,
             routines.name AS routineName,
+            weekly_plan.cardio_type_id AS cardioTypeId,
+            cardio_types.name_es AS cardioTypeName,
+            weekly_plan.cardio_target_duration_sec AS cardioTargetDurationSec,
             weekly_plan.is_rest_day AS isRestDay,
             weekly_plan.notification_enabled AS notificationEnabled,
             weekly_plan.notification_time AS notificationTime
         FROM weekly_plan
         LEFT JOIN routines ON routines.id = weekly_plan.routine_id
+        LEFT JOIN cardio_types ON cardio_types.id = weekly_plan.cardio_type_id
         WHERE weekly_plan.day_of_week = :dayOfWeek
-        LIMIT 1
+        ORDER BY weekly_plan.order_index
         """,
     )
-    suspend fun getDay(dayOfWeek: Int): WeeklyPlanRow?
+    suspend fun getDay(dayOfWeek: Int): List<WeeklyPlanRow>
 
     @Query(
         """
@@ -303,7 +355,30 @@ interface WeeklyPlanDao {
         """,
     )
     suspend fun getCompletedTrainingSessionStartTimes(startInclusive: Long, endExclusive: Long): List<Long>
+
+    @Query(
+        """
+        SELECT
+            workout_sessions.type AS type,
+            workout_sessions.routine_id AS routineId,
+            cardio_sessions.cardio_type_id AS cardioTypeId,
+            workout_sessions.start_time AS startTime
+        FROM workout_sessions
+        LEFT JOIN cardio_sessions ON cardio_sessions.session_id = workout_sessions.id
+        WHERE workout_sessions.completed = 1
+          AND workout_sessions.start_time >= :startInclusive
+          AND workout_sessions.start_time < :endExclusive
+        """,
+    )
+    suspend fun getCompletedTrainingRows(startInclusive: Long, endExclusive: Long): List<WeeklyPlanCompletionRow>
 }
+
+data class WeeklyPlanCompletionRow(
+    val type: String,
+    val routineId: String?,
+    val cardioTypeId: String?,
+    val startTime: Long,
+)
 
 @Dao
 interface AuthSecurityDao {
@@ -346,6 +421,16 @@ interface BodyCompositionDao {
 
     @Query("UPDATE body_composition SET synced_to_hc = 1 WHERE id IN (:ids)")
     suspend fun markSyncedToHealthConnect(ids: List<String>)
+
+    @Query(
+        """
+        DELETE FROM body_composition
+        WHERE source = 'HEALTH_CONNECT'
+          AND measured_at >= :startInclusive
+          AND measured_at < :endExclusive
+        """,
+    )
+    suspend fun deleteHealthConnectEntriesInWindow(startInclusive: Long, endExclusive: Long)
 }
 
 @Dao
@@ -589,7 +674,8 @@ interface DashboardDao {
         """
         SELECT day_of_week
         FROM weekly_plan
-        WHERE is_rest_day = 0 AND routine_id IS NOT NULL
+        WHERE is_rest_day = 0 AND (routine_id IS NOT NULL OR cardio_type_id IS NOT NULL)
+        GROUP BY day_of_week
         ORDER BY day_of_week
         """,
     )

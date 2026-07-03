@@ -44,7 +44,10 @@ class OnboardingViewModelTest {
 
         viewModel.primaryAction()
 
-        assertEquals(OnboardingStep.Google, viewModel.state.value.currentStep)
+        // Antes: iba a OnboardingStep.Google. SPEC v2.2 reclasificó Google Sign-In
+        // como opcional y solo para Drive, así que el paso ya no existe en el flujo.
+        // Ahora Welcome → Profile directamente.
+        assertEquals(OnboardingStep.Profile, viewModel.state.value.currentStep)
     }
 
     @Test
@@ -64,6 +67,20 @@ class OnboardingViewModelTest {
         assertEquals(180.0, profileRepository.profile?.heightCm)
     }
 
+    @Test
+    fun `finish does not complete when persistence fails`() = runTest {
+        onboardingRepository.failSetCompleted = true
+        val viewModel = newViewModel()
+        viewModel.goToStep(OnboardingStep.Done)
+
+        viewModel.primaryAction()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(false, viewModel.state.value.completed)
+        assertEquals(false, onboardingRepository.completed.value)
+        assertEquals(OnboardingMessage.GenericError, viewModel.state.value.message)
+    }
+
     private fun newViewModel() = OnboardingViewModel(
         onboardingRepository = onboardingRepository,
         profileRepository = profileRepository,
@@ -75,9 +92,11 @@ class OnboardingViewModelTest {
 
     private class FakeOnboardingRepository : OnboardingRepository {
         val completed = MutableStateFlow(false)
+        var failSetCompleted = false
         override val onboardingCompleted: Flow<Boolean> = completed
 
         override suspend fun setOnboardingCompleted(completed: Boolean) {
+            if (failSetCompleted) error("failed")
             this.completed.value = completed
         }
     }

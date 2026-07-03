@@ -2,6 +2,7 @@ package com.atlaspeak.presentation.progress
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.atlaspeak.R
 import com.atlaspeak.domain.model.progress.ExerciseProgress
 import com.atlaspeak.domain.model.progress.MuscleGroupProgress
 import com.atlaspeak.domain.model.progress.ProgressHistoryFilter
@@ -11,6 +12,8 @@ import com.atlaspeak.domain.model.progress.ProgressPeriod
 import com.atlaspeak.domain.usecase.progress.ProgressUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,6 +25,8 @@ class ProgressViewModel @Inject constructor(
     private val progressUseCase: ProgressUseCase,
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(ProgressUiState())
+    private var allRefreshJob: Job? = null
+    private var historyRefreshJob: Job? = null
     val state: StateFlow<ProgressUiState> = mutableState.asStateFlow()
 
     init {
@@ -33,17 +38,38 @@ class ProgressViewModel @Inject constructor(
     }
 
     fun selectPeriod(period: ProgressPeriod) {
-        mutableState.update { it.copy(selectedPeriod = period, selectedHistoryId = null) }
+        if (mutableState.value.selectedPeriod == period) return
+        mutableState.update {
+            it.copy(
+                selectedPeriod = period,
+                selectedHistoryId = null,
+                errorMessageRes = null,
+            )
+        }
         refreshAll()
     }
 
     fun selectHistoryType(type: ProgressHistoryType) {
-        mutableState.update { it.copy(selectedHistoryType = type, selectedHistoryId = null) }
+        if (mutableState.value.selectedHistoryType == type) return
+        mutableState.update {
+            it.copy(
+                selectedHistoryType = type,
+                selectedHistoryId = null,
+                errorMessageRes = null,
+            )
+        }
         refreshHistory()
     }
 
     fun onHistorySearchChanged(query: String) {
-        mutableState.update { it.copy(historyQuery = query, selectedHistoryId = null) }
+        if (mutableState.value.historyQuery == query) return
+        mutableState.update {
+            it.copy(
+                historyQuery = query,
+                selectedHistoryId = null,
+                errorMessageRes = null,
+            )
+        }
         refreshHistory()
     }
 
@@ -52,36 +78,86 @@ class ProgressViewModel @Inject constructor(
     }
 
     private fun refreshAll() {
-        viewModelScope.launch {
+        allRefreshJob?.cancel()
+        historyRefreshJob?.cancel()
+        allRefreshJob = viewModelScope.launch {
             val snapshot = mutableState.value
-            val history = loadHistory(snapshot)
-            val exercises = progressUseCase.exerciseProgress(snapshot.selectedPeriod)
-            val muscleGroups = progressUseCase.muscleGroupProgress(snapshot.selectedPeriod)
             mutableState.update {
-                val selectedHistoryId = it.selectedHistoryId?.takeIf { id -> history.any { item -> item.id == id } }
                 it.copy(
-                    isLoading = false,
-                    history = history,
-                    exerciseProgress = exercises,
-                    muscleGroupProgress = muscleGroups,
-                    selectedHistoryId = selectedHistoryId,
+                    isLoading = it.hasNoLoadedContent(),
+                    errorMessageRes = null,
                 )
+            }
+            try {
+                val history = loadHistory(snapshot)
+                val exercises = progressUseCase.exerciseProgress(snapshot.selectedPeriod)
+                val muscleGroups = progressUseCase.muscleGroupProgress(snapshot.selectedPeriod)
+                mutableState.update {
+                    if (it.selectedPeriod != snapshot.selectedPeriod) return@update it
+                    val shouldApplyHistory = it.matches(snapshot)
+                    val appliedHistory = if (shouldApplyHistory) history else it.history
+                    val selectedHistoryId = it.selectedHistoryId?.takeIf { id -> appliedHistory.any { item -> item.id == id } }
+                    it.copy(
+                        isLoading = false,
+                        history = appliedHistory,
+                        exerciseProgress = exercises,
+                        muscleGroupProgress = muscleGroups,
+                        selectedHistoryId = selectedHistoryId,
+                        errorMessageRes = if (shouldApplyHistory) null else it.errorMessageRes,
+                    )
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                mutableState.update {
+                    if (!it.matches(snapshot)) return@update it
+                    it.copy(
+                        isLoading = false,
+                        errorMessageRes = R.string.error_generic,
+                    )
+                }
             }
         }
     }
 
     private fun refreshHistory() {
-        viewModelScope.launch {
-            val history = loadHistory(mutableState.value)
-            mutableState.update {
-                val selectedHistoryId = it.selectedHistoryId?.takeIf { id -> history.any { item -> item.id == id } }
-                it.copy(
-                    isLoading = false,
-                    history = history,
-                    selectedHistoryId = selectedHistoryId,
-                )
+        historyRefreshJob?.cancel()
+        historyRefreshJob = viewModelScope.launch {
+            val snapshot = mutableState.value
+            try {
+                val history = loadHistory(snapshot)
+                mutableState.update {
+                    if (!it.matches(snapshot)) return@update it
+                    val selectedHistoryId = it.selectedHistoryId?.takeIf { id -> history.any { item -> item.id == id } }
+                    it.copy(
+                        isLoading = false,
+                        history = history,
+                        selectedHistoryId = selectedHistoryId,
+                        errorMessageRes = null,
+                    )
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                mutableState.update {
+                    if (!it.matches(snapshot)) return@update it
+                    it.copy(
+                        isLoading = false,
+                        errorMessageRes = R.string.error_generic,
+                    )
+                }
             }
         }
+    }
+
+    private fun ProgressUiState.matches(snapshot: ProgressUiState): Boolean {
+        return selectedPeriod == snapshot.selectedPeriod &&
+            selectedHistoryType == snapshot.selectedHistoryType &&
+            historyQuery == snapshot.historyQuery
+    }
+
+    private fun ProgressUiState.hasNoLoadedContent(): Boolean {
+        return history.isEmpty() && exerciseProgress.isEmpty() && muscleGroupProgress.isEmpty()
     }
 
     private suspend fun loadHistory(snapshot: ProgressUiState): List<ProgressHistoryItem> {
@@ -105,6 +181,7 @@ data class ProgressUiState(
     val exerciseProgress: List<ExerciseProgress> = emptyList(),
     val muscleGroupProgress: List<MuscleGroupProgress> = emptyList(),
     val selectedHistoryId: String? = null,
+    @androidx.annotation.StringRes val errorMessageRes: Int? = null,
 ) {
     val selectedHistoryItem: ProgressHistoryItem? = history.firstOrNull { it.id == selectedHistoryId }
 }

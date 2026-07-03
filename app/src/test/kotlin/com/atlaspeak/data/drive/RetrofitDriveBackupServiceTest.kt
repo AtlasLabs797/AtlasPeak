@@ -23,4 +23,14 @@ class RetrofitDriveBackupServiceTest {
         assertFalse(request.contains("form-data"))
         assertTrue(request.indexOf("appDataFolder") < request.indexOf("ATPK"))
     }
+
+    @Test
+    fun `Drive backup file name filter only accepts Atlas Peak encrypted backups`() {
+        assertTrue("atlas_peak_backup_20260701_143015.enc".isAtlasPeakBackupFileName())
+
+        assertFalse("atlas_peak_backup_20260701.enc".isAtlasPeakBackupFileName())
+        assertFalse("other_atlas_peak_backup_20260701_143015.enc".isAtlasPeakBackupFileName())
+        assertFalse("atlas_peak_backup_20260701_143015.json".isAtlasPeakBackupFileName())
+        assertFalse("atlas_peak_backup_20260701_143015.enc.tmp".isAtlasPeakBackupFileName())
+    }
 }

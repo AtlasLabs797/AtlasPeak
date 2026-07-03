@@ -23,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.atlaspeak.presentation.theme.AtlasMotion
+import com.atlaspeak.presentation.theme.LocalAtlasColors
 import com.atlaspeak.presentation.theme.LocalSpacing
 
 data class PeriodSelectorItem<T>(
@@ -38,12 +39,13 @@ fun <T> PeriodSelector(
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     val trackShape = RoundedCornerShape(50)
     Box(
         modifier = modifier
             .widthIn(max = 360.dp)
             .clip(trackShape)
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f))
+            .background(atlasColors.fillSoft)
             .padding(spacing.xxs),
     ) {
         LazyRow(
@@ -52,15 +54,15 @@ fun <T> PeriodSelector(
             items(items, key = { it.value.toString() }) { item ->
                 val isSelected = selected == item.value
                 val containerColor by animateColorAsState(
-                    targetValue = if (isSelected) MaterialTheme.colorScheme.primary else androidx.compose.ui.graphics.Color.Transparent,
+                    targetValue = if (isSelected) atlasColors.ink else androidx.compose.ui.graphics.Color.Transparent,
                     animationSpec = tween(AtlasMotion.DurationMedium, easing = AtlasMotion.EmphasizedEasing),
                     label = "",
                 )
                 val contentColor by animateColorAsState(
                     targetValue = if (isSelected) {
-                        MaterialTheme.colorScheme.onPrimary
+                        atlasColors.onAccent
                     } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
+                        atlasColors.ink2
                     },
                     animationSpec = tween(AtlasMotion.DurationMedium, easing = AtlasMotion.EmphasizedEasing),
                     label = "",
@@ -68,7 +70,8 @@ fun <T> PeriodSelector(
                 Surface(
                     onClick = { onSelected(item.value) },
                     modifier = Modifier
-                        .heightIn(min = 36.dp)
+                        // 48dp: tamaño mínimo de objetivo táctil accesible (WCAG/Material).
+                        .heightIn(min = 48.dp)
                         .sizeIn(minWidth = 48.dp),
                     shape = trackShape,
                     color = containerColor,
@@ -79,7 +82,7 @@ fun <T> PeriodSelector(
                     Text(
                         text = stringResource(item.labelRes),
                         modifier = Modifier.padding(horizontal = spacing.sm, vertical = spacing.xxs),
-                        style = MaterialTheme.typography.labelMedium,
+                        style = if (isSelected) MaterialTheme.typography.labelLarge else MaterialTheme.typography.labelMedium,
                     )
                 }
             }

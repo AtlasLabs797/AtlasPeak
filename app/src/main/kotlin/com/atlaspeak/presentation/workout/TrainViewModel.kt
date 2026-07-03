@@ -331,7 +331,8 @@ class TrainViewModel @Inject constructor(
         viewModelScope.launch {
             val groups = exerciseUseCase.muscleGroups()
             val snapshot = mutableState.value
-            val exercises = exerciseUseCase.library(snapshot.searchQuery, snapshot.selectedMuscleGroupId)
+            val allExercises = exerciseUseCase.library(query = "", muscleGroupId = null)
+            val exercises = allExercises.filteredBy(snapshot.searchQuery, snapshot.selectedMuscleGroupId)
             val routines = routineUseCase.routines()
             val workoutSessions = workoutRepository.sessions().filter { it.completed }
             val cardioTypes = cardioUseCase.cardioTypes()
@@ -349,6 +350,7 @@ class TrainViewModel @Inject constructor(
                 it.copy(
                     isLoading = false,
                     muscleGroups = groups,
+                    allExercises = allExercises,
                     exercises = exercises,
                     routines = routines,
                     workoutSessions = workoutSessions,
@@ -364,10 +366,12 @@ class TrainViewModel @Inject constructor(
     }
 
     private fun refreshExercises() {
-        viewModelScope.launch {
-            val snapshot = mutableState.value
-            val exercises = exerciseUseCase.library(snapshot.searchQuery, snapshot.selectedMuscleGroupId)
-            mutableState.update { it.copy(exercises = exercises, isLoading = false) }
+        val snapshot = mutableState.value
+        mutableState.update {
+            it.copy(
+                exercises = snapshot.allExercises.filteredBy(snapshot.searchQuery, snapshot.selectedMuscleGroupId),
+                isLoading = false,
+            )
         }
     }
 }
@@ -376,6 +380,7 @@ data class TrainUiState(
     val isLoading: Boolean = true,
     val selectedTab: TrainTab = TrainTab.Routines,
     val muscleGroups: List<MuscleGroup> = emptyList(),
+    val allExercises: List<Exercise> = emptyList(),
     val exercises: List<Exercise> = emptyList(),
     val routines: List<Routine> = emptyList(),
     val workoutSessions: List<WorkoutSession> = emptyList(),
@@ -445,6 +450,14 @@ enum class TrainUiMessage {
 const val DEFAULT_ROUTINE_COLOR_TAG = "#D32F2F"
 
 private fun String.onlyDigits(): String = filter { it.isDigit() }.take(3)
+
+private fun List<Exercise>.filteredBy(query: String, muscleGroupId: Int?): List<Exercise> {
+    val normalizedQuery = query.trim()
+    return asSequence()
+        .filter { exercise -> muscleGroupId == null || exercise.muscleGroup.id == muscleGroupId }
+        .filter { exercise -> normalizedQuery.isBlank() || exercise.name.contains(normalizedQuery, ignoreCase = true) }
+        .toList()
+}
 
 private fun String.decimalInput(): String {
     val builder = StringBuilder()

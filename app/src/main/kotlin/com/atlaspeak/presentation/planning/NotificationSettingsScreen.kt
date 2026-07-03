@@ -11,7 +11,6 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -20,25 +19,18 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -47,16 +39,24 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.atlaspeak.R
 import com.atlaspeak.domain.model.planning.NotificationSettings
+import com.atlaspeak.domain.model.settings.AppThemeMode
+import com.atlaspeak.presentation.component.AtlasChip
 import com.atlaspeak.presentation.component.AtlasPrimaryButton
+import com.atlaspeak.presentation.component.AtlasSwitchRow
+import com.atlaspeak.presentation.component.AtlasTimeField
 import com.atlaspeak.presentation.component.PremiumBackground
+import com.atlaspeak.presentation.theme.AppThemeViewModel
+import com.atlaspeak.presentation.theme.LocalAtlasColors
 import com.atlaspeak.presentation.theme.LocalSpacing
 
 @Composable
 fun NotificationSettingsRoute(
     onBack: () -> Unit,
     viewModel: NotificationSettingsViewModel = hiltViewModel(),
+    themeViewModel: AppThemeViewModel = hiltViewModel(),
 ) {
     val state = viewModel.state.collectAsStateWithLifecycle().value
+    val themeMode = themeViewModel.themeMode.collectAsStateWithLifecycle().value
     val context = LocalContext.current
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -73,7 +73,9 @@ fun NotificationSettingsRoute(
     }
     NotificationSettingsScreen(
         state = state,
+        themeMode = themeMode,
         onBack = onBack,
+        onThemeModeSelected = themeViewModel::setThemeMode,
         onNotificationsEnabledChanged = { enabled ->
             if (!enabled) {
                 viewModel.setNotificationsEnabled(false)
@@ -120,7 +122,9 @@ private fun Context.openAppNotificationSettings() {
 @Composable
 fun NotificationSettingsScreen(
     state: NotificationSettingsUiState,
+    themeMode: AppThemeMode,
     onBack: () -> Unit,
+    onThemeModeSelected: (AppThemeMode) -> Unit,
     onNotificationsEnabledChanged: (Boolean) -> Unit,
     onMotivationalMessagesChanged: (Boolean) -> Unit,
     onDailySummaryEnabledChanged: (Boolean) -> Unit,
@@ -148,12 +152,19 @@ fun NotificationSettingsScreen(
                 item {
                     SettingsHeader(onBack = onBack)
                 }
+                item {
+                    ThemeSettingsControls(
+                        selected = themeMode,
+                        onSelected = onThemeModeSelected,
+                    )
+                }
                 if (state.messageRes != null) {
                     item {
+                        val atlasColors = LocalAtlasColors.current
                         Text(
                             text = stringResource(state.messageRes),
                             style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.primary,
+                            color = atlasColors.ink2,
                         )
                     }
                 }
@@ -180,8 +191,48 @@ fun NotificationSettingsScreen(
 }
 
 @Composable
+private fun ThemeSettingsControls(
+    selected: AppThemeMode,
+    onSelected: (AppThemeMode) -> Unit,
+) {
+    val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
+    Column(verticalArrangement = Arrangement.spacedBy(spacing.sm)) {
+        Text(
+            text = stringResource(R.string.theme_settings_title),
+            style = MaterialTheme.typography.titleMedium,
+            color = atlasColors.ink,
+        )
+        Text(
+            text = stringResource(R.string.theme_settings_body),
+            style = MaterialTheme.typography.bodySmall,
+            color = atlasColors.ink2,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(spacing.xs)) {
+            AppThemeMode.entries.forEach { mode ->
+                AtlasChip(
+                    text = stringResource(mode.labelRes()),
+                    selected = selected == mode,
+                    onClick = { onSelected(mode) },
+                )
+            }
+        }
+    }
+}
+
+@StringRes
+private fun AppThemeMode.labelRes(): Int {
+    return when (this) {
+        AppThemeMode.System -> R.string.theme_system
+        AppThemeMode.Light -> R.string.theme_light
+        AppThemeMode.Dark -> R.string.theme_dark
+    }
+}
+
+@Composable
 private fun SettingsHeader(onBack: () -> Unit) {
     val spacing = LocalSpacing.current
+    val atlasColors = LocalAtlasColors.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(spacing.sm),
@@ -200,12 +251,12 @@ private fun SettingsHeader(onBack: () -> Unit) {
             Text(
                 text = stringResource(R.string.notification_settings_title),
                 style = MaterialTheme.typography.headlineMedium,
-                color = MaterialTheme.colorScheme.onBackground,
+                color = atlasColors.ink,
             )
             Text(
                 text = stringResource(R.string.notification_settings_body),
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = atlasColors.ink2,
             )
         }
     }
@@ -244,15 +295,13 @@ private fun NotificationSettingsControls(
             enabled = settings.notificationsEnabled,
             onCheckedChange = onDailySummaryEnabledChanged,
         )
-        OutlinedTextField(
+        AtlasTimeField(
             value = settings.dailySummaryTime,
-            onValueChange = onDailySummaryTimeChanged,
+            onTimeSelected = onDailySummaryTimeChanged,
             modifier = Modifier.fillMaxWidth(),
             enabled = settings.notificationsEnabled && settings.dailySummaryEnabled,
-            singleLine = true,
-            label = { Text(stringResource(R.string.notification_settings_daily_time)) },
-            supportingText = { Text(stringResource(R.string.weekly_plan_reminder_best_effort)) },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+            label = stringResource(R.string.notification_settings_daily_time),
+            supportingText = stringResource(R.string.weekly_plan_reminder_best_effort),
         )
         SettingsSwitchRow(
             titleRes = R.string.notification_settings_weekly_summary,
@@ -272,38 +321,11 @@ private fun SettingsSwitchRow(
     enabled: Boolean = true,
     onCheckedChange: (Boolean) -> Unit,
 ) {
-    val spacing = LocalSpacing.current
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(
-                enabled = enabled,
-                role = Role.Switch,
-                onClick = { onCheckedChange(!checked) },
-            )
-            .semantics(mergeDescendants = true) { role = Role.Switch },
-        horizontalArrangement = Arrangement.spacedBy(spacing.md),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(spacing.xxs),
-        ) {
-            Text(
-                text = stringResource(titleRes),
-                style = MaterialTheme.typography.titleSmall,
-                color = if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                text = stringResource(bodyRes),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Switch(
-            checked = checked,
-            enabled = enabled,
-            onCheckedChange = null,
-        )
-    }
+    AtlasSwitchRow(
+        title = stringResource(titleRes),
+        subtitle = stringResource(bodyRes),
+        checked = checked,
+        enabled = enabled,
+        onCheckedChange = onCheckedChange,
+    )
 }

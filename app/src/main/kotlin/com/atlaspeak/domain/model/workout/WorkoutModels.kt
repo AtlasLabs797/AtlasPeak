@@ -24,6 +24,7 @@ data class RoutineExercise(
     val weightKg: Double?,
     val restSeconds: Int,
     val orderIndex: Int,
+    val notes: String? = null,
 )
 
 data class RoutineExerciseInput(
@@ -32,6 +33,7 @@ data class RoutineExerciseInput(
     val reps: Int,
     val weightKg: Double?,
     val restSeconds: Int,
+    val notes: String? = null,
 )
 
 data class Routine(
@@ -64,6 +66,7 @@ data class ActiveWorkoutExercise(
     val orderIndex: Int,
     val restSeconds: Int,
     val sets: List<WorkoutSet>,
+    val notes: String? = null,
 )
 
 data class WorkoutSession(

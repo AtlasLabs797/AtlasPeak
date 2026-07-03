@@ -56,7 +56,7 @@ class RoomRoutineRepository @Inject constructor(
                         weightKg = it.weightKg,
                         restSeconds = it.restSeconds,
                         orderIndex = it.orderIndex,
-                        notes = null,
+                        notes = it.notes,
                     )
                 },
             )
@@ -88,6 +88,7 @@ class RoomRoutineRepository @Inject constructor(
                     weightKg = entry.weightKg,
                     restSeconds = entry.restSeconds,
                     orderIndex = entry.orderIndex,
+                    notes = entry.notes,
                 )
             },
         )

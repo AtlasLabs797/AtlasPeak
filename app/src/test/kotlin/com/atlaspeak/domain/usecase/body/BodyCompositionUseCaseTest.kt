@@ -90,6 +90,30 @@ class BodyCompositionUseCaseTest {
         assertEquals(listOf(44.0), snapshot.seriesFor(BodyMetric.BodyWaterMass).map { it.value })
     }
 
+    @Test
+    fun `snapshot resolves same timestamp conflicts with health connect winning`() = runTest {
+        repository.entries = listOf(
+            entry(
+                id = "manual-weight",
+                measuredAt = now - DAYS_1,
+                weightKg = 83.0,
+                source = BodyCompositionSource.Manual,
+            ),
+            entry(
+                id = "hc-weight",
+                measuredAt = now - DAYS_1,
+                weightKg = 82.0,
+                source = BodyCompositionSource.HealthConnect,
+            ),
+        )
+
+        val snapshot = useCase.snapshot(BodyCompositionPeriod.Month)
+
+        assertEquals(82.0, snapshot.latestValue(BodyMetric.Weight)?.value)
+        assertEquals(BodyCompositionSource.HealthConnect, snapshot.latestValue(BodyMetric.Weight)?.source)
+        assertEquals(listOf(82.0), snapshot.seriesFor(BodyMetric.Weight).map { it.value })
+    }
+
     private fun entry(
         id: String,
         measuredAt: Long,
@@ -97,6 +121,7 @@ class BodyCompositionUseCaseTest {
         bodyFatPercent: Double? = null,
         muscleMassKg: Double? = null,
         bodyWaterMassKg: Double? = null,
+        source: BodyCompositionSource = BodyCompositionSource.Manual,
     ) = BodyCompositionEntry(
         id = id,
         measuredAt = measuredAt,
@@ -109,7 +134,7 @@ class BodyCompositionUseCaseTest {
         proteinPercent = null,
         boneMassKg = null,
         bodyAge = null,
-        source = BodyCompositionSource.Manual,
+        source = source,
         syncedToHealthConnect = false,
         createdAt = measuredAt,
     )

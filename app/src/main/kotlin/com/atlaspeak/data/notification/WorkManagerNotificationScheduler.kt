@@ -6,9 +6,11 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import com.atlaspeak.domain.model.planning.NotificationSettings
+import com.atlaspeak.domain.model.planning.WeeklyPlanSession
 import com.atlaspeak.domain.repository.NotificationScheduler
 import com.atlaspeak.domain.repository.NotificationSettingsRepository
 import com.atlaspeak.domain.repository.WeeklyPlanRepository
+import com.atlaspeak.domain.usecase.planning.isValidClockTime
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -36,10 +38,22 @@ class WorkManagerNotificationScheduler @Inject constructor(
         val now = System.currentTimeMillis()
         val enabledWork = mutableSetOf<String>()
         weeklyPlanRepository.plan()
-            .filter { !it.isRestDay && it.routineId != null && it.notificationEnabled && it.notificationTime != null }
+            .filter { !it.isRestDay }
             .forEach { day ->
-                enabledWork += NotificationWorkNames.trainingReminder(day.dayOfWeek)
-                enqueueTrainingReminder(workManager, now, day.dayOfWeek, requireNotNull(day.notificationTime), ExistingWorkPolicy.REPLACE)
+                day.sessions
+                    .filter { it.hasPlannedTarget() && it.notificationEnabled && it.notificationTime != null && it.notificationTime.isValidClockTime() }
+                    .forEach { session ->
+                        val workName = NotificationWorkNames.trainingReminder(day.dayOfWeek, session.orderIndex)
+                        enabledWork += workName
+                        enqueueTrainingReminder(
+                            workManager = workManager,
+                            now = now,
+                            dayOfWeek = day.dayOfWeek,
+                            orderIndex = session.orderIndex,
+                            time = requireNotNull(session.notificationTime),
+                            policy = ExistingWorkPolicy.REPLACE,
+                        )
+                    }
             }
 
         if (settings.dailySummaryEnabled) {
@@ -61,31 +75,46 @@ class WorkManagerNotificationScheduler @Inject constructor(
         val workManager = WorkManager.getInstance(context)
         val settings = settingsRepository.settings()
         val day = weeklyPlanRepository.plan().firstOrNull { it.dayOfWeek == dayOfWeek }
+        val candidateSessions = day?.sessions.orEmpty()
+            .filter { it.hasPlannedTarget() && it.notificationEnabled && it.notificationTime != null && it.notificationTime.isValidClockTime() }
         if (
             !settings.notificationsEnabled ||
             !permissionChecker.canPostNotifications() ||
             day == null ||
             day.isRestDay ||
-            day.routineId == null ||
-            !day.notificationEnabled ||
-            day.notificationTime == null
+            candidateSessions.isEmpty()
         ) {
-            workManager.cancelUniqueWork(NotificationWorkNames.trainingReminder(dayOfWeek))
+            trainingReminderNamesForDay(dayOfWeek).forEach(workManager::cancelUniqueWork)
             return
         }
-        enqueueTrainingReminder(
-            workManager = workManager,
-            now = System.currentTimeMillis(),
-            dayOfWeek = day.dayOfWeek,
-            time = day.notificationTime,
-            policy = ExistingWorkPolicy.APPEND_OR_REPLACE,
-        )
+        val enabledWork = mutableSetOf<String>()
+        val now = System.currentTimeMillis()
+        candidateSessions.forEach { session ->
+            val workName = NotificationWorkNames.trainingReminder(day.dayOfWeek, session.orderIndex)
+            enabledWork += workName
+            enqueueTrainingReminder(
+                workManager = workManager,
+                now = now,
+                dayOfWeek = day.dayOfWeek,
+                orderIndex = session.orderIndex,
+                time = requireNotNull(session.notificationTime),
+                policy = ExistingWorkPolicy.APPEND_OR_REPLACE,
+            )
+        }
+        trainingReminderNamesForDay(dayOfWeek)
+            .filterNot { it in enabledWork }
+            .forEach(workManager::cancelUniqueWork)
     }
 
     override suspend fun rescheduleDailySummary() {
         val workManager = WorkManager.getInstance(context)
         val settings = settingsRepository.settings()
-        if (!settings.notificationsEnabled || !settings.dailySummaryEnabled || !permissionChecker.canPostNotifications()) {
+        if (
+            !settings.notificationsEnabled ||
+            !settings.dailySummaryEnabled ||
+            !settings.dailySummaryTime.isValidClockTime() ||
+            !permissionChecker.canPostNotifications()
+        ) {
             workManager.cancelUniqueWork(NotificationWorkNames.DAILY_SUMMARY)
             return
         }
@@ -116,15 +145,21 @@ class WorkManagerNotificationScheduler @Inject constructor(
         workManager: WorkManager,
         now: Long,
         dayOfWeek: Int,
+        orderIndex: Int,
         time: String,
         policy: ExistingWorkPolicy,
     ) {
         val runAt = scheduleCalculator.nextWeeklyRunAt(now, dayOfWeek, time)
         workManager.enqueueUniqueWork(
-            NotificationWorkNames.trainingReminder(dayOfWeek),
+            NotificationWorkNames.trainingReminder(dayOfWeek, orderIndex),
             policy,
             OneTimeWorkRequestBuilder<TrainingReminderWorker>()
-                .setInputData(workDataOf(NotificationWorkNames.KEY_DAY_OF_WEEK to dayOfWeek))
+                .setInputData(
+                    workDataOf(
+                        NotificationWorkNames.KEY_DAY_OF_WEEK to dayOfWeek,
+                        NotificationWorkNames.KEY_SESSION_ORDER_INDEX to orderIndex,
+                    ),
+                )
                 .setInitialDelay(delayMillis(now, runAt), TimeUnit.MILLISECONDS)
                 .build(),
         )
@@ -179,7 +214,7 @@ class WorkManagerNotificationScheduler @Inject constructor(
     }
 
     private fun allWorkNames(): List<String> {
-        return (1..DAYS_PER_WEEK).map(NotificationWorkNames::trainingReminder) +
+        return (1..DAYS_PER_WEEK).flatMap(::trainingReminderNamesForDay) +
             listOf(
                 NotificationWorkNames.DAILY_SUMMARY,
                 NotificationWorkNames.WEEKLY_SUMMARY,
@@ -189,9 +224,21 @@ class WorkManagerNotificationScheduler @Inject constructor(
 
     private fun delayMillis(now: Long, runAt: Long): Long = (runAt - now).coerceAtLeast(0L)
 
+    private fun trainingReminderNamesForDay(dayOfWeek: Int): List<String> {
+        return listOf(NotificationWorkNames.trainingReminder(dayOfWeek)) +
+            (0..MAX_SESSIONS_PER_DAY).map { orderIndex ->
+                NotificationWorkNames.trainingReminder(dayOfWeek, orderIndex)
+            }
+    }
+
     private companion object {
         const val DAYS_PER_WEEK = 7
+        const val MAX_SESSIONS_PER_DAY = 8
         const val MONDAY = 1
         const val MOTIVATIONAL_MESSAGE_TIME = "12:00"
     }
+}
+
+private fun WeeklyPlanSession.hasPlannedTarget(): Boolean {
+    return routineId != null || cardioTypeId != null
 }

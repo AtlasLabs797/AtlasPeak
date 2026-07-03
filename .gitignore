@@ -26,3 +26,6 @@ captures/
 # ─── Logs ────────────────────────────────────────────────────────────────
 *.log
 security-scans/
+
+# Local Codex skill libraries
+Skills/

@@ -65,7 +65,6 @@ presentation/
 service/         WorkoutForegroundService, CardioForegroundService
 worker/          BackupWorker, DailySummaryWorker, WeeklySummaryWorker, TrainingReminderWorker
 di/              módulos Hilt (Database, Network, Repository, Security…)
-feature/         FeatureFlags
 util/            extensiones, formatters, constantes
 MainActivity.kt
 ```
@@ -108,9 +107,8 @@ Notas de integridad:
 - **Entrada a la app:** no hay contraseña local ni pantalla de login enrutable. `AtlasPeakNavHost`
   arranca en `Launch`; si `onboarding_completed=false` navega a `Onboarding`, y si ya está
   completado navega al grafo autenticado `AppGraph`, cuyo start destination es `Home`.
-  La bottom navigation hace `popUpTo(AppGraph)` sin `saveState/restoreState`: tocar un tab
-  abre siempre su ruta raíz (`Home`, `Train`, `Progress`, `Body` o `Profile`), no una
-  subpantalla restaurada.
+  La bottom navigation es solo iconos, hace `popUpTo(AppGraph)` con `saveState=true` y
+  `restoreState=true`, y restaura el estado de cada tab al volver a seleccionarla.
 - **Google:** no hay login Google para entrar. Drive usa `AuthorizationClient` con scope
   `drive.appdata`; un ID token Google no es un bearer token valido para Drive y nunca
   desbloquea la DB local.
@@ -132,6 +130,8 @@ Notas de integridad:
   grant silencioso de Drive o contrasena guardada, el worker termina sin lanzar UI.
 - **Export manual:** JSON/CSV sin cifrar no exige contraseña tras retirar el gate local; excluye
   `users` y `auth_security` para no compartir restos de auth legada.
+  El CSV neutraliza celdas textuales que puedan interpretarse como formulas en hojas de
+  calculo (`=`, `+`, `-`, `@`) anteponiendo apostrofe en la salida.
   El restore valida tablas y columnas contra el schema actual antes de insertar datos.
 - **Secretos:** `MAPS_API_KEY` y `OAUTH_WEB_CLIENT_ID` en `secrets.properties` (gitignored),
   inyectados via `manifestPlaceholders` y `BuildConfig`. **Sin `google-services.json`.**
@@ -187,18 +187,20 @@ Fase 6 activa cardio dentro del tab `Train` y las pantallas fullscreen:
   `CardioSession`. `CardioType.iconName` viene de `cardio_types.icon_name` para que la UI
   represente cada tipo con iconografia especifica y no con un icono generico.
 - `CardioUseCase` crea tipos custom, arranca sesiones timer/countdown y completa sesiones
-  calculando distancia Haversine, velocidad media/maxima, ruta y calorias estimadas.
+  calculando distancia Haversine, velocidad media/maxima, ruta filtrada y calorias estimadas
+  con el ultimo peso corporal valido.
 - `RoomCardioRepository` mapea `cardio_types`/`cardio_sessions` y usa `workout_sessions`
   como cabecera comun de sesiones. El historial se ordena por `workout_sessions.start_time`,
   no por UUID.
 - `TrainScreen` muestra tipos predefinidos/custom con iconos por tipo, edicion/archivado de
   custom, selector de minutos para countdown e historial/detalle de cardio.
 - `ActiveCardioScreen` pide `ACCESS_FINE_LOCATION` solo si el tipo usa GPS; si no hay GPS o
-  se deniega ubicacion, permite introducir distancia y velocidad media manuales.
+  se deniega ubicacion, permite cerrar con tiempo y distancia manual; la velocidad se deriva
+  si hay distancia y duracion.
 - `CardioCompleteScreen` muestra resumen y, si hay ruta, un mapa con Google Maps Compose.
 
-La estimacion de calorias en Fase 6 usa fallback MET por tipo y peso fijo de 75 kg porque
-la integracion real con `body_composition` llega en Fase 8 y Health Connect en Fase 10.
+La estimacion de calorias usa MET por tipo y el ultimo peso valido de `body_composition`;
+solo cae a 75 kg si no existe ningun peso usable.
 
 ## 6.4 Progreso
 
@@ -237,12 +239,13 @@ Fase 8 reemplaza el placeholder de `Home` por un dashboard local-first:
   pasos, muestras de frecuencia cardiaca y sueño.
 - `RoomDashboardRepository` usa `DashboardDao` sobre las tablas v1 ya creadas en Fase 1, por
   lo que no hay migracion ni bump de schema.
-- `HomeScreen` muestra la rutina planificada para hoy cuando existe, con CTA directo a
-  `ActiveWorkout`.
+- `HomeScreen` muestra la sesion planificada para hoy cuando existe: rutina de fuerza o
+  cardio. El CTA arranca `ActiveWorkout` para fuerza o `ActiveCardio` en countdown para
+  cardio planificado.
 - `HomeScreen` muestra minutos de entrenamiento esta semana, volumen, consistencia, tiempo
   total de actividad, peso corporal, pasos diarios, frecuencia cardiaca y sueño con periodos
   independientes por widget.
-- `HomeViewModel` combina `DashboardUseCase` con `WeeklyPlanUseCase` para resolver la rutina
+- `HomeViewModel` combina `DashboardUseCase` con `WeeklyPlanUseCase` para resolver la sesion
   planificada de hoy sin filtrar entities Room en presentation.
 - `PeriodSelector` queda como componente compartido para Dashboard y Progreso, en variante
   compacta para no ocupar todo el ancho de las cards.
@@ -261,9 +264,11 @@ Fase 9 reemplaza el placeholder de `Body` por una pantalla real sobre la tabla v
   `ScaleApp`), periodos, ultimos valores y puntos de evolucion.
 - `BodyCompositionUseCase` valida entrada manual, guarda con `source = Manual` y
   `syncedToHealthConnect = false`, calcula el ultimo valor por metrica y genera series por
-  periodo.
+  periodo. Si una metrica manual y otra de Health Connect comparten timestamp, Health Connect
+  gana y la serie visible se deduplica por metrica/timestamp.
 - `BodyCompositionRepository` abstrae Room; `RoomBodyCompositionRepository` mapea
-  `BodyCompositionEntity` sin exponer entities a presentation.
+  `BodyCompositionEntity` sin exponer entities a presentation y falla de forma explicita ante
+  un `source` desconocido.
 - `BodyCompositionScreen` muestra tabla de valores actuales, selector de periodo, selector de
   metrica, grafica Vico y formulario manual con todos los campos del spec.
 - Las metricas preparadas para Health Connect son peso, grasa corporal, masa muscular y masa de
@@ -302,36 +307,44 @@ revocados.
 
 - Artifact: **`androidx.health.connect:connect-client`** (estable). En Android 14+ es módulo
   del framework (sin setup); en 13 y anteriores se apoya en la app Health Connect.
-- **Lectura:** `READ_STEPS`, `READ_ACTIVE_CALORIES_BURNED`, `READ_SLEEP`, `READ_HEART_RATE`.
+- **Lectura:** `READ_STEPS`, `READ_ACTIVE_CALORIES_BURNED`, `READ_SLEEP`, `READ_HEART_RATE`,
+  `READ_WEIGHT`, `READ_BODY_FAT`, `READ_LEAN_BODY_MASS`, `READ_BODY_WATER_MASS`.
 - **Escritura:** `WRITE_EXERCISE`, `WRITE_WEIGHT`, `WRITE_BODY_FAT`, `WRITE_LEAN_BODY_MASS`,
   `WRITE_BODY_WATER_MASS`.
-- `HealthConnectManager` centraliza permisos, import (→ Room) y export (→ HC records).
+- `HealthConnectManager` centraliza permisos, import (→ Room) y export (→ HC records). La
+  sync es parcial por capacidad: pasos, sueño, cardio, cuerpo y exportación no se bloquean
+  entre sí por un permiso denegado.
 - Importa pasos diarios y calorias activas mediante agregados diarios para evitar doble conteo
   por origen; importa sueño y frecuencia cardiaca como records crudos paginados.
+- Importa composición corporal desde `WeightRecord`, `BodyFatRecord`, `LeanBodyMassRecord` y
+  `BodyWaterMassRecord` hacia `body_composition` con fuente `HEALTH_CONNECT`.
 - Exporta sesiones completadas como `ExerciseSessionRecord`; exporta peso, grasa corporal,
   masa magra y masa de agua corporal con `clientRecordId` estable `atlaspeak:<tipo>:<id>`.
 - Las lecturas rehacen una ventana movil de 30 dias: se borra la cache local del rango y se lee
   de nuevo para reflejar cambios o borrados recientes sin pedir `READ_HEALTH_DATA_HISTORY`.
-  No se piden permisos de lectura corporal.
 - `hc_sync_log` registra último read/write por tipo. **Conflicto:** gana el timestamp más
   reciente; no se sobreescribe lo local si es más nuevo.
-- Báscula inteligente: integración **indirecta**. En v1 Atlas Peak no pide permisos de lectura
-  corporal de Health Connect; solo exporta métricas corporales introducidas en la app. Leer peso
-  o composición desde apps de báscula requiere ampliar permisos y Play Console.
+- Báscula inteligente: integración **indirecta**. Atlas Peak no habla con Xiaomi/Renpho;
+  lee los records corporales que esas apps escriban en Health Connect cuando el usuario
+  concede permisos.
 
 ---
 
 ## 9. Plan semanal y notificaciones
 
-- `ProfileScreen` reemplaza el placeholder y enlaza a `WeeklyPlanScreen`, `SettingsScreen`
-  de notificaciones y backup. Toda la zona autenticada puede aparecer en capturas porque
-  `FLAG_SECURE` esta desactivado por SEC-026.
+- `ProfileScreen` reemplaza el placeholder y enlaza a `EditProfileScreen`,
+  `WeeklyPlanScreen`, `SettingsScreen` de notificaciones y backup. Toda la zona autenticada
+  puede aparecer en capturas porque `FLAG_SECURE` esta desactivado por SEC-026.
 - `WeeklyPlanUseCase` normaliza siete dias ISO (`1=Lunes ... 7=Domingo`), valida `HH:mm`,
-  convierte dias de descanso en filas sin rutina/recordatorio y reprograma notificaciones al
-  guardar cada dia.
-- `RoomWeeklyPlanRepository` usa la tabla `weekly_plan` existente; no hay cambio de schema en
-  Fase 11. La marca visual de completado sale de `workout_sessions.completed` dentro de la
-  semana local actual.
+  soporta varias sesiones por dia, convierte dias vacios en descanso y reprograma
+  notificaciones al guardar cada dia.
+- `RoomWeeklyPlanRepository` usa `weekly_plan` v6: `order_index`, `type`, `routine_id`,
+  `cardio_type_id` y `cardio_target_duration_sec` permiten planificar fuerza + cardio el
+  mismo dia sin crear rutinas falsas. La marca visual de completado se calcula por clave
+  `(day_of_week, order_index)` dentro de la semana local actual.
+- El seeder inicial crea un plan por defecto de 5 dias: cuatro rutinas de fuerza
+  tren inferior/superior y un miercoles de cardio de 45 min en bici estatica; usa IDs estables
+  e inserciones `IGNORE` para no sobrescribir planes editados por el usuario.
 - `NotificationSettingsUseCase` y `RoomNotificationSettingsRepository` usan `app_settings`
   para el control global, mensajes motivacionales, resumen diario, hora diaria y resumen semanal.
 - WorkManager usa Hilt: `AtlasPeakApplication` implementa `Configuration.Provider`, inyecta
@@ -339,13 +352,16 @@ revocados.
 - Canales Android separados: `training_reminders`, `motivational_messages` y `summaries`.
   Los canales de foreground services (`active_workout`, `active_cardio`) no se reutilizan.
 - Scheduler: `WorkManagerNotificationScheduler` cancela y recrea trabajos unicos con nombres
-  estables (`training_reminder_1..7`, `daily_summary`, `weekly_summary`, `motivational_message`).
+  estables por dia y orden de sesion (`training_reminder_<dia>_<orden>`, ademas de
+  `daily_summary`, `weekly_summary`, `motivational_message`).
   Usa `OneTimeWorkRequest` para el siguiente disparo y los workers reprograman al terminar.
 - Los horarios son **best-effort**. WorkManager no garantiza una alarma exacta; Atlas Peak no
   solicita `SCHEDULE_EXACT_ALARM` en v1 porque seria friccion innecesaria para recordatorios
   de fitness.
 - Antes de notificar se comprueba `POST_NOTIFICATIONS`/`NotificationManagerCompat`. Si el
   permiso esta denegado, el worker termina sin notificar ni entrar en bucles de retry.
+- El scheduler valida `HH:mm` antes de encolar WorkManager para que datos legados/corruptos no
+  lleguen a `LocalTime.parse`.
 
 ---
 
@@ -358,17 +374,24 @@ revocados.
   `GoogleDriveAccessTokenProvider` solo intenta grant silencioso para el worker.
 - `RoomBackupSnapshotStore` vuelca/restaura las 20 tablas de Room. Restore borra en orden
   inverso de FK e inserta en orden de schema dentro de una transaccion.
+- `BackupJsonCodec.decode()` aplica `BackupSnapshotUpgrader` antes del restore para que
+  snapshots antiguos lleguen al schema actual.
+- `BackupSnapshotUpgrader` eleva backups schema v2->v3 anadiendo las columnas nuevas de
+  planificacion cardio, v3->v4 anadiendo `weekly_plan.order_index` y v4->v5 reindexando
+  las sesiones por dia para cumplir el indice unico `(day_of_week, order_index)`.
 - `DriveBackupManager`: snapshot DB completo -> JSON Kotlinx -> ATPK/AES-256-GCM -> upload.
 - `BackupWorker` (WorkManager): diario, con red, solo si auto-backup esta activo, hay token
   Drive silencioso, contrasena guardada y hash estable de snapshot distinto. El hash ignora
   `app_settings.last_backup_at` para no subir un backup diario solo porque el anterior actualizo
-  esa marca.
+  esa marca. El worker exige bateria no baja y backoff exponencial de 30 min.
 - Maximo **5 backups**; tras subir correctamente se lista y borra el mas antiguo sobrante.
-- Restore: listar -> descargar -> leer cabecera -> derivar clave -> descifrar -> validar
-  schema/tablas -> transaccion Room (reemplazo completo de datos).
-- `LocalBackupExportManager` crea archivos en `filesDir/exports` y los comparte con
-  `FileProvider`. El backup local `.enc` es cifrado; JSON/CSV ZIP son exports manuales sin
-  auth secrets.
+  El listado Drive filtra localmente nombres exactos `atlas_peak_backup_yyyyMMdd_HHmmss.enc`
+  ademas de consultar `appDataFolder` y excluir papelera.
+- Restore: listar -> descargar -> leer cabecera -> derivar clave -> descifrar -> decode +
+  upgrade de snapshot -> validar schema/tablas -> transaccion Room (reemplazo completo de datos).
+- `LocalBackupExportManager` crea archivos en `filesDir/exports`, limpia exports temporales
+  antiguos y los comparte con `FileProvider`. El backup local `.enc` es cifrado; JSON/CSV ZIP
+  son exports manuales en claro sin auth secrets y la UI exige confirmacion explicita.
 
 ---
 
@@ -376,9 +399,10 @@ revocados.
 
 El GPS aporta **distancia/velocidad**, no calorías. La estimación necesita el **peso** del
 usuario, que NO está en `user_profile` sino en el último registro de `body_composition`.
-Orden de preferencia: (1) Health Connect si hay dato; (2) estimación por MET × peso ×
-duración; (3) fallback por tipo de ejercicio y duración. Documentar la fórmula MET usada
-en el código.
+Orden de preferencia real: (1) último peso válido en `body_composition` (manual o Health
+Connect); (2) fallback de 75 kg si no hay peso. La formula es `MET x peso_kg x horas`.
+La distancia/ruta no inventa calorias; solo alimenta distancia, velocidad y validacion de
+outliers.
 
 ---
 
@@ -386,6 +410,8 @@ en el código.
 
 - UI: un `data class XxxUiState` por pantalla; ViewModel expone `StateFlow`. La UI usa
   `collectAsStateWithLifecycle`.
+- Tema: `MainActivity` observa `AppThemeViewModel`, que lee `app_settings.theme` via Room Flow.
+  Ajustes permite `System`/`Light`/`Dark` y `AtlasPeakTheme` aplica el modo persistido.
 - IO/cripto/PBKDF2: siempre `Dispatchers.IO`. Nunca en main thread.
 - Errores: tipo `Result` sellado en domain; no se propagan excepciones entre capas.
 
@@ -393,9 +419,9 @@ en el código.
 
 ## 13. Testing
 
-- **Unit (MockK):** UseCases, ViewModels, `EncryptionManager`, lógica de conflictos HC.
+- **Unit:** UseCases, ViewModels, `EncryptionManager`, lógica de conflictos HC con fakes manuales.
 - **Integración (Room in-memory):** DAOs, repos, migraciones.
-- **Flows (Turbine):** StateFlows de ViewModels, emisiones de `LocationTracker`.
+- **Flows/corrutinas:** StateFlows de ViewModels y emisiones de `LocationTracker` con `kotlinx-coroutines-test`.
 - **Compose UI:** pantallas críticas (ActiveWorkout, Onboarding, Backup).
 - **WorkManager:** workers con `work-testing`.
 - Objetivo: **≥70%** cobertura en `domain` y `data`.
@@ -415,8 +441,10 @@ en el código.
 - Versiones **solo** en `gradle/libs.versions.toml` (version catalog).
 - CI (GitHub Actions): `assembleDebug` + `test` + `jacocoDebugDomainDataCoverageVerification` +
   `lint` en cada push/PR.
-- Release: AAB firmado con keystore local (`keystore.properties`, fuera del repo). R8/ProGuard
-  activo (reglas para Room, Hilt, Retrofit, Kotlinx Serialization, SQLCipher).
+- Release: AAB firmado con keystore local fuera del repo. Gradle busca
+  `ATLAS_PEAK_KEYSTORE_PROPERTIES` y después `keystore.properties` en la raiz solo como
+  fallback local. R8/ProGuard activo (reglas para Room, Hilt, Retrofit, Kotlinx Serialization,
+  SQLCipher).
 - APK de actualizacion local: `.\gradlew.bat :app:packageReleaseUpdate`. Genera
   `build/distribution/AtlasPeak-<versionName>-release.apk`, `install-adb.bat`,
   `SHA256SUMS.txt` y `README-INSTALACION.txt`.
@@ -427,11 +455,11 @@ en el código.
 
 ---
 
-## 14. Feature flags
+## 14. Features premium diferidas
 
-`feature/FeatureFlags.kt`. v1 todo gratuito. Las pantallas con features potencialmente
-premium consultan el flag antes de renderizar contenido restringido. Cambiar a premium en el
-futuro = cambiar la fuente de los flags, sin tocar UI.
+v1 no tiene billing, restricciones premium ni clase `feature/FeatureFlags.kt`. No se mantiene
+una capa de flags muerta: cuando exista una feature restringida real, se añadirá el mecanismo
+junto con su fuente de verdad y tests.
 
 ---
 

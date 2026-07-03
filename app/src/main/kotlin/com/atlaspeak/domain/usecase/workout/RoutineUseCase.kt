@@ -22,6 +22,8 @@ class RoutineUseCase @Inject constructor(
     ): Boolean {
         val trimmedName = name.trim()
         if (trimmedName.isBlank()) return false
+        if (exercises.isEmpty()) return false
+        if (exercises.any { !it.isValid() }) return false
         val duration = estimatedDurationMinutes(exercises)
         repository.upsertRoutine(
             Routine(
@@ -41,6 +43,7 @@ class RoutineUseCase @Inject constructor(
                         weightKg = input.weightKg,
                         restSeconds = input.restSeconds,
                         orderIndex = index,
+                        notes = input.notes?.trim()?.takeIf { it.isNotBlank() },
                     )
                 },
             ),
@@ -62,4 +65,12 @@ class RoutineUseCase @Inject constructor(
             return totalSeconds / 60
         }
     }
+}
+
+private fun RoutineExerciseInput.isValid(): Boolean {
+    return exerciseId.isNotBlank() &&
+        sets in 1..20 &&
+        reps in 1..999 &&
+        restSeconds in 0..900 &&
+        (weightKg == null || weightKg in 0.0..1_000.0)
 }

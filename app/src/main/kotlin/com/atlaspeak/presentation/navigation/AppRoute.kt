@@ -11,6 +11,7 @@ sealed class AppRoute(val route: String) {
     data object Progress : AppRoute("progress")
     data object Body : AppRoute("body")
     data object Profile : AppRoute("profile")
+    data object EditProfile : AppRoute("edit_profile")
     data object WeeklyPlan : AppRoute("weekly_plan")
     data object Settings : AppRoute("settings")
     data object ActiveWorkout : AppRoute("active_workout/{routineId}") {

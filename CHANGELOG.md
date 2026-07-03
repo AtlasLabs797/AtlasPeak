@@ -10,6 +10,462 @@
 
 ## [Unreleased]
 
+### 2026-07-02 - Rama puente para PR a main
+
+**Cambiado**
+- Creada rama puente `codex/v-01.07-main-bridge` desde `main` para poder abrir PR aunque
+  `codex/v-01.07-update` y `main` no comparten historia Git.
+- `gradlew` marcado como ejecutable (`100755`) para que GitHub Actions en Linux pueda ejecutar
+  `./gradlew`.
+- Añadido checksum SHA-256 de `aapt2-8.9.1-12782657-linux.jar` a
+  `gradle/verification-metadata.xml`; CI Linux descarga ese artifact aunque Windows use el
+  artifact `aapt2` de Windows.
+
+**Verificado**
+- El snapshot inicial de la rama puente tuvo el mismo tree hash que `origin/codex/v-01.07-update`
+  antes de los fixes CI-only.
+- `.\gradlew.bat --offline :app:testDebugUnitTest :app:jacocoDebugDomainDataCoverageVerification :app:assembleDebug :app:lintDebug :app:compileDebugAndroidTestKotlin :app:packageReleaseUpdate --no-daemon --no-configuration-cache --console=plain` pasa.
+
+### 2026-07-02 - Revisión integral · Lote 1: correcciones UX (Alto/Medio)
+
+**Añadido**
+- Botón de salida visible (icono ✕) en la pantalla de entrenamiento de fuerza activo
+  (`ActiveWorkoutScreen`): antes solo se podía abandonar con el gesto atrás. Abre el mismo
+  diálogo de descarte ya existente (`workout_exit_dialog_*`). Reutiliza `action_cancel`.
+- Navegación hacia atrás en el onboarding (`OnboardingScreen`/`OnboardingViewModel.previousStep`):
+  botón "Volver" junto a "Saltar" y `BackHandler` que retrocede de paso en vez de salir de la app
+  (salvo en el primer paso). Reutiliza `action_back`.
+
+**Corregido**
+- Contraste WCAG AA: `ink3`/`ink4` fallaban como color de texto. `AtlasInk3` #67676E→#8A8A92 y
+  `AtlasInk4` #5E5E66→#7E7E86 (tema oscuro), e `ink4` claro #A8A8AE→#71717A. Solo se tocó `Color.kt`.
+- Accesibilidad: `MonochromeToggle` (toggle GPS del formulario de cardio) pasa de 28dp de área táctil
+  a 48dp mínimos vía `minimumInteractiveComponentSize()`, manteniendo el visual de 28dp.
+
+**Verificado**
+- `.\gradlew.bat --offline testDebugUnitTest assembleDebug assembleRelease` pasa.
+- `.\gradlew.bat lintDebug --no-configuration-cache` → `BUILD SUCCESSFUL` (0 warnings nuevos).
+
+### 2026-07-02 - Revisión integral · Lote 0: limpieza de código muerto
+
+**Eliminado**
+- Código muerto verificado sin referencias: `feature/FeatureFlags.kt` (flags premium inertes),
+  `domain/usecase/workout/RestTimerFeedbackUseCase.kt` (wrapper nunca cableado; el modelo
+  `RestTimerFeedbackSettings` y su repo se conservan porque sí se usan), `presentation/theme/Elevation.kt`
+  (`AtlasElevation`) y el composable `MiniChartHeight` de `MonochromeCharts.kt`.
+- 44 claves de string sin usar, en ambos locales (`values/` y `values-en/`), manteniendo paridad 427↔427.
+  Regeneradas por diff (claves declaradas vs `R.string`/`@string`), preservando `weekly_plan_rest_day_confirm_*`
+  cuyo sibling `_again` sí se usa.
+- Dependencias de test sin usar: `mockk`, `mockk-android` y `turbine` (0 imports; los tests usan fakes a
+  mano). Se conservan `compose-ui-test-junit4`/`ui-test-manifest`: aunque también están sin usar, quitarlas
+  altera el grafo transitivo de `androidTest` (resuelve `savedstate-android:1.3.1`) y rompe la verificación
+  de dependencias (`verification-metadata.xml` solo cubre 1.3.2). Se dejan hasta que haya tests instrumentados.
+
+**Cambiado**
+- `CLAUDE.md §2`, `SPEC.md` y `DOCS_TECNICA.md`: testing actualizado a la realidad (JUnit5 + fakes hechos
+  a mano + Room in-memory + kotlinx-coroutines-test) en lugar de "MockK + Turbine".
+- `SPEC.md` y `DOCS_TECNICA.md`: los flags premium quedan diferidos; se elimina la referencia normativa a
+  `feature/FeatureFlags.kt` tras borrar la clase muerta.
+
+**Verificado**
+- `.\gradlew.bat --offline testDebugUnitTest assembleDebug` pasa.
+- `.\gradlew.bat --offline assembleRelease` pasa.
+- `.\gradlew.bat lintDebug --no-configuration-cache` → `BUILD SUCCESSFUL` (0 warnings nuevos).
+
+### 2026-07-01 - Fase G theme switching
+
+**Anadido**
+- Repositorio `AppSettingsRepository` sobre `app_settings.theme` con `Flow` Room.
+- `AppThemeViewModel` compartible por Activity/UI para observar y cambiar tema.
+- Selector de tema en Ajustes: Sistema, Claro y Oscuro.
+
+**Cambiado**
+- `MainActivity` aplica `AtlasPeakTheme(themeMode = ...)` desde el valor persistido.
+
+**Verificado**
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat --% :app:compileDebugKotlin --no-daemon --no-configuration-cache --console=plain` pasa.
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat --% :app:testDebugUnitTest :app:jacocoDebugDomainDataCoverageVerification :app:assembleDebug :app:lintDebug :app:compileDebugAndroidTestKotlin --no-daemon --no-configuration-cache --console=plain` pasa.
+- `ATLAS_PEAK_KEYSTORE_PROPERTIES=C:\Users\usuario\.atlaspeak\release\keystore.properties` + `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat --% :app:assembleRelease --no-daemon --no-configuration-cache --console=plain` pasa.
+
+### 2026-07-01 - Fase F notificaciones y planificacion
+
+**Cambiado**
+- `WorkManagerNotificationScheduler` ya no encola recordatorios con `notification_time` nulo
+  o invalido aunque lleguen desde datos legados/corruptos.
+- El resumen diario se cancela si `dailySummaryTime` no cumple `HH:mm`, evitando crashes por
+  `LocalTime.parse` durante reschedule.
+
+**Verificado**
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat --% :app:compileDebugKotlin :app:testDebugUnitTest --tests com.atlaspeak.data.notification.NotificationScheduleCalculatorTest --tests com.atlaspeak.data.notification.NotificationWorkNamesTest --no-daemon --no-configuration-cache --console=plain` pasa.
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat --% :app:testDebugUnitTest :app:jacocoDebugDomainDataCoverageVerification :app:assembleDebug :app:lintDebug :app:compileDebugAndroidTestKotlin --no-daemon --no-configuration-cache --console=plain` pasa.
+- `ATLAS_PEAK_KEYSTORE_PROPERTIES=C:\Users\usuario\.atlaspeak\release\keystore.properties` + `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat --% :app:assembleRelease --no-daemon --no-configuration-cache --console=plain` pasa.
+
+### 2026-07-01 - Fase E hardening backup y Drive
+
+**Cambiado**
+- `DriveBackupManager` limpia best-effort los buffers cifrados descargados/subidos tras usarlos.
+- `BackupWorkScheduler` exige red y bateria no baja, y configura backoff exponencial de 30 min.
+- Listado Drive mantiene query appDataFolder pero filtra localmente nombres exactos
+  `atlas_peak_backup_yyyyMMdd_HHmmss.enc`; tambien excluye `trashed = false` en la query.
+
+**Verificado**
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat --% :app:compileDebugKotlin :app:testDebugUnitTest --tests com.atlaspeak.data.drive.RetrofitDriveBackupServiceTest --no-daemon --no-configuration-cache --console=plain` pasa.
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat --% :app:testDebugUnitTest :app:jacocoDebugDomainDataCoverageVerification :app:assembleDebug :app:lintDebug :app:compileDebugAndroidTestKotlin --no-daemon --no-configuration-cache --console=plain` pasa.
+- `ATLAS_PEAK_KEYSTORE_PROPERTIES=C:\Users\usuario\.atlaspeak\release\keystore.properties` + `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat --% :app:assembleRelease --no-daemon --no-configuration-cache --console=plain` pasa.
+
+### 2026-07-01 - Fase D Health Connect y composicion corporal
+
+**Cambiado**
+- Los snapshots de composicion corporal resuelven conflictos por metrica/timestamp: Health
+  Connect gana frente a valores manuales, y se elimina el duplicado de la serie visible.
+- `RoomBodyCompositionRepository` deja de colapsar `source` desconocido a Manual; ahora falla
+  de forma explicita para no ocultar integraciones futuras mal mapeadas.
+- `HealthConnectManager` serializa offsets horarios a partir de `ZoneOffset` explicito.
+
+**Verificado**
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat --% :app:compileDebugKotlin :app:testDebugUnitTest --tests com.atlaspeak.domain.usecase.body.BodyCompositionUseCaseTest --no-daemon --no-configuration-cache --console=plain` pasa.
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat --% :app:testDebugUnitTest :app:jacocoDebugDomainDataCoverageVerification :app:assembleDebug :app:lintDebug :app:compileDebugAndroidTestKotlin --no-daemon --no-configuration-cache --console=plain` pasa.
+- `ATLAS_PEAK_KEYSTORE_PROPERTIES=C:\Users\usuario\.atlaspeak\release\keystore.properties` + `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat --% :app:assembleRelease --no-daemon --no-configuration-cache --console=plain` pasa.
+
+### 2026-07-01 - Fase C UX y bugs medios pre-publicacion
+
+**Cambiado**
+- `TrainViewModel` carga la biblioteca de ejercicios una vez y filtra busqueda/grupo en memoria,
+  evitando refetch de Room por cada tecla.
+- `HomeViewModel` serializa sync Health Connect + refresh inicial en un unico job para evitar
+  estados pisados por carreras entre sync y dashboard.
+- Cardio activo oculta inputs manuales mientras el GPS funciona; aparecen solo para cardio sin
+  GPS, permisos denegados, tracker fallido o cierre que requiera metricas manuales.
+- El timer local de cardio se detiene si el foreground service vuelve a emitir estado valido.
+- `CardioForegroundService` limpia velocidad actual si el ultimo fix queda obsoleto.
+- Rutinas vacias o con series/reps/descansos fuera de rango ya no se guardan.
+- El temporizador de descanso usa hora de fin real para reducir deriva.
+- El bottom bar ya no usa ancho fijo obligatorio; se adapta a pantallas estrechas.
+- Contraste de `ink3` en tema claro sube a AA para texto secundario.
+
+**Corregido**
+- Home y Composicion corporal muestran accion Reintentar cuando falla la carga inicial.
+- El sheet de ejercicios en entrenamiento activo sobrevive a rotacion.
+- Al desmarcar y remarcar un set se recalcula PR contra el maximo anterior.
+- Composicion corporal valida rangos por campo (`%` <= 100, peso/edad razonables).
+
+**Verificado**
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat --% :app:compileDebugKotlin --no-daemon --no-configuration-cache --console=plain` pasa.
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat --% :app:testDebugUnitTest --tests com.atlaspeak.domain.usecase.workout.RoutineUseCaseTest --tests com.atlaspeak.presentation.body.BodyCompositionDraftTest --no-daemon --no-configuration-cache --console=plain` pasa.
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat --% :app:testDebugUnitTest :app:jacocoDebugDomainDataCoverageVerification :app:assembleDebug :app:lintDebug :app:compileDebugAndroidTestKotlin --no-daemon --no-configuration-cache --console=plain` pasa.
+- `ATLAS_PEAK_KEYSTORE_PROPERTIES=C:\Users\usuario\.atlaspeak\release\keystore.properties` + `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat --% :app:assembleRelease --no-daemon --no-configuration-cache --console=plain` pasa.
+
+### 2026-07-01 - Fase B flujos destructivos, permisos y UX critica
+
+**Anadido**
+- Confirmacion antes de cancelar cardio activo desde back o boton de cancelar.
+- Control explicito para actualizar la contrasena guardada del backup automatico, mostrando
+  advertencia de que backups antiguos requieren la contrasena anterior.
+- Confirmacion de dos pasos antes de convertir en descanso un dia con sesiones planificadas.
+
+**Cambiado**
+- Quick-add de ejercicios en entrenamiento activo carga la lista asincronamente en el
+  `ViewModel`; se elimina `runBlocking` de composicion.
+- Cardio activo arranca `CardioForegroundService` tambien sin GPS y usa FGS `health` para
+  cronometro sin ubicacion, reservando `location` para tracking GPS real.
+- `LaunchViewModel` cae a onboarding ante error o timeout del flujo de onboarding para no
+  quedar indefinidamente en loading.
+- Onboarding solo marca `completed=true` tras persistir correctamente; si falla, muestra error.
+
+**Corregido**
+- Checkbox de completar set sube a 44 dp y expone content description segun estado.
+- Editar perfil reemplaza `Toast` por `Snackbar` accesible antes de volver.
+
+**Seguridad**
+- Registrado `SEC-037`; actualizada la nota de `SEC-014` para cardio sin GPS con FGS health.
+- Registrados `BUG-071` a `BUG-075`.
+
+**Verificado**
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat --% :app:compileDebugKotlin --no-daemon --no-configuration-cache --console=plain` pasa.
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat --% :app:testDebugUnitTest --tests com.atlaspeak.presentation.navigation.LaunchViewModelTest --tests com.atlaspeak.presentation.backup.BackupRestoreViewModelTest --tests com.atlaspeak.presentation.onboarding.OnboardingViewModelTest --tests com.atlaspeak.presentation.planning.WeeklyPlanViewModelTest --no-daemon --no-configuration-cache --console=plain` pasa.
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat --% :app:testDebugUnitTest :app:jacocoDebugDomainDataCoverageVerification :app:assembleDebug :app:lintDebug :app:compileDebugAndroidTestKotlin --no-daemon --no-configuration-cache --console=plain` pasa.
+- `ATLAS_PEAK_KEYSTORE_PROPERTIES=C:\Users\usuario\.atlaspeak\release\keystore.properties` + `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat --% :app:assembleRelease --no-daemon --no-configuration-cache --console=plain` pasa.
+
+### 2026-07-01 - Fase A seguridad e integridad de datos
+
+**Cambiado**
+- Drive OAuth para backup silencioso deja de devolver `String?` opaco y usa un resultado
+  tipado (`Granted`, `MissingAuthorization`, `Failed`), permitiendo distinguir no-consent
+  de fallo transitorio del grant silencioso.
+- La solicitud Drive usa `requestOfflineAccess(BuildConfig.OAUTH_WEB_CLIENT_ID)` cuando el
+  Web Client ID local esta configurado.
+- Backup schema sube a v5 y Room sube a schema v6 para normalizar `weekly_plan.order_index`
+  por dia y evitar colisiones al restaurar o migrar planes con multiples sesiones.
+
+**Corregido**
+- `BackupWorkerRunner` ya no reintenta fallos permanentes (`EmptyPassword`, `Crypto`,
+  `InvalidBackup`, `NotAuthorized`), pero conserva retry para red/desconocido.
+- `RoomBackupSnapshotStore.snapshot()` lee las tablas dentro de una transaccion para no
+  generar snapshots inconsistentes durante escrituras concurrentes.
+- `LocationTracker` descarta fixes GPS sin precision, con precision peor que 30 m o mas
+  antiguos de 10 s antes de publicarlos al tracking de cardio.
+- `BackupCredentialStore` deja de convertir la passphrase a `String` inmutable al guardar
+  la contrasena de auto-backup; usa buffers mutables y los limpia al terminar.
+
+**Seguridad**
+- Registrados `SEC-035` y `SEC-036`; registrados `BUG-069` y `BUG-070`.
+
+**Verificado**
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat --% :app:compileDebugKotlin :app:testDebugUnitTest --tests com.atlaspeak.data.backup.BackupWorkerRunnerTest --tests com.atlaspeak.data.backup.BackupSnapshotUpgraderTest --tests com.atlaspeak.data.location.LocationTrackerTest --no-daemon --no-configuration-cache --console=plain` pasa.
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat --% :app:compileDebugAndroidTestKotlin --no-daemon --no-configuration-cache --console=plain` pasa.
+
+### 2026-06-28 - Auditoria Atlas Peak alta prioridad
+
+**Anadido**
+- Plan semanal con multiples sesiones por dia (`weekly_plan.order_index`), UI para fuerza +
+  cardio el mismo dia y recordatorios por sesion.
+- Import Health Connect de peso, grasa corporal, masa magra y masa de agua corporal, con
+  sync parcial por capacidad.
+- `AtlasTimeField` con selector horario nativo para planificacion y ajustes de notificaciones.
+- `keystore.properties.template`; la firma release puede apuntar a un `keystore.properties`
+  externo via `ATLAS_PEAK_KEYSTORE_PROPERTIES`.
+
+**Cambiado**
+- Calorias de cardio usan ultimo peso corporal valido y solo caen a 75 kg si no hay dato.
+- Cardio filtra rutas, timestamps, velocidades y distancias imposibles antes de guardar.
+- Home muestra todas las sesiones planificadas del dia y bloquea cardio incompleto en vez de
+  degradarlo silenciosamente a 60 segundos.
+- Perfil queda dividido en Perfil, Ajustes y Datos.
+- Documentacion de usuario/tecnica/spec alineada con Health Connect, planificacion, exports y
+  signing fuera del repo.
+
+**Corregido**
+- Restore de backups antiguos aplica `BackupSnapshotUpgrader` durante `BackupJsonCodec.decode()`.
+- Borrado de series tiene confirmacion cuando hay datos y snackbar con Deshacer.
+- Tabs de Progreso e inputs de series tienen semantica accesible.
+- Export JSON/CSV claro pide confirmacion visible y limpia temporales antiguos.
+
+**Seguridad**
+- `keystore.properties` y `atlas-peak-release.jks` se movieron fuera del arbol del proyecto.
+- Registrados SEC-031, SEC-032 y SEC-033; SEC-030 actualizado para backups schema v4.
+
+**Verificado**
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat :app:compileDebugKotlin --no-daemon --no-configuration-cache --console=plain` pasa.
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat :app:testDebugUnitTest --no-daemon --no-configuration-cache --console=plain` pasa.
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat :app:assembleDebug --no-daemon --no-configuration-cache --console=plain` pasa.
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat :app:lintDebug --no-daemon --no-configuration-cache --console=plain` pasa.
+- `ATLAS_PEAK_KEYSTORE_PROPERTIES=C:\Users\usuario\.atlaspeak\release\keystore.properties`
+  + `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat :app:assembleRelease --no-daemon --no-configuration-cache --console=plain` pasa.
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat :app:compileDebugAndroidTestKotlin --no-daemon --no-configuration-cache --console=plain` pasa.
+- `connectedDebugAndroidTest` no paso por infraestructura: el emulador arranco, pero PackageManager
+  fallo durante install con `Broken pipe (32)` antes de ejecutar tests.
+
+### 2026-06-23 - Redisenio completo Monochrome Instrument
+
+**Anadido**
+- Primitivas compartidas `AtlasChip`, `AtlasListRow`, `AtlasSwitchRow`, `AtlasDropdown`,
+  `AtlasDialog`, `AtlasBottomSheet` y soporte de icono/password en `AtlasTextField`.
+- Ruta real `EditProfile` enlazada desde Perfil, con bottom nav visible y Perfil seleccionado
+  en la subpantalla.
+- String i18n `weekly_plan_type_label` en ES/EN para dropdown de tipo de sesion.
+
+**Cambiado**
+- Entrenar, entrenamiento activo, cardio activo/completado, Progreso, Composicion corporal,
+  Perfil, editar perfil, onboarding, plan semanal, ajustes y backup se adaptan al sistema
+  monocromo: chips, campos, dropdowns, dialogs, sheets, filas y estados usan tokens Atlas.
+- Bottom navigation mantiene estado por tab con `saveState=true` y `restoreState=true`;
+  la documentacion tecnica refleja esa politica.
+- Backup conserva password oculto usando `AtlasTextField` con `PasswordVisualTransformation`.
+- `DOCS_USUARIO.md` documenta la edicion de perfil desde Perfil.
+
+**Corregido**
+- `EditProfileScreen` deja de ser pantalla huerfana y queda cubierta por navegacion/politicas.
+- Tests estaticos de bottom nav se alinean con la navegacion real y cubren subrutas de Perfil.
+
+**Verificado**
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat --% :app:compileDebugKotlin --no-daemon --no-configuration-cache --console=plain` pasa.
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat --% :app:testDebugUnitTest --no-daemon --no-configuration-cache --console=plain` pasa.
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat --% :app:lintDebug --no-daemon --no-configuration-cache --console=plain` pasa.
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat --% :app:assembleDebug --no-daemon --no-configuration-cache --console=plain` pasa.
+- `C:\tmp\atlas-dev-tools\gradle-8.11.1\bin\gradle.bat --% :app:assembleRelease --no-daemon --no-configuration-cache --console=plain` pasa.
+- `connectedAndroidTest` no ejecutado: `adb devices` no lista emuladores ni moviles conectados.
+
+### 2026-06-23 - Plan por defecto de entrenamiento 5 dias
+
+**Anadido**
+- Instalacion limpia con plan semanal por defecto: fuerza lunes/martes/jueves/viernes,
+  cardio miercoles en bici estatica 45 min y descanso sabado/domingo.
+- Cuatro rutinas seed de fuerza (`Tren inferior/superior A/B`) con ejercicios, series,
+  descansos y notas para rangos, segundos por plancha y superseries.
+- Plan semanal v4 soporta dias de fuerza, cardio o descanso sin disfrazar cardio como rutina.
+
+**Cambiado**
+- Home inicia la sesion planificada de hoy: `ActiveWorkout` para fuerza y `ActiveCardio`
+  countdown para cardio.
+- `routine_exercises.notes` llega al dominio y se muestra en detalle de rutina y entrenamiento activo.
+- Backup schema sube a v3 para restaurar backups antiguos tras las nuevas columnas de `weekly_plan`.
+- `gradle/verification-metadata.xml` incorpora hashes faltantes de BOMs/parents usados por tests/lint.
+
+**Verificado**
+- `.\gradlew.bat --% :app:testDebugUnitTest --tests com.atlaspeak.data.SeedDataTest --tests com.atlaspeak.domain.usecase.planning.WeeklyPlanUseCaseTest --tests com.atlaspeak.data.backup.BackupSnapshotUpgraderTest --no-daemon --no-configuration-cache --console=plain` pasa.
+- `.\gradlew.bat --% :app:assembleDebug :app:lintDebug --no-daemon --no-configuration-cache --console=plain` pasa.
+- `.\gradlew.bat --% :app:compileDebugAndroidTestKotlin --no-daemon --no-configuration-cache --console=plain` pasa.
+- `connectedAndroidTest` no ejecutado: `adb devices` no lista emuladores ni moviles conectados.
+
+### 2026-06-22 - Higiene Git de Skills y remoto GitHub
+
+**Corregido**
+- `Skills/` queda fuera del indice de Git: se conserva como carpeta local de agente, pero
+  no se subira al repositorio.
+- Verificado que `.gitignore` mantiene `Skills/` y que `git ls-files Skills` devuelve
+  cero rutas versionadas.
+- Verificado que el push de `origin` sigue bloqueado con `DISABLED_WRONG_OWNER` para evitar
+  subidas accidentales al owner de GitHub incorrecto.
+
+**Verificado**
+- `git remote show origin` confirma fetch en `https://github.com/AtlasLabs797/AtlasPeak.git`
+  y push desactivado con `DISABLED_WRONG_OWNER`.
+- `Test-Path Skills` devuelve `True`.
+- `git ls-files Skills | Measure-Object` devuelve `Count: 0`.
+
+### 2026-06-15 - Logo launcher desde marca final
+
+**Cambiado**
+- Reemplazado el foreground del launcher por un PNG generado desde `Logo Atlas Peak.png`,
+  recortado y centrado para adaptive icons sin alterar la silueta de la marca.
+- Aumentado el zoom del launcher para eliminar el borde blanco visible en el icono de app.
+- El fondo del adaptive icon pasa a blanco para respetar el aspecto negro/blanco del logo
+  entregado.
+- Reemplazado `ic_launcher_monochrome` por una version monocroma derivada del mismo logo
+  para launcher tematico y notificaciones.
+
+**Verificado**
+- Preview local del icono compuesto en blanco revisado visualmente.
+- `.\gradlew.bat assembleDebug` no pudo ejecutarse: `JAVA_HOME` apunta a
+  `C:\tmp\atlas-dev-tools\jdk-17.0.19+10`, que no existe, y `java.exe` no esta en `PATH`.
+
+### 2026-06-15 - Rediseño UI/UX monocromo Atlas Peak
+
+**Añadido**
+- Tipografias bundladas `Space Grotesk` y `JetBrains Mono` para UI, titulares y cifras
+  tabulares.
+- Componentes de graficas monocromas Compose (`MonochromeSparkline`,
+  `MonochromeAreaChart`, `MonochromeBarChart`) para Home y Progreso.
+
+**Cambiado**
+- Sistema visual reemplazado por la direccion "instrumento OLED": paleta monocroma,
+  tarjetas de bajo contraste, radios compactos, botones blancos/negros y bottom nav flotante.
+- Home rediseñado al flujo editorial del mockup: saludo, carga semanal gigante,
+  carrusel de metricas, sesion de hoy y metricas secundarias.
+- Progreso rediseñado con cabecera editorial, selector segmentado, volumen mensual,
+  fuerza/record y barras de carga semanal.
+- Entrenamiento activo rediseñado como tabla de telemetria: cronometro en vivo,
+  progreso/volumen, filas kg/reps editables, check de set y descanso inline.
+- Flujos restantes heredan los nuevos tokens; los chips de color de rutinas mantienen
+  compatibilidad de dato pero ya no pintan acentos rojo/verde/azul/morado.
+- Tests de politica UI actualizados a las nuevas fuentes y contraste del tema.
+
+**Verificado**
+- `gradle.bat :app:compileDebugKotlin --no-daemon --console=plain` pasa.
+- `gradle.bat :app:testDebugUnitTest --tests com.atlaspeak.presentation.StaticUiPolicyTest --tests com.atlaspeak.presentation.theme.ThemeAccessibilityTest --no-daemon --console=plain` pasa.
+- `gradle.bat :app:testDebugUnitTest :app:assembleDebug :app:lintDebug --no-daemon --console=plain` pasa.
+- `connectedAndroidTest` no ejecutado: `adb devices` no lista emuladores ni moviles conectados.
+
+### 2026-06-11 - Crash al cambiar periodos de Progreso
+
+**Corregido**
+- Registrado y resuelto `BUG-060`: `ProgressViewModel` cancela refreshes obsoletos,
+  descarta resultados de filtros anteriores y convierte fallos de carga en error UI
+  en vez de dejar que una excepcion cierre la app.
+- Los graficos de Progreso, Home y Composicion corporal filtran puntos `NaN`/`Infinity`
+  antes de pasarlos a Vico.
+
+**Verificado**
+- `.\gradlew.bat --% :app:testDebugUnitTest --tests com.atlaspeak.presentation.progress.ProgressViewModelTest --no-daemon --console=plain` pasa.
+- `.\gradlew.bat --% :app:testDebugUnitTest --tests com.atlaspeak.domain.usecase.progress.ProgressUseCaseTest :app:assembleDebug :app:lintDebug --no-daemon --console=plain` pasa.
+- `.\gradlew.bat --% :app:assembleDebug :app:lintDebug --no-daemon --console=plain` pasa tras los ajustes finales del ViewModel.
+- QA en dispositivo no ejecutada: `adb devices` no lista moviles/emuladores conectados.
+
+### 2026-06-10 - Auditoria pre-publicacion: bugs criticos, flujos y UX premium
+
+**Corregido**
+- `BUG-045`..`BUG-059` (ver BUGS.md): crash potencial al finalizar entrenamiento sin
+  servicio en foreground; entrenamiento activo sin salida (BackHandler + dialogo
+  descartar); cancelacion de cardio sin confirmacion; campos peso/reps inutilizables
+  (borradores de texto crudo por set); perdida silenciosa de sets con ejercicios
+  duplicados en rutina (numeracion continua); restart STICKY sin startForeground
+  (`START_NOT_STICKY`); sesion duplicada tras muerte de proceso (`SavedStateHandle`);
+  bucle de navegacion al completar desde Home; notificaciones de servicio sin
+  `contentIntent`; perdida de estado al cambiar de tab (saveState/restoreState);
+  cardio GPS con distancia 0 imposible de guardar; backups schema v1 irrestaurables
+  (`BackupSnapshotUpgrader`); restore sin reprogramar notificaciones; errores pintados
+  en color primary; race en refresh de composicion corporal.
+
+**Anadido**
+- Pantalla de edicion de perfil (`EditProfileScreen`): nombre, edad, altura, genero
+  (con "Otro" y "Prefiero no decir") y objetivo, editables tras el onboarding.
+  Genero/objetivo se persisten como claves estables (no texto localizado), con
+  mapeo best-effort de valores legacy.
+- Toggles de sonido/vibracion del temporizador de descanso en ajustes.
+- Navegacion atras entre pasos del onboarding.
+- Saludo personalizado en Home; fechas en el historial de Entrenar; tamano de
+  archivo en la lista de backups de Drive y aviso SEC-002 al cambiar la passphrase.
+
+**Cambiado**
+- Calorias de cardio usan el ultimo peso corporal registrado (fallback 75 kg).
+- Duraciones legibles ("1 h 24 min") en resumenes, historial y progreso; los
+  `formatElapsed` duplicados consolidados en `core/time/ElapsedClock`.
+- Pulido premium: anillo de descanso animado con cuenta atras destacada, haptica al
+  completar set, contraste del heroe de resumen en tema claro, targets tactiles de
+  48dp en `PeriodSelector`, umbrales de drag en dp, imagen decorativa sin
+  `contentDescription`.
+- Ortografia espanola corregida en todo `values/strings.xml` (~40 tildes/enes).
+
+**Verificado**
+- `.\gradlew.bat --% :app:assembleDebug :app:testDebugUnitTest :app:lintDebug --no-daemon --console=plain` pasa.
+
+### 2026-06-08 - Mitigacion de formula injection en CSV
+
+**Seguridad**
+- Registrado y resuelto `SEC-029` / `BUG-044`: los exports CSV neutralizan celdas de texto
+  que podrian ser interpretadas como formulas por hojas de calculo.
+
+**Corregido**
+- `BackupExportFormatter` antepone apostrofe a valores textuales cuyo primer caracter
+  significativo sea `=`, `+`, `-` o `@`; los primitivos JSON numericos no se convierten
+  en texto.
+
+**Verificado**
+- `.\gradlew.bat --% :app:testDebugUnitTest --tests com.atlaspeak.data.backup.BackupExportFormatterTest --no-daemon --console=plain -Pkotlin.incremental=false -Dkotlin.compiler.execution.strategy=in-process` pasa.
+- `.\gradlew.bat --% :app:testDebugUnitTest --no-daemon --console=plain -Pkotlin.incremental=false -Dkotlin.compiler.execution.strategy=in-process` pasa.
+- `.\gradlew.bat --% :app:lintDebug --no-daemon --console=plain -Pkotlin.incremental=false -Dkotlin.compiler.execution.strategy=in-process` pasa.
+
+## [V-01.07] - 2026-06-08
+
+### Release V-01.07
+
+#### 2026-06-08 - Bump de version
+
+**Cambiado**
+- Fijada la version de app en `versionName = "V-01.07"` y `versionCode = 107`.
+
+## [V-01.06] - 2026-05-31
+
+### Release V-01.06
+
+#### 2026-05-31 - Bump de version
+
+**Cambiado**
+- Fijada la version de app en `versionName = "V-01.06"` y `versionCode = 106`.
+
+**Anadido**
+- Copia de distribucion local en `build/distribution/AtlasPeak-V-01.06-release.apk`.
+- `build/distribution/install-adb.bat`, `README-INSTALACION.txt` y `SHA256SUMS.txt`
+  regenerados para V-01.06.
+
+**Verificado**
+- `.\gradlew.bat clean :app:packageReleaseUpdate --no-daemon --console=plain --no-build-cache --no-configuration-cache` pasa.
+- `build/distribution/README-INSTALACION.txt` confirma `versionName V-01.06` y
+  `versionCode 106`.
+- `aapt2 dump badging` confirma `package='com.atlaspeak'`, `versionCode='106'`,
+  `versionName='V-01.06'`, `minSdkVersion='31'` y `targetSdkVersion='35'`.
+- SHA-256: `EA0CA6DACD367D09C689B3BF3C385419981786DFD06CE308C86BEE426C51C6D2`.
+
 #### 2026-05-30 - Auditoria seguridad/bugs y hardening de supply chain
 
 **Seguridad**

@@ -50,9 +50,8 @@ class StaticUiPolicyTest {
         val typography = presentationSource.resolve("theme/Typography.kt").toFile().readText()
 
         assertFalse(typography.contains("FontFamily.SansSerif"))
-        assertTrue(typography.contains("poppins_semibold"))
-        assertTrue(typography.contains("poppins_bold"))
-        assertTrue(typography.contains("inter_variable"))
+        assertTrue(typography.contains("space_grotesk_variable"))
+        assertTrue(typography.contains("jetbrains_mono_variable"))
     }
 
     @Test
