@@ -10,6 +10,25 @@
 
 ## [Unreleased]
 
+### 2026-07-03 - Entrenamiento activo: volumen vivo y layout compacto
+
+**Corregido**
+- `BUG-088`: `ActiveWorkout` calcula y muestra el volumen completado en vivo en vez de leer
+  `total_volume_kg`, que solo se persiste al cerrar la sesion.
+- La cabecera integra la salida visible, reduce el aire superior y usa el ejercicio visible del
+  pager para el texto `Ejercicio X / N`.
+- El descanso activo pasa a overlay transparente con padding inferior en la lista de series, y
+  la accion de ejercicios queda como boton icon-only para que el CTA principal no corte texto.
+
+**AÃ±adido**
+- Helper de dominio `completedVolumeKg()` compartido entre UI y cierre de sesion.
+- El historial de progreso reutiliza el mismo helper de volumen para evitar divergencias.
+- Tests de volumen completado y estado UI de entrenamiento activo.
+
+**Verificado**
+- `.\gradlew.bat test` pasa.
+- `.\gradlew.bat lint` pasa.
+
 ### 2026-07-03 - Feedback visual al guardar ajustes
 
 **Corregido**

@@ -2,6 +2,7 @@ package com.atlaspeak.domain.usecase.workout
 
 import com.atlaspeak.domain.model.workout.WorkoutSummary
 import com.atlaspeak.domain.model.workout.WorkoutSet
+import com.atlaspeak.domain.model.workout.completedVolumeKg
 import com.atlaspeak.domain.repository.WorkoutRepository
 import javax.inject.Inject
 
@@ -33,9 +34,7 @@ class CompleteWorkoutSessionUseCase @Inject constructor(
             }
         }
 
-        val totalVolumeKg = completedSets.sumOf { set ->
-            (set.actualReps ?: set.plannedReps).coerceAtLeast(0) * (set.weightKg ?: 0.0)
-        }
+        val totalVolumeKg = session.completedVolumeKg()
         val durationSeconds = ((endedAt - session.startTime) / 1000).coerceAtLeast(0).toInt()
         workoutRepository.updateSessionCompletion(
             sessionId = sessionId,

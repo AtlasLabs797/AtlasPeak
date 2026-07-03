@@ -117,6 +117,7 @@
     <string name="workout_finish_action">Finalizar</string>
     <string name="workout_next_exercise_action">Siguiente</string>
     <string name="workout_complete_sets_action">Completa sets</string>
+    <string name="workout_sets_remaining_action">Faltan series</string>
     <string name="workout_add_set">Añadir set</string>
     <string name="workout_add_exercise">Añadir ejercicio</string>
     <string name="workout_add_exercise_dialog_title">Añadir ejercicio a la sesión</string>

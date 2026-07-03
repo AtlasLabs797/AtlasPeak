@@ -11,7 +11,7 @@ import com.atlaspeak.domain.model.workout.ActiveWorkoutExercise
 import com.atlaspeak.domain.model.workout.Exercise
 import com.atlaspeak.domain.model.workout.MuscleGroup
 import com.atlaspeak.domain.model.workout.WorkoutSession
-import com.atlaspeak.domain.model.workout.WorkoutSet
+import com.atlaspeak.domain.model.workout.completedVolumeKg
 import com.atlaspeak.domain.repository.CardioRepository
 import com.atlaspeak.domain.repository.ExerciseRepository
 import com.atlaspeak.domain.repository.WorkoutRepository
@@ -138,10 +138,6 @@ class ProgressUseCase(
         isPreset = false,
         isArchived = false,
     )
-
-    private fun WorkoutSet.completedVolumeKg(): Double {
-        return (actualReps ?: plannedReps) * (weightKg ?: 0.0)
-    }
 
     private fun ProgressPeriod.cutoffMillis(nowMillis: Long): Long {
         return when (this) {

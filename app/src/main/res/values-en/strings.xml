@@ -110,6 +110,7 @@
     <string name="workout_finish_action">Finish</string>
     <string name="workout_next_exercise_action">Next</string>
     <string name="workout_complete_sets_action">Complete sets</string>
+    <string name="workout_sets_remaining_action">Sets left</string>
     <string name="workout_add_set">Add set</string>
     <string name="workout_add_exercise">Add exercise</string>
     <string name="workout_add_exercise_dialog_title">Add exercise to session</string>

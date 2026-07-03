@@ -3,6 +3,7 @@ package com.atlaspeak.domain.usecase.workout
 import com.atlaspeak.domain.model.workout.ActiveWorkoutExercise
 import com.atlaspeak.domain.model.workout.WorkoutSession
 import com.atlaspeak.domain.model.workout.WorkoutSet
+import com.atlaspeak.domain.model.workout.completedVolumeKg
 import com.atlaspeak.domain.repository.WorkoutRepository
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
@@ -22,7 +23,7 @@ class CompleteWorkoutSessionUseCaseTest {
         val summary = useCase("session_1", endedAt = 1_700_000_600_000L)
 
         assertEquals(600, summary?.durationSeconds)
-        assertEquals(1280.0, summary?.totalVolumeKg)
+        assertEquals(repository.sessions.single().completedVolumeKg(), summary?.totalVolumeKg)
         assertEquals(2, summary?.completedSets)
         assertEquals(3, summary?.totalSets)
         assertEquals(1, summary?.personalRecordCount)

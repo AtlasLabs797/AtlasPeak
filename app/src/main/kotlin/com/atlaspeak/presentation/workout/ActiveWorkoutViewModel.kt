@@ -10,6 +10,7 @@ import com.atlaspeak.domain.model.workout.Exercise
 import com.atlaspeak.domain.model.workout.RestTimerFeedbackSettings
 import com.atlaspeak.domain.model.workout.WorkoutSession
 import com.atlaspeak.domain.model.workout.WorkoutSet
+import com.atlaspeak.domain.model.workout.completedVolumeKg
 import com.atlaspeak.domain.repository.ExerciseRepository
 import com.atlaspeak.domain.repository.WorkoutRepository
 import com.atlaspeak.domain.repository.WorkoutSettingsRepository
@@ -429,6 +430,11 @@ data class ActiveWorkoutUiState(
     } ?: 0
 
     val totalExerciseCount: Int = session?.exercises?.size ?: 0
+
+    val exerciseCompletionProgress: Float =
+        if (totalExerciseCount <= 0) 0f else completedExerciseCount / totalExerciseCount.toFloat()
+
+    val liveTotalVolumeKg: Double = session?.completedVolumeKg() ?: 0.0
 }
 
 data class RestTimerUiState(

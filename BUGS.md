@@ -24,6 +24,26 @@
 
 ## Entradas
 
+### BUG-088 - Entrenamiento activo no mostraba volumen vivo y recortaba controles
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-07-03
+- **Fase:** V-01.08
+- **Severidad:** Media
+- **Sintoma:** en la pantalla de entrenamiento activo el volumen permanecia en `0 kg`,
+  la cabecera dejaba demasiado aire superior, el descanso ocupaba una card opaca y las
+  acciones inferiores partian el texto en moviles estrechos.
+- **Causa raiz:** la UI leia `workout_sessions.total_volume_kg`, que solo se calcula al cerrar
+  la sesion; ademas el layout vertical dedicaba una fila entera a cerrar, reservaba demasiada
+  altura para el panel de descanso y dividia dos acciones textuales en media pantalla.
+- **Solucion:** se anade calculo compartido de volumen completado, `ActiveWorkoutUiState` expone
+  volumen vivo y progreso por ejercicio completo, el header integra la salida, el descanso pasa
+  a overlay transparente con padding en la lista y la accion de ejercicios pasa a icon-only.
+- **Prevencion:** tests de volumen completado y estado UI cubren volumen vivo, progreso por
+  ejercicio completo y sets incompletos ignorados.
+- **Fecha resolucion:** 2026-07-03
+
+---
+
 ### BUG-087 - Ajustes guardaban sin feedback visual claro
 - **Estado:** Resuelto
 - **Fecha deteccion:** 2026-07-03
