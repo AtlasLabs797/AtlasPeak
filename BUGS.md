@@ -24,6 +24,24 @@
 
 ## Entradas
 
+### BUG-087 - Ajustes guardaban sin feedback visual claro
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-07-03
+- **Fase:** V-01.08
+- **Severidad:** Baja
+- **Sintoma:** cambiar el tema persistia inmediatamente sin confirmacion visual, y el guardado de
+  notificaciones mostraba un texto discreto que podia pasar desapercibido.
+- **Causa raiz:** el ViewModel de tema no exponia eventos de guardado y Ajustes no tenia una
+  superficie visual comun para estados de exito/error.
+- **Solucion:** `AppThemeViewModel` emite eventos tras guardar, `NotificationSettingsViewModel`
+  modela el tono del feedback y `NotificationSettingsScreen` renderiza una tarjeta de estado
+  con icono para tema y notificaciones.
+- **Prevencion:** tests de ViewModel cubren evento de tema guardado, fallo al guardar tema y
+  feedback de exito/error en ajustes de notificaciones.
+- **Fecha resolucion:** 2026-07-03
+
+---
+
 ### BUG-086 - ThemeMode existia pero no habia switching real
 - **Estado:** Resuelto
 - **Fecha deteccion:** 2026-07-01

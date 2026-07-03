@@ -440,6 +440,7 @@
     <string name="theme_dark">Dark</string>
     <string name="theme_settings_title">Theme</string>
     <string name="theme_settings_body">Choose whether Atlas Peak follows the system or forces light/dark mode.</string>
+    <string name="theme_settings_saved">Theme saved.</string>
     <string name="state_loading">Loading</string>
     <string name="state_empty_title">No data yet</string>
     <string name="state_empty_body">This section will become active when its phase is complete.</string>

@@ -10,6 +10,27 @@
 
 ## [Unreleased]
 
+### 2026-07-03 - Feedback visual al guardar ajustes
+
+**Corregido**
+- `BUG-087`: Ajustes ahora muestra feedback visual claro al persistir cambios. El selector de
+  tema emite un evento tras guardar en repositorio y la pantalla renderiza una tarjeta de estado
+  con icono; el guardado de notificaciones usa el mismo patrón para éxito/error.
+
+**Añadido**
+- Tests de ViewModel para feedback de guardado de tema y ajustes de notificaciones.
+
+**Verificado**
+- `.\gradlew.bat test` pasa.
+- `.\gradlew.bat lint` pasa.
+- `.\gradlew.bat assembleDebug assembleRelease` pasa.
+
+### 2026-07-03 - Inicio version V-01.08
+
+**Cambiado**
+- Creada rama de trabajo `codex/v-01.08-update` desde `main`.
+- Fijada la version de app en `versionName = "V-01.08"` y `versionCode = 108`.
+
 ### 2026-07-02 - Rama puente para PR a main
 
 **Cambiado**

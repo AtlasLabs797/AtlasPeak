@@ -452,6 +452,7 @@
     <string name="theme_dark">Oscuro</string>
     <string name="theme_settings_title">Tema</string>
     <string name="theme_settings_body">Elige si Atlas Peak sigue el sistema o fuerza modo claro/oscuro.</string>
+    <string name="theme_settings_saved">Tema guardado.</string>
     <string name="state_loading">Cargando</string>
     <string name="state_empty_title">Sin datos todavía</string>
     <string name="state_empty_body">Esta sección se activará al completar su fase.</string>

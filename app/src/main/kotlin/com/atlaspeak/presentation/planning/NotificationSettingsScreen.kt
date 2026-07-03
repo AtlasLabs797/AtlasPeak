@@ -21,12 +21,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -42,6 +45,8 @@ import com.atlaspeak.domain.model.planning.NotificationSettings
 import com.atlaspeak.domain.model.settings.AppThemeMode
 import com.atlaspeak.presentation.component.AtlasChip
 import com.atlaspeak.presentation.component.AtlasPrimaryButton
+import com.atlaspeak.presentation.component.AtlasStatusMessage
+import com.atlaspeak.presentation.component.AtlasStatusTone
 import com.atlaspeak.presentation.component.AtlasSwitchRow
 import com.atlaspeak.presentation.component.AtlasTimeField
 import com.atlaspeak.presentation.component.PremiumBackground
@@ -71,11 +76,27 @@ fun NotificationSettingsRoute(
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         viewModel.reconcileSystemNotificationAvailability(context.canPostNotifications())
     }
+    LaunchedEffect(themeViewModel) {
+        themeViewModel.saveEvents.collect { event ->
+            viewModel.showFeedback(
+                messageRes = event.messageRes,
+                tone = if (event.isError) {
+                    NotificationSettingsFeedbackTone.Error
+                } else {
+                    NotificationSettingsFeedbackTone.Success
+                },
+            )
+        }
+    }
     NotificationSettingsScreen(
         state = state,
         themeMode = themeMode,
         onBack = onBack,
-        onThemeModeSelected = themeViewModel::setThemeMode,
+        onThemeModeSelected = { mode ->
+            if (mode != themeMode) {
+                themeViewModel.setThemeMode(mode)
+            }
+        },
         onNotificationsEnabledChanged = { enabled ->
             if (!enabled) {
                 viewModel.setNotificationsEnabled(false)
@@ -160,11 +181,11 @@ fun NotificationSettingsScreen(
                 }
                 if (state.messageRes != null) {
                     item {
-                        val atlasColors = LocalAtlasColors.current
-                        Text(
-                            text = stringResource(state.messageRes),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = atlasColors.ink2,
+                        val isError = state.messageTone == NotificationSettingsFeedbackTone.Error
+                        AtlasStatusMessage(
+                            message = stringResource(state.messageRes),
+                            tone = if (isError) AtlasStatusTone.Error else AtlasStatusTone.Info,
+                            icon = if (isError) Icons.Filled.Error else Icons.Filled.CheckCircle,
                         )
                     }
                 }
