@@ -19,13 +19,12 @@ import com.atlaspeak.domain.usecase.workout.DiscardWorkoutSessionUseCase
 import com.atlaspeak.domain.usecase.workout.StartWorkoutSessionUseCase
 import com.atlaspeak.presentation.navigation.AppRoute
 import com.atlaspeak.service.WorkoutForegroundService
+import com.atlaspeak.service.WorkoutRestTimerState
 import com.atlaspeak.service.WorkoutTimerRegistry
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.UUID
 import javax.inject.Inject
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -46,7 +45,6 @@ class ActiveWorkoutViewModel @Inject constructor(
     private val routineId: String = requireNotNull(savedStateHandle[AppRoute.ActiveWorkout.ROUTINE_ID])
     private val mutableState = MutableStateFlow(ActiveWorkoutUiState())
     val state: StateFlow<ActiveWorkoutUiState> = mutableState.asStateFlow()
-    private var restJob: Job? = null
     private var exerciseOrder: List<String> = emptyList()
 
     init {
@@ -61,7 +59,13 @@ class ActiveWorkoutViewModel @Inject constructor(
                         timer.failed && timer.sessionId == currentSessionId -> {
                             current.copy(message = ActiveWorkoutMessage.TimerServiceUnavailable)
                         }
-                        timer.sessionId == currentSessionId -> current.copy(elapsedSeconds = timer.elapsedSeconds)
+                        timer.sessionId == currentSessionId -> {
+                            current.copy(
+                                elapsedSeconds = timer.elapsedSeconds,
+                                restTimer = timer.restTimer?.toUiState(),
+                            )
+                        }
+                        timer.sessionId == null -> current.copy(restTimer = null)
                         else -> current
                     }
                 }
@@ -265,8 +269,7 @@ class ActiveWorkoutViewModel @Inject constructor(
     }
 
     fun skipRestTimer() {
-        restJob?.cancel()
-        restJob = null
+        context.startService(WorkoutForegroundService.clearRestIntent(context))
         mutableState.update { it.copy(restTimer = null) }
     }
 
@@ -284,7 +287,6 @@ class ActiveWorkoutViewModel @Inject constructor(
         viewModelScope.launch {
             discardWorkoutSessionUseCase(session.id)
             ContextCompat.startForegroundService(context, WorkoutForegroundService.stopIntent(context))
-            restJob?.cancel()
             mutableState.update {
                 it.copy(
                     session = null,
@@ -312,11 +314,6 @@ class ActiveWorkoutViewModel @Inject constructor(
                 message = ActiveWorkoutMessage.TimerServiceUnavailable,
             )
         }
-    }
-
-    override fun onCleared() {
-        restJob?.cancel()
-        super.onCleared()
     }
 
     private fun startWorkout() {
@@ -382,20 +379,26 @@ class ActiveWorkoutViewModel @Inject constructor(
 
     private fun startRestTimer(totalSeconds: Int) {
         if (totalSeconds <= 0) return
-        restJob?.cancel()
+        val session = mutableState.value.session ?: return
         val timerId = UUID.randomUUID().toString()
         val endsAt = System.currentTimeMillis() + totalSeconds * 1000L
-        restJob = viewModelScope.launch {
-            while (true) {
-                val remaining = ((endsAt - System.currentTimeMillis()) / 1000L).toInt().coerceIn(0, totalSeconds)
-                mutableState.update {
-                    it.copy(restTimer = RestTimerUiState(timerId, totalSeconds, remaining))
-                }
-                if (remaining == 0) break
-                delay(250)
-            }
-            delay(420)
-            mutableState.update { it.copy(restTimer = null) }
+        val settings = mutableState.value.restFeedbackSettings
+        try {
+            ContextCompat.startForegroundService(
+                context,
+                WorkoutForegroundService.startRestIntent(
+                    context = context,
+                    sessionId = session.id,
+                    startedAt = session.startTime,
+                    restId = timerId,
+                    totalSeconds = totalSeconds,
+                    endsAtMillis = endsAt,
+                    soundEnabled = settings.soundEnabled,
+                    vibrationEnabled = settings.vibrationEnabled,
+                ),
+            )
+        } catch (_: SecurityException) {
+            mutableState.update { it.copy(message = ActiveWorkoutMessage.TimerServiceUnavailable) }
         }
     }
 
@@ -441,6 +444,7 @@ data class RestTimerUiState(
     val id: String,
     val totalSeconds: Int,
     val remainingSeconds: Int,
+    val alerting: Boolean,
 ) {
     val progress: Float = if (totalSeconds <= 0) 0f else remainingSeconds / totalSeconds.toFloat()
 }
@@ -479,4 +483,13 @@ private fun WorkoutSet.toInputDraft(): WorkoutSetInputDraft {
 
 private fun WorkoutSet.hasEnteredData(): Boolean {
     return completed || actualReps != null || weightKg != null
+}
+
+private fun WorkoutRestTimerState.toUiState(): RestTimerUiState {
+    return RestTimerUiState(
+        id = id,
+        totalSeconds = totalSeconds,
+        remainingSeconds = remainingSeconds,
+        alerting = alerting,
+    )
 }

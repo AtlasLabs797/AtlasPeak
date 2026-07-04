@@ -291,7 +291,10 @@ revocados.
   `ACTIVITY_RECOGNITION` en Android 14+. En la implementacion actual el estado se publica via
   `WorkoutTimerRegistry`, `ActiveWorkout` solicita `ACTIVITY_RECOGNITION` antes de arrancarlo,
   y el servicio se detiene al completar la sesion. Si `startForeground` falla por permisos
-  runtime, la pantalla activa sigue funcionando y muestra un aviso.
+  runtime, la pantalla activa sigue funcionando y muestra un aviso. El descanso activo tambien
+  vive en `WorkoutTimerRegistry`: al expirar queda en `alerting=true`, el servicio vibra/suena
+  en bucle hasta `Parar`, y la notificacion ofrece `Saltar` durante la cuenta atras o `Parar`
+  cuando llega a cero.
 - **CardioForegroundService** (`foregroundServiceType=location`): mantiene cronometro GPS
   + notificacion y expone `StateFlow<CardioTrackerState>`. Si la sesion usa GPS y hay
   `ACCESS_FINE_LOCATION`, arranca como tipo `location` y recibe ubicaciones de

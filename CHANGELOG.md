@@ -10,6 +10,25 @@
 
 ## [Unreleased]
 
+### 2026-07-03 - Alarma persistente de descanso
+
+**Corregido**
+- `BUG-089`: el descanso ya no se cierra solo al llegar a cero; queda en `00:00` y
+  vibra/suena en bucle hasta que el usuario pulsa `Parar`.
+- El feedback de fin de descanso pasa de Compose al `WorkoutForegroundService`, por lo que
+  sigue activo con la app en background mientras el servicio de entrenamiento siga vivo.
+- La notificacion del entrenamiento muestra el descanso en cuenta atras y ofrece `Saltar`;
+  cuando expira, muestra `Descanso terminado` y ofrece `Parar`.
+
+**AÃ±adido**
+- Tests de `WorkoutTimerRegistry` para expiracion a alerta, persistencia hasta limpieza
+  explicita y reemplazo de descansos.
+
+**Verificado**
+- `.\gradlew.bat test` pasa.
+- `.\gradlew.bat lint` pasa.
+- `.\gradlew.bat assembleDebug assembleRelease` pasa.
+
 ### 2026-07-03 - Entrenamiento activo: volumen vivo y layout compacto
 
 **Corregido**

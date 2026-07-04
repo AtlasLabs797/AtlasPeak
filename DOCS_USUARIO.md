@@ -58,10 +58,11 @@ reordenar. La duración estimada se calcula sola.
 ### Entrenar (fuerza)
 **Entrenar → elige una rutina → Iniciar.** Verás un ejercicio por pantalla (desliza para
 cambiar). Marca cada serie al completarla; aparece el **temporizador de descanso** con un
-anillo y un botón de "Saltar". Al terminar verás un resumen (volumen, duración, récords).
-El cronómetro sigue corriendo aunque salgas de la app (notificación persistente). Si quieres
-abandonar la sesión, pulsa la **✕** arriba a la derecha (o el gesto atrás): la app te pedirá
-confirmación antes de descartarla.
+anillo y un botón de "Saltar". Cuando el descanso llega a cero, vibra/suena hasta que pulses
+"Parar" en la app o en la notificación. Al terminar verás un resumen (volumen, duración,
+récords). El cronómetro sigue corriendo aunque salgas de la app (notificación persistente).
+Si quieres abandonar la sesión, pulsa la **✕** arriba a la derecha (o el gesto atrás): la app
+te pedirá confirmación antes de descartarla.
 
 ### Hacer cardio
 **Entrenar → Cardio → elige un tipo → Iniciar.** Dos modos: **cronómetro** (cuenta hacia

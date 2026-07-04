@@ -1,14 +1,9 @@
 package com.atlaspeak.presentation.workout
 
 import android.Manifest
-import android.media.AudioManager
-import android.media.ToneGenerator
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.BackHandler
-import android.os.VibrationEffect
-import android.os.Vibrator
-import android.os.VibratorManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.LinearEasing
@@ -59,7 +54,6 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -94,7 +88,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.atlaspeak.R
 import com.atlaspeak.core.time.ElapsedClock
 import com.atlaspeak.domain.model.workout.ActiveWorkoutExercise
-import com.atlaspeak.domain.model.workout.RestTimerFeedbackSettings
 import com.atlaspeak.domain.model.workout.WorkoutSet
 import com.atlaspeak.presentation.component.AtlasBottomSheet
 import com.atlaspeak.presentation.component.AtlasDialog
@@ -104,7 +97,6 @@ import com.atlaspeak.presentation.component.PremiumBackground
 import com.atlaspeak.presentation.component.PremiumCard
 import com.atlaspeak.presentation.theme.LocalAtlasColors
 import com.atlaspeak.presentation.theme.LocalSpacing
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -252,7 +244,6 @@ fun ActiveWorkoutScreen(
     val spacing = LocalSpacing.current
     val session = state.session
     var showExerciseSheet by rememberSaveable { mutableStateOf(false) }
-    RestFeedbackEffect(state.restTimer, state.restFeedbackSettings)
 
     PremiumBackground(modifier = modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize()) {
@@ -831,7 +822,9 @@ private fun RestTimerPanel(
             verticalArrangement = Arrangement.spacedBy(spacing.xs),
         ) {
             Text(
-                text = stringResource(R.string.workout_rest_active),
+                text = stringResource(
+                    if (timer.alerting) R.string.workout_rest_finished else R.string.workout_rest_active,
+                ),
                 style = MaterialTheme.typography.labelSmall,
                 color = atlasColors.ink3,
             )
@@ -853,7 +846,7 @@ private fun RestTimerPanel(
             AtlasSecondaryButton(
                 modifier = Modifier.fillMaxWidth(),
                 onClick = onSkipRest,
-                text = stringResource(R.string.action_skip),
+                text = stringResource(if (timer.alerting) R.string.action_stop else R.string.action_skip),
             )
         }
     }
@@ -1130,48 +1123,6 @@ private fun ExerciseSheetRow(
                     contentDescription = stringResource(R.string.workout_move_exercise_down_cd),
                     tint = if (last) atlasColors.ink4 else atlasColors.ink2,
                 )
-            }
-        }
-    }
-}
-
-@Composable
-private fun RestFeedbackEffect(
-    restTimer: RestTimerUiState?,
-    settings: RestTimerFeedbackSettings,
-) {
-    val context = LocalContext.current
-    // (#7 del informe) ToneGenerator es caro (allocate + inicializa audio HAL). Lo
-    // creamos una sola vez por pantalla de workout y lo liberamos al salir.
-    val toneGenerator = remember {
-        if (settings.soundEnabled) ToneGenerator(AudioManager.STREAM_NOTIFICATION, 60) else null
-    }
-    DisposableEffect(toneGenerator) {
-        onDispose { toneGenerator?.release() }
-    }
-    LaunchedEffect(restTimer?.id, restTimer?.remainingSeconds) {
-        if (restTimer == null) return@LaunchedEffect
-        if (restTimer.remainingSeconds != 0) return@LaunchedEffect
-        if (settings.vibrationEnabled) {
-            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                context.getSystemService(VibratorManager::class.java).defaultVibrator
-            } else {
-                @Suppress("DEPRECATION")
-                context.getSystemService(Vibrator::class.java)
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator.vibrate(VibrationEffect.createOneShot(120, VibrationEffect.DEFAULT_AMPLITUDE))
-            } else {
-                @Suppress("DEPRECATION")
-                vibrator.vibrate(120)
-            }
-        }
-        if (settings.soundEnabled && toneGenerator != null) {
-            try {
-                toneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP, 120)
-            } catch (_: RuntimeException) {
-                // ToneGenerator puede soltar RuntimeException si el HAL no responde.
-                // Lo silenciamos: la vibración ya cubrió la señal háptica.
             }
         }
     }

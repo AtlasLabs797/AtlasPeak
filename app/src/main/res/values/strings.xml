@@ -13,6 +13,7 @@
     <string name="action_edit">Editar</string>
     <string name="action_start">Iniciar</string>
     <string name="action_skip">Saltar</string>
+    <string name="action_stop">Parar</string>
     <string name="action_continue">Continuar</string>
     <string name="action_retry">Reintentar</string>
     <string name="action_back">Volver</string>
@@ -103,6 +104,8 @@
     <string name="workout_notification_channel">Entrenamiento activo</string>
     <string name="workout_notification_title">Entrenamiento activo</string>
     <string name="workout_notification_text">Tiempo: %1$s</string>
+    <string name="workout_notification_rest_countdown">Descanso: %1$s</string>
+    <string name="workout_notification_rest_done">Descanso terminado</string>
     <string name="workout_active_missing_routine">No se pudo iniciar esta rutina.</string>
     <string name="workout_timer_service_unavailable">El cronómetro persistente no pudo arrancar por permisos del dispositivo.</string>
     <string name="workout_exit_dialog_title">¿Salir del entrenamiento?</string>
@@ -138,6 +141,7 @@
     <string name="workout_weight_series_cd">Peso serie %1$d</string>
     <string name="workout_reps_series_cd">Repeticiones serie %1$d</string>
     <string name="workout_rest_active">Descanso activo</string>
+    <string name="workout_rest_finished">Descanso terminado</string>
     <string name="workout_rest_next_set">Siguiente: Serie %1$d - %2$.0f kg</string>
     <string name="workout_rest_progress_cd">Descanso: %1$d segundos restantes.</string>
     <string name="workout_complete_title">Entrenamiento completado</string>

@@ -24,6 +24,23 @@
 
 ## Entradas
 
+### BUG-089 - Descanso avisaba una sola vez y se apagaba solo
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-07-03
+- **Fase:** V-01.08
+- **Severidad:** Media
+- **Sintoma:** al terminar el cronometro de descanso sonaba/vibraba una vez durante unos
+  milisegundos y el panel desaparecia solo, incluso si el usuario no habia parado el aviso.
+- **Causa raiz:** el feedback del descanso vivia como efecto puntual de Compose (`ToneGenerator`
+  y vibracion one-shot) y el ViewModel borraba el rest timer al llegar a cero.
+- **Solucion:** el `WorkoutForegroundService` controla el descanso, mantiene estado expirado,
+  vibra/suena en bucle hasta `Parar`, y expone accion de notificacion para saltar/parar.
+- **Prevencion:** `WorkoutTimerRegistryTest` cubre expiracion a `alerting`, persistencia hasta
+  limpieza explicita y reemplazo de un descanso por otro.
+- **Fecha resolucion:** 2026-07-03
+
+---
+
 ### BUG-088 - Entrenamiento activo no mostraba volumen vivo y recortaba controles
 - **Estado:** Resuelto
 - **Fecha deteccion:** 2026-07-03
