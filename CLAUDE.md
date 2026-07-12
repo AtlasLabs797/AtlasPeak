@@ -176,6 +176,15 @@ Aplica en CADA fase, no solo en la 13:
 - [ ] No reintroduzcas contraseña/biometría para entrar sin decisión explícita de producto (SEC-025).
 - [ ] `allowBackup="false"` en el manifest (la DB cifrada no debe ir al backup de Android).
 - [ ] Revisa que no pediste `ACCESS_BACKGROUND_LOCATION` (no se usa, dispara rechazo de Play).
+- [ ] Este ordenador tiene antivirus/antimalware activo. Trabaja de forma limpia: comandos
+      legibles, herramientas estándar del proyecto, sin ofuscación, sin intentos de desactivar
+      defensas, sin exclusiones de antivirus, sin escaneos agresivos de red, sin tocar
+      credenciales del sistema y sin descargar/ejecutar binarios no justificados. Evita procesos
+      ocultos salvo servidores o herramientas de desarrollo claramente necesarios y explicados.
+      Prohibido por defecto: evasión, ofuscación, ejecución desde `%TEMP%`, descargas de código
+      remoto, AMSI bypass, encoded commands, persistencia oculta y exclusiones antivirus como
+      "solución".
+      Si el antimalware bloquea algo, para y avisa; no intentes rodearlo.
 
 ---
 

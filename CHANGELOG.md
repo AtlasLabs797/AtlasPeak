@@ -10,6 +10,14 @@
 
 ## [Unreleased]
 
+### 2026-07-06 - Guardrail antimalware para agentes
+
+**Añadido**
+- `AGENTS.md` y `CLAUDE.md` documentan que el entorno tiene antivirus/antimalware activo y
+  que los agentes deben evitar acciones sospechosas: no desactivar defensas, no ofuscar
+  comandos, no ejecutar desde `%TEMP%`, no descargar código remoto, no usar AMSI bypass,
+  encoded commands, persistencia oculta, exclusiones antivirus por defecto ni rodear bloqueos.
+
 ### 2026-07-03 - Alarma persistente de descanso
 
 **Corregido**
