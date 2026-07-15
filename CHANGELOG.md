@@ -10,6 +10,73 @@
 
 ## [Unreleased]
 
+### 2026-07-06 - Guardrail antimalware para agentes
+
+**Añadido**
+- `AGENTS.md` y `CLAUDE.md` documentan que el entorno tiene antivirus/antimalware activo y
+  que los agentes deben evitar acciones sospechosas: no desactivar defensas, no ofuscar
+  comandos, no ejecutar desde `%TEMP%`, no descargar código remoto, no usar AMSI bypass,
+  encoded commands, persistencia oculta, exclusiones antivirus por defecto ni rodear bloqueos.
+
+### 2026-07-03 - Alarma persistente de descanso
+
+**Corregido**
+- `BUG-089`: el descanso ya no se cierra solo al llegar a cero; queda en `00:00` y
+  vibra/suena en bucle hasta que el usuario pulsa `Parar`.
+- El feedback de fin de descanso pasa de Compose al `WorkoutForegroundService`, por lo que
+  sigue activo con la app en background mientras el servicio de entrenamiento siga vivo.
+- La notificacion del entrenamiento muestra el descanso en cuenta atras y ofrece `Saltar`;
+  cuando expira, muestra `Descanso terminado` y ofrece `Parar`.
+
+**AÃ±adido**
+- Tests de `WorkoutTimerRegistry` para expiracion a alerta, persistencia hasta limpieza
+  explicita y reemplazo de descansos.
+
+**Verificado**
+- `.\gradlew.bat test` pasa.
+- `.\gradlew.bat lint` pasa.
+- `.\gradlew.bat assembleDebug assembleRelease` pasa.
+
+### 2026-07-03 - Entrenamiento activo: volumen vivo y layout compacto
+
+**Corregido**
+- `BUG-088`: `ActiveWorkout` calcula y muestra el volumen completado en vivo en vez de leer
+  `total_volume_kg`, que solo se persiste al cerrar la sesion.
+- La cabecera integra la salida visible, reduce el aire superior y usa el ejercicio visible del
+  pager para el texto `Ejercicio X / N`.
+- El descanso activo pasa a overlay transparente con padding inferior en la lista de series, y
+  la accion de ejercicios queda como boton icon-only para que el CTA principal no corte texto.
+
+**AÃ±adido**
+- Helper de dominio `completedVolumeKg()` compartido entre UI y cierre de sesion.
+- El historial de progreso reutiliza el mismo helper de volumen para evitar divergencias.
+- Tests de volumen completado y estado UI de entrenamiento activo.
+
+**Verificado**
+- `.\gradlew.bat test` pasa.
+- `.\gradlew.bat lint` pasa.
+
+### 2026-07-03 - Feedback visual al guardar ajustes
+
+**Corregido**
+- `BUG-087`: Ajustes ahora muestra feedback visual claro al persistir cambios. El selector de
+  tema emite un evento tras guardar en repositorio y la pantalla renderiza una tarjeta de estado
+  con icono; el guardado de notificaciones usa el mismo patrón para éxito/error.
+
+**Añadido**
+- Tests de ViewModel para feedback de guardado de tema y ajustes de notificaciones.
+
+**Verificado**
+- `.\gradlew.bat test` pasa.
+- `.\gradlew.bat lint` pasa.
+- `.\gradlew.bat assembleDebug assembleRelease` pasa.
+
+### 2026-07-03 - Inicio version V-01.08
+
+**Cambiado**
+- Creada rama de trabajo `codex/v-01.08-update` desde `main`.
+- Fijada la version de app en `versionName = "V-01.08"` y `versionCode = 108`.
+
 ### 2026-07-02 - Rama puente para PR a main
 
 **Cambiado**

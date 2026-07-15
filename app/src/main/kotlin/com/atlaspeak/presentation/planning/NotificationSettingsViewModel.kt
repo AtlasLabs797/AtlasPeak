@@ -39,6 +39,7 @@ class NotificationSettingsViewModel @Inject constructor(
                 it.copy(
                     settings = updated,
                     messageRes = R.string.notification_settings_system_denied,
+                    messageTone = NotificationSettingsFeedbackTone.Error,
                 )
             }
         }
@@ -58,9 +59,18 @@ class NotificationSettingsViewModel @Inject constructor(
             mutableState.update {
                 it.copy(
                     messageRes = if (saved) R.string.notification_settings_saved else R.string.weekly_plan_invalid_time,
+                    messageTone = if (saved) {
+                        NotificationSettingsFeedbackTone.Success
+                    } else {
+                        NotificationSettingsFeedbackTone.Error
+                    },
                 )
             }
         }
+    }
+
+    fun showFeedback(@StringRes messageRes: Int, tone: NotificationSettingsFeedbackTone) {
+        mutableState.update { it.copy(messageRes = messageRes, messageTone = tone) }
     }
 
     fun refresh() {
@@ -83,7 +93,13 @@ class NotificationSettingsViewModel @Inject constructor(
     }
 
     private fun updateDraft(transform: (NotificationSettings) -> NotificationSettings) {
-        mutableState.update { it.copy(settings = transform(it.settings), messageRes = null) }
+        mutableState.update {
+            it.copy(
+                settings = transform(it.settings),
+                messageRes = null,
+                messageTone = NotificationSettingsFeedbackTone.Success,
+            )
+        }
     }
 
     private companion object {
@@ -95,4 +111,10 @@ data class NotificationSettingsUiState(
     val isLoading: Boolean = true,
     val settings: NotificationSettings = NotificationSettings(),
     @StringRes val messageRes: Int? = null,
+    val messageTone: NotificationSettingsFeedbackTone = NotificationSettingsFeedbackTone.Success,
 )
+
+enum class NotificationSettingsFeedbackTone {
+    Success,
+    Error,
+}

@@ -9,6 +9,7 @@
     <string name="action_edit">Edit</string>
     <string name="action_start">Start</string>
     <string name="action_skip">Skip</string>
+    <string name="action_stop">Stop</string>
     <string name="action_continue">Continue</string>
     <string name="action_retry">Retry</string>
     <string name="action_back">Back</string>
@@ -96,6 +97,8 @@
     <string name="workout_notification_channel">Active workout</string>
     <string name="workout_notification_title">Active workout</string>
     <string name="workout_notification_text">Time: %1$s</string>
+    <string name="workout_notification_rest_countdown">Rest: %1$s</string>
+    <string name="workout_notification_rest_done">Rest finished</string>
     <string name="workout_active_missing_routine">Could not start this routine.</string>
     <string name="workout_timer_service_unavailable">The persistent timer could not start because of device permissions.</string>
     <string name="workout_exit_dialog_title">Leave the workout?</string>
@@ -110,6 +113,7 @@
     <string name="workout_finish_action">Finish</string>
     <string name="workout_next_exercise_action">Next</string>
     <string name="workout_complete_sets_action">Complete sets</string>
+    <string name="workout_sets_remaining_action">Sets left</string>
     <string name="workout_add_set">Add set</string>
     <string name="workout_add_exercise">Add exercise</string>
     <string name="workout_add_exercise_dialog_title">Add exercise to session</string>
@@ -130,6 +134,7 @@
     <string name="workout_weight_series_cd">Weight set %1$d</string>
     <string name="workout_reps_series_cd">Reps set %1$d</string>
     <string name="workout_rest_active">Active rest</string>
+    <string name="workout_rest_finished">Rest finished</string>
     <string name="workout_rest_next_set">Next: Set %1$d - %2$.0f kg</string>
     <string name="workout_rest_progress_cd">Rest: %1$d seconds remaining.</string>
     <string name="workout_complete_title">Workout complete</string>
@@ -440,6 +445,7 @@
     <string name="theme_dark">Dark</string>
     <string name="theme_settings_title">Theme</string>
     <string name="theme_settings_body">Choose whether Atlas Peak follows the system or forces light/dark mode.</string>
+    <string name="theme_settings_saved">Theme saved.</string>
     <string name="state_loading">Loading</string>
     <string name="state_empty_title">No data yet</string>
     <string name="state_empty_body">This section will become active when its phase is complete.</string>

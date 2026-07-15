@@ -24,6 +24,61 @@
 
 ## Entradas
 
+### BUG-089 - Descanso avisaba una sola vez y se apagaba solo
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-07-03
+- **Fase:** V-01.08
+- **Severidad:** Media
+- **Sintoma:** al terminar el cronometro de descanso sonaba/vibraba una vez durante unos
+  milisegundos y el panel desaparecia solo, incluso si el usuario no habia parado el aviso.
+- **Causa raiz:** el feedback del descanso vivia como efecto puntual de Compose (`ToneGenerator`
+  y vibracion one-shot) y el ViewModel borraba el rest timer al llegar a cero.
+- **Solucion:** el `WorkoutForegroundService` controla el descanso, mantiene estado expirado,
+  vibra/suena en bucle hasta `Parar`, y expone accion de notificacion para saltar/parar.
+- **Prevencion:** `WorkoutTimerRegistryTest` cubre expiracion a `alerting`, persistencia hasta
+  limpieza explicita y reemplazo de un descanso por otro.
+- **Fecha resolucion:** 2026-07-03
+
+---
+
+### BUG-088 - Entrenamiento activo no mostraba volumen vivo y recortaba controles
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-07-03
+- **Fase:** V-01.08
+- **Severidad:** Media
+- **Sintoma:** en la pantalla de entrenamiento activo el volumen permanecia en `0 kg`,
+  la cabecera dejaba demasiado aire superior, el descanso ocupaba una card opaca y las
+  acciones inferiores partian el texto en moviles estrechos.
+- **Causa raiz:** la UI leia `workout_sessions.total_volume_kg`, que solo se calcula al cerrar
+  la sesion; ademas el layout vertical dedicaba una fila entera a cerrar, reservaba demasiada
+  altura para el panel de descanso y dividia dos acciones textuales en media pantalla.
+- **Solucion:** se anade calculo compartido de volumen completado, `ActiveWorkoutUiState` expone
+  volumen vivo y progreso por ejercicio completo, el header integra la salida, el descanso pasa
+  a overlay transparente con padding en la lista y la accion de ejercicios pasa a icon-only.
+- **Prevencion:** tests de volumen completado y estado UI cubren volumen vivo, progreso por
+  ejercicio completo y sets incompletos ignorados.
+- **Fecha resolucion:** 2026-07-03
+
+---
+
+### BUG-087 - Ajustes guardaban sin feedback visual claro
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-07-03
+- **Fase:** V-01.08
+- **Severidad:** Baja
+- **Sintoma:** cambiar el tema persistia inmediatamente sin confirmacion visual, y el guardado de
+  notificaciones mostraba un texto discreto que podia pasar desapercibido.
+- **Causa raiz:** el ViewModel de tema no exponia eventos de guardado y Ajustes no tenia una
+  superficie visual comun para estados de exito/error.
+- **Solucion:** `AppThemeViewModel` emite eventos tras guardar, `NotificationSettingsViewModel`
+  modela el tono del feedback y `NotificationSettingsScreen` renderiza una tarjeta de estado
+  con icono para tema y notificaciones.
+- **Prevencion:** tests de ViewModel cubren evento de tema guardado, fallo al guardar tema y
+  feedback de exito/error en ajustes de notificaciones.
+- **Fecha resolucion:** 2026-07-03
+
+---
+
 ### BUG-086 - ThemeMode existia pero no habia switching real
 - **Estado:** Resuelto
 - **Fecha deteccion:** 2026-07-01

@@ -94,3 +94,16 @@ data class RestTimerFeedbackSettings(
     val soundEnabled: Boolean,
     val vibrationEnabled: Boolean,
 )
+
+fun WorkoutSession.completedVolumeKg(): Double {
+    return exercises.sumOf { exercise -> exercise.completedVolumeKg() }
+}
+
+fun ActiveWorkoutExercise.completedVolumeKg(): Double {
+    return sets.sumOf { set -> set.completedVolumeKg() }
+}
+
+fun WorkoutSet.completedVolumeKg(): Double {
+    if (!completed) return 0.0
+    return (actualReps ?: plannedReps) * (weightKg ?: 0.0)
+}

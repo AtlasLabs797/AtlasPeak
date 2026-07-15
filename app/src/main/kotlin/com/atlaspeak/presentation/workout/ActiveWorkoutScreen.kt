@@ -1,14 +1,9 @@
 package com.atlaspeak.presentation.workout
 
 import android.Manifest
-import android.media.AudioManager
-import android.media.ToneGenerator
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.BackHandler
-import android.os.VibrationEffect
-import android.os.Vibrator
-import android.os.VibratorManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.LinearEasing
@@ -21,13 +16,17 @@ import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -55,7 +54,6 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -82,6 +80,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -89,7 +88,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.atlaspeak.R
 import com.atlaspeak.core.time.ElapsedClock
 import com.atlaspeak.domain.model.workout.ActiveWorkoutExercise
-import com.atlaspeak.domain.model.workout.RestTimerFeedbackSettings
 import com.atlaspeak.domain.model.workout.WorkoutSet
 import com.atlaspeak.presentation.component.AtlasBottomSheet
 import com.atlaspeak.presentation.component.AtlasDialog
@@ -99,7 +97,6 @@ import com.atlaspeak.presentation.component.PremiumBackground
 import com.atlaspeak.presentation.component.PremiumCard
 import com.atlaspeak.presentation.theme.LocalAtlasColors
 import com.atlaspeak.presentation.theme.LocalSpacing
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
@@ -247,7 +244,6 @@ fun ActiveWorkoutScreen(
     val spacing = LocalSpacing.current
     val session = state.session
     var showExerciseSheet by rememberSaveable { mutableStateOf(false) }
-    RestFeedbackEffect(state.restTimer, state.restFeedbackSettings)
 
     PremiumBackground(modifier = modifier.fillMaxSize()) {
         Box(Modifier.fillMaxSize()) {
@@ -267,6 +263,11 @@ fun ActiveWorkoutScreen(
                 val currentExercise = session.exercises.getOrNull(
                     pagerState.currentPage.coerceAtMost(session.exercises.lastIndex),
                 )
+                val currentExerciseNumber = if (session.exercises.isEmpty()) {
+                    0
+                } else {
+                    pagerState.currentPage.coerceAtMost(session.exercises.lastIndex) + 1
+                }
                 val currentExerciseComplete = currentExercise?.allSetsCompleted() == true
                 val canMoveNext = currentExerciseComplete && pagerState.currentPage < session.exercises.lastIndex
                 val allExercisesComplete = session.exercises.isNotEmpty() && session.exercises.all { it.allSetsCompleted() }
@@ -284,59 +285,65 @@ fun ActiveWorkoutScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(spacing.screen),
-                        verticalArrangement = Arrangement.spacedBy(spacing.cardGap),
+                            .statusBarsPadding()
+                            .navigationBarsPadding()
+                            .padding(horizontal = spacing.screen)
+                            .padding(top = spacing.xs, bottom = spacing.sm),
+                        verticalArrangement = Arrangement.spacedBy(spacing.sm),
                     ) {
                         // Salida visible de la sesión (además del gesto atrás): abre el diálogo de descarte.
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End,
-                        ) {
-                            IconButton(onClick = onCancelWorkout) {
-                                Icon(
-                                    Icons.Filled.Close,
-                                    contentDescription = stringResource(R.string.action_cancel),
-                                )
-                            }
-                        }
-                        ProgressCard(
+                        WorkoutProgressHeader(
                             routineName = session.routineName.orEmpty(),
-                            completedExercises = state.completedExerciseCount,
+                            currentExerciseNumber = currentExerciseNumber,
                             totalExercises = state.totalExerciseCount,
+                            progress = state.exerciseCompletionProgress,
                             elapsedSeconds = state.elapsedSeconds,
-                            totalVolumeKg = session.totalVolumeKg ?: 0.0,
+                            totalVolumeKg = state.liveTotalVolumeKg,
+                            onCancelWorkout = onCancelWorkout,
                         )
                         ActiveWorkoutMessageText(state.message)
-                        if (session.exercises.isNotEmpty()) {
-                            HorizontalPager(
-                                state = pagerState,
-                                modifier = Modifier.weight(1f),
-                            ) { page ->
-                                ExercisePage(
-                                    exercise = session.exercises[page],
-                                    inputDrafts = state.inputDrafts,
-                                    onSetCompleted = onSetCompleted,
-                                    onRepsTextChanged = onRepsTextChanged,
-                                    onWeightTextChanged = onWeightTextChanged,
-                                    onSetInputCommitted = onSetInputCommitted,
-                                    onAddSet = onAddSet,
-                                    onRemoveSet = onRemoveSet,
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                        ) {
+                            if (session.exercises.isNotEmpty()) {
+                                val bottomContentPadding = if (state.restTimer != null) 128.dp else spacing.sm
+                                HorizontalPager(
+                                    state = pagerState,
+                                    modifier = Modifier.fillMaxSize(),
+                                ) { page ->
+                                    ExercisePage(
+                                        exercise = session.exercises[page],
+                                        inputDrafts = state.inputDrafts,
+                                        bottomContentPadding = bottomContentPadding,
+                                        onSetCompleted = onSetCompleted,
+                                        onRepsTextChanged = onRepsTextChanged,
+                                        onWeightTextChanged = onWeightTextChanged,
+                                        onSetInputCommitted = onSetInputCommitted,
+                                        onAddSet = onAddSet,
+                                        onRemoveSet = onRemoveSet,
+                                    )
+                                }
+                            }
+                            state.restTimer?.let { timer ->
+                                RestTimerPanel(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomCenter)
+                                        .padding(horizontal = spacing.xs, vertical = spacing.xs),
+                                    timer = timer,
+                                    currentExercise = currentExercise,
+                                    onSkipRest = onSkipRest,
                                 )
                             }
                         }
-                        state.restTimer?.let { timer ->
-                            RestTimerPanel(
-                                timer = timer,
-                                currentExercise = currentExercise,
-                                onSkipRest = onSkipRest,
-                            )
-                        }
-                        Row(horizontalArrangement = Arrangement.spacedBy(spacing.sm)) {
-                            AtlasSecondaryButton(
-                                modifier = Modifier.weight(1f),
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            ExerciseSheetIconButton(
                                 onClick = { showExerciseSheet = true },
-                                text = stringResource(R.string.workout_active_exercise_sheet),
-                                leadingIcon = Icons.AutoMirrored.Filled.List,
                             )
                             AtlasPrimaryButton(
                                 modifier = Modifier.weight(1f),
@@ -356,7 +363,7 @@ fun ActiveWorkoutScreen(
                                     } else if (allExercisesComplete) {
                                         R.string.workout_finish_action
                                     } else {
-                                        R.string.workout_complete_sets_action
+                                        R.string.workout_sets_remaining_action
                                     },
                                 ),
                             )
@@ -412,68 +419,81 @@ private fun ActiveWorkoutMessageText(message: ActiveWorkoutMessage?) {
 }
 
 @Composable
-private fun ProgressCard(
+private fun WorkoutProgressHeader(
     routineName: String,
-    completedExercises: Int,
+    currentExerciseNumber: Int,
     totalExercises: Int,
+    progress: Float,
     elapsedSeconds: Long,
     totalVolumeKg: Double,
+    onCancelWorkout: () -> Unit,
 ) {
     val spacing = LocalSpacing.current
     val atlasColors = LocalAtlasColors.current
-    val progress = if (totalExercises <= 0) 0f else completedExercises / totalExercises.toFloat()
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress.coerceIn(0f, 1f),
+        animationSpec = tween(durationMillis = 220),
+        label = "",
+    )
+
     Column(
         modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(spacing.md),
+        verticalArrangement = Arrangement.spacedBy(spacing.sm),
     ) {
-        Column(
+        Row(
             modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(spacing.xxs),
+            horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                text = stringResource(R.string.workout_live_overline),
-                style = MaterialTheme.typography.labelSmall,
-                color = atlasColors.ink3,
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(spacing.sm),
-                verticalAlignment = Alignment.CenterVertically,
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(spacing.xxs),
             ) {
                 Text(
-                    modifier = Modifier.weight(1f),
+                    text = stringResource(R.string.workout_live_overline),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = atlasColors.ink3,
+                )
+                Text(
                     text = routineName.ifBlank { stringResource(R.string.screen_train_title) },
                     style = MaterialTheme.typography.headlineSmall,
                     color = atlasColors.ink,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Surface(
-                    shape = MaterialTheme.shapes.large,
-                    color = atlasColors.surface2,
-                    contentColor = atlasColors.ink,
-                    border = BorderStroke(1.dp, atlasColors.line2),
-                    tonalElevation = 0.dp,
-                    shadowElevation = 0.dp,
+            }
+            Surface(
+                shape = MaterialTheme.shapes.large,
+                color = atlasColors.surface2,
+                contentColor = atlasColors.ink,
+                border = BorderStroke(1.dp, atlasColors.line2),
+                tonalElevation = 0.dp,
+                shadowElevation = 0.dp,
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = spacing.md, vertical = spacing.xs),
+                    horizontalArrangement = Arrangement.spacedBy(spacing.xs),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = spacing.md, vertical = spacing.xs),
-                        horizontalArrangement = Arrangement.spacedBy(spacing.xs),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(7.dp)
-                                .clip(MaterialTheme.shapes.small)
-                                .background(atlasColors.ink2),
-                        )
-                        Text(
-                            text = ElapsedClock.format(elapsedSeconds),
-                            style = MaterialTheme.typography.labelLarge,
-                            color = atlasColors.ink,
-                        )
-                    }
+                    Box(
+                        modifier = Modifier
+                            .size(7.dp)
+                            .clip(MaterialTheme.shapes.small)
+                            .background(atlasColors.ink2),
+                    )
+                    Text(
+                        text = ElapsedClock.format(elapsedSeconds),
+                        style = MaterialTheme.typography.labelLarge,
+                        color = atlasColors.ink,
+                    )
                 }
+            }
+            IconButton(onClick = onCancelWorkout) {
+                Icon(
+                    Icons.Filled.Close,
+                    contentDescription = stringResource(R.string.action_cancel),
+                    tint = atlasColors.ink,
+                )
             }
         }
         Row(
@@ -481,14 +501,6 @@ private fun ProgressCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // (#6 del informe) Si ya están todos completos no sumamos +1 (si no
-            // mostraría "5+1 / 5"). En otro caso, numeramos el ejercicio actual
-            // 1-indexed para humanos.
-            val currentExerciseNumber = if (totalExercises > 0 && completedExercises >= totalExercises) {
-                totalExercises
-            } else {
-                completedExercises + 1
-            }
             Text(
                 text = stringResource(R.string.workout_active_exercise_progress, currentExerciseNumber, totalExercises),
                 style = MaterialTheme.typography.labelSmall,
@@ -503,13 +515,15 @@ private fun ProgressCard(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = 2.dp)
+                .height(4.dp)
+                .clip(MaterialTheme.shapes.small)
                 .background(atlasColors.line2),
         ) {
             Box(
                 modifier = Modifier
-                    .fillMaxWidth(progress.coerceIn(0f, 1f))
-                    .heightIn(min = 2.dp)
+                    .fillMaxWidth(animatedProgress)
+                    .height(4.dp)
+                    .clip(MaterialTheme.shapes.small)
                     .background(atlasColors.ink),
             )
         }
@@ -520,6 +534,7 @@ private fun ProgressCard(
 private fun ExercisePage(
     exercise: ActiveWorkoutExercise,
     inputDrafts: Map<String, WorkoutSetInputDraft>,
+    bottomContentPadding: Dp,
     onSetCompleted: (WorkoutSet, Boolean, Int) -> Unit,
     onRepsTextChanged: (WorkoutSet, String) -> Unit,
     onWeightTextChanged: (WorkoutSet, String) -> Unit,
@@ -530,7 +545,10 @@ private fun ExercisePage(
     val spacing = LocalSpacing.current
     val atlasColors = LocalAtlasColors.current
     val activeSetId = exercise.sets.firstOrNull { !it.completed }?.id
-    LazyColumn(verticalArrangement = Arrangement.spacedBy(spacing.cardGap)) {
+    LazyColumn(
+        contentPadding = PaddingValues(bottom = bottomContentPadding),
+        verticalArrangement = Arrangement.spacedBy(spacing.cardGap),
+    ) {
         item {
             PremiumCard(modifier = Modifier.fillMaxWidth()) {
                 Column(
@@ -783,6 +801,7 @@ private fun TelemetryInput(
 
 @Composable
 private fun RestTimerPanel(
+    modifier: Modifier = Modifier,
     timer: RestTimerUiState,
     currentExercise: ActiveWorkoutExercise?,
     onSkipRest: () -> Unit,
@@ -790,48 +809,75 @@ private fun RestTimerPanel(
     val spacing = LocalSpacing.current
     val atlasColors = LocalAtlasColors.current
     val upcomingSet = currentExercise?.sets?.firstOrNull { !it.completed }
-    PremiumCard(
-        modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(spacing.xs),
+        horizontalArrangement = Arrangement.spacedBy(spacing.md),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(spacing.md),
-            horizontalArrangement = Arrangement.spacedBy(spacing.md),
-            verticalAlignment = Alignment.CenterVertically,
+        RestCountdownRing(timer)
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(spacing.xs),
         ) {
-            RestCountdownRing(timer)
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(spacing.xs),
-            ) {
-                Text(
-                    text = stringResource(R.string.workout_rest_active),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = atlasColors.ink3,
-                )
-                Text(
-                    text = if (upcomingSet != null) {
-                        stringResource(
-                            R.string.workout_rest_next_set,
-                            upcomingSet.setNumber,
-                            upcomingSet.weightKg ?: 0.0,
-                        )
-                    } else {
-                        currentExercise?.exerciseName.orEmpty()
-                    },
-                    style = MaterialTheme.typography.titleMedium,
-                    color = atlasColors.ink,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                AtlasSecondaryButton(
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = onSkipRest,
-                    text = stringResource(R.string.action_skip),
-                )
-            }
+            Text(
+                text = stringResource(
+                    if (timer.alerting) R.string.workout_rest_finished else R.string.workout_rest_active,
+                ),
+                style = MaterialTheme.typography.labelSmall,
+                color = atlasColors.ink3,
+            )
+            Text(
+                text = if (upcomingSet != null) {
+                    stringResource(
+                        R.string.workout_rest_next_set,
+                        upcomingSet.setNumber,
+                        upcomingSet.weightKg ?: 0.0,
+                    )
+                } else {
+                    currentExercise?.exerciseName.orEmpty()
+                },
+                style = MaterialTheme.typography.titleMedium,
+                color = atlasColors.ink,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            AtlasSecondaryButton(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onSkipRest,
+                text = stringResource(if (timer.alerting) R.string.action_stop else R.string.action_skip),
+            )
+        }
+    }
+}
+
+@Composable
+private fun ExerciseSheetIconButton(
+    onClick: () -> Unit,
+) {
+    val atlasColors = LocalAtlasColors.current
+    val contentDescription = stringResource(R.string.workout_active_exercise_sheet)
+    Surface(
+        modifier = Modifier
+            .size(56.dp)
+            .semantics {
+                this.contentDescription = contentDescription
+            },
+        onClick = onClick,
+        shape = MaterialTheme.shapes.medium,
+        color = Color.Transparent,
+        contentColor = atlasColors.ink,
+        border = BorderStroke(1.dp, atlasColors.lineStrong),
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp,
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Icon(
+                imageVector = Icons.AutoMirrored.Filled.List,
+                contentDescription = null,
+                tint = atlasColors.ink,
+            )
         }
     }
 }
@@ -847,7 +893,7 @@ private fun RestCountdownRing(timer: RestTimerUiState) {
     )
     Box(
         modifier = Modifier
-            .size(86.dp)
+            .size(72.dp)
             .semantics {
                 contentDescription = restDescription
                 progressBarRangeInfo = ProgressBarRangeInfo(timer.progress, 0f..1f)
@@ -1077,48 +1123,6 @@ private fun ExerciseSheetRow(
                     contentDescription = stringResource(R.string.workout_move_exercise_down_cd),
                     tint = if (last) atlasColors.ink4 else atlasColors.ink2,
                 )
-            }
-        }
-    }
-}
-
-@Composable
-private fun RestFeedbackEffect(
-    restTimer: RestTimerUiState?,
-    settings: RestTimerFeedbackSettings,
-) {
-    val context = LocalContext.current
-    // (#7 del informe) ToneGenerator es caro (allocate + inicializa audio HAL). Lo
-    // creamos una sola vez por pantalla de workout y lo liberamos al salir.
-    val toneGenerator = remember {
-        if (settings.soundEnabled) ToneGenerator(AudioManager.STREAM_NOTIFICATION, 60) else null
-    }
-    DisposableEffect(toneGenerator) {
-        onDispose { toneGenerator?.release() }
-    }
-    LaunchedEffect(restTimer?.id, restTimer?.remainingSeconds) {
-        if (restTimer == null) return@LaunchedEffect
-        if (restTimer.remainingSeconds != 0) return@LaunchedEffect
-        if (settings.vibrationEnabled) {
-            val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                context.getSystemService(VibratorManager::class.java).defaultVibrator
-            } else {
-                @Suppress("DEPRECATION")
-                context.getSystemService(Vibrator::class.java)
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                vibrator.vibrate(VibrationEffect.createOneShot(120, VibrationEffect.DEFAULT_AMPLITUDE))
-            } else {
-                @Suppress("DEPRECATION")
-                vibrator.vibrate(120)
-            }
-        }
-        if (settings.soundEnabled && toneGenerator != null) {
-            try {
-                toneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP, 120)
-            } catch (_: RuntimeException) {
-                // ToneGenerator puede soltar RuntimeException si el HAL no responde.
-                // Lo silenciamos: la vibración ya cubrió la señal háptica.
             }
         }
     }

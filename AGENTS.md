@@ -54,11 +54,17 @@ desde la carpeta de esa skill y no copies sus reglas aquí.
    PBKDF2 **600.000** iter para backups cifrados; solo HTTPS;
    sin `ACCESS_BACKGROUND_LOCATION`; el backup cifrado **debe** llevar el salt en su cabecera
    (formato en `SECURITY.md` SEC-001); logging de OkHttp solo en `BuildConfig.DEBUG`.
-7. **Las versiones de dependencias viven SOLO en `gradle/libs.versions.toml`.** No hardcodear
+7. **No dispares el antimalware.** Este ordenador tiene antivirus/antimalware activo.
+   Nada de técnicas sospechosas: no desactivar defensas, no ofuscar comandos, no descargar
+   binarios raros, no lanzar procesos ocultos innecesarios, no tocar credenciales ni hacer
+   escaneos agresivos. Prohibido por defecto: evasión, ofuscación, ejecución desde `%TEMP%`,
+   descargas de código remoto, AMSI bypass, encoded commands, persistencia oculta y exclusiones
+   antivirus como "solución". Si una defensa bloquea algo, se para y se informa; no se esquiva.
+8. **Las versiones de dependencias viven SOLO en `gradle/libs.versions.toml`.** No hardcodear
    versiones en `build.gradle.kts`.
-8. **Registra todo.** Cada sesión actualiza `CHANGELOG.md`. Bugs → `BUGS.md`. Seguridad →
+9. **Registra todo.** Cada sesión actualiza `CHANGELOG.md`. Bugs → `BUGS.md`. Seguridad →
    `SECURITY.md`. Un bug no se cierra sin causa raíz + prevención.
-9. **Si dudas, pregunta.** Una pregunta concreta cada vez. No inventes requisitos.
+10. **Si dudas, pregunta.** Una pregunta concreta cada vez. No inventes requisitos.
 
 ---
 
