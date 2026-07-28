@@ -10,6 +10,33 @@
 
 ## [Unreleased]
 
+### 2026-07-28 - Instrucciones de proyecto unificadas en AGENTS.md
+
+**Cambiado**
+- `AGENTS.md` pasa a ser el **único** archivo de instrucciones del proyecto para todos los
+  agentes (Claude Code, Codex, OpenCode). Absorbe todo el contenido operativo que estaba en
+  `CLAUDE.md` (fases, definición de "hecho", convenciones de código, secretos, checklist de
+  seguridad, comandos, contexto de Wear OS, rutina de sesión) sin duplicarlo.
+- `CLAUDE.md` queda reducido a un puntero a `AGENTS.md` con un índice de secciones; ya no
+  contiene reglas propias, así que no puede desincronizarse.
+- Ruta de las skills locales corregida: `Skills/` en la raíz del repo (gitignored) en vez de
+  la ruta absoluta `C:\Proyectos\Atlas Peak Dev\Skills`.
+- Tabla de fases actualizada al estado real: fases 0-16 cerradas, 13 (Wear OS) diferida a v2 y
+  17 (Play Store + privacy policy + release) abierta.
+- Stack de testing corregido en la documentación: JUnit5 + fakes escritos a mano + Room
+  in-memory + `kotlinx-coroutines-test` + JaCoCo (no se usan MockK ni Turbine).
+- Referencias `CLAUDE.md §6/§7` de `SECURITY.md` reapuntadas a `AGENTS.md §8/§9`; `README.md`
+  apunta a `AGENTS.md` como punto de entrada.
+
+**Añadido**
+- Sección "Cómo trabajar — los cuatro principios" en `AGENTS.md`: piensa antes de programar,
+  simplicidad primero, cambios quirúrgicos y ejecución orientada a objetivos, con tabla de
+  anti-patrones. Reduce suposiciones silenciosas, sobreingeniería y refactors colaterales.
+- La definición de "hecho" incorpora la verificación de cobertura
+  (`jacocoDebugDomainDataCoverageVerification`) y la entrada obligatoria en `BUGS.md` con causa
+  raíz y prevención.
+- Documentado el orden de tareas que ejecuta CI y el uso de `.\gradlew.bat` en Windows.
+
 ### 2026-07-06 - Guardrail antimalware para agentes
 
 **Añadido**
