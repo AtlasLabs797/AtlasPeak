@@ -10,6 +10,28 @@
 
 ## [Unreleased]
 
+### 2026-07-28 - Skills fuera del repositorio
+
+**Eliminado**
+- Sacados del control de versiones los 5.924 archivos de `Skills/` (76 MB) que estaban
+  trackeados en `main`. Entraron el 2026-05-30 en el commit `ebfd01c` y siguieron ahí pese a la
+  regla `Skills/` de `.gitignore`: `.gitignore` no excluye lo que ya está en el índice, y la
+  limpieza anotada el 2026-06-22 no llegó a `main`.
+- Los archivos se sacan del índice con `git rm -r --cached Skills`; la copia local de trabajo
+  (`C:\Proyectos\Atlas Peak Dev\Skills`) no se toca.
+
+**Cambiado**
+- `AGENTS.md §11` documenta que la biblioteca de skills es local y externa al repo, con el
+  procedimiento para detectar y revertir una recommit accidental.
+
+**Verificado**
+- `git ls-files Skills` devuelve 0 archivos.
+- Escaneo de patrones de credenciales sobre `Skills/`: solo placeholders de documentación
+  (`ghp_xxxx`, `sk-xxxx`) en skills de MCP y de secret scanning. Sin secretos reales, por lo que
+  no hay credenciales que rotar.
+- Los archivos siguen siendo accesibles en el historial de Git (commits `ebfd01c`..`main`);
+  purgarlos requiere reescritura de historial + force-push a `main`, pendiente de decisión.
+
 ### 2026-07-28 - Instrucciones de proyecto unificadas en AGENTS.md
 
 **Cambiado**
@@ -19,8 +41,6 @@
   seguridad, comandos, contexto de Wear OS, rutina de sesión) sin duplicarlo.
 - `CLAUDE.md` queda reducido a un puntero a `AGENTS.md` con un índice de secciones; ya no
   contiene reglas propias, así que no puede desincronizarse.
-- Ruta de las skills locales corregida: `Skills/` en la raíz del repo (gitignored) en vez de
-  la ruta absoluta `C:\Proyectos\Atlas Peak Dev\Skills`.
 - Tabla de fases actualizada al estado real: fases 0-16 cerradas, 13 (Wear OS) diferida a v2 y
   17 (Play Store + privacy policy + release) abierta.
 - Stack de testing corregido en la documentación: JUnit5 + fakes escritos a mano + Room

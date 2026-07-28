@@ -326,10 +326,14 @@ En Windows usa `.\gradlew.bat <tarea>`. CI (`.github/workflows/ci.yml`) ejecuta,
 
 ## 11. Skills locales
 
-La biblioteca de skills está en **`Skills/`** en la raíz del repo (gitignored, es local: no la
-commitees). Úsalas cuando encajen con la tarea, empezando por `Skills/README.md` y
-`Skills/00_START_HERE`.
+La biblioteca de skills es **local y externa al repositorio**. Vive en la máquina de trabajo en
+`C:\Proyectos\Atlas Peak Dev\Skills`. Úsalas cuando encajen con la tarea, empezando por su
+`README.md` y por `00_START_HERE`.
 
+- **Nunca las commitees.** `Skills/` está en `.gitignore` precisamente para eso. Si alguna vez
+  vuelves a ver rutas `Skills/...` en `git status` o en `git ls-files`, sácalas del índice
+  (`git rm -r --cached Skills`) antes de commitear: `.gitignore` no excluye lo que ya está
+  trackeado, así que un `git add -A` descuidado las mete de nuevo.
 - Abre **solo** la carpeta de la fase actual; meterlas todas en el prompt es ruido caro.
 - Antes de aplicar una skill, lee su `SKILL.md` y resuelve las rutas relativas desde la carpeta
   de esa skill.

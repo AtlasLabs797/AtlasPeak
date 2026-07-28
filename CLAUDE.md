@@ -24,7 +24,7 @@ garantiza que las dos copias se desincronicen.
 | 8 | Manejo de secretos |
 | 9 | Checklist de seguridad + higiene antimalware |
 | 10 | Comandos |
-| 11 | Skills locales (`Skills/`) |
+| 11 | Skills locales (fuera del repo, nunca se commitean) |
 | 12 | Rutina de cada sesión |
 | 13 | Por qué Wear OS está aplazado |
 
