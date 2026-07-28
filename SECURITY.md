@@ -34,7 +34,7 @@ salvo lo que el propio Google maneja en su OAuth.
 ## 2. Hallazgos de la revisión inicial (spec v2.1 → v2.2)
 
 Estos se detectaron al auditar el spec **antes** de escribir código. Los fixes están
-reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de versiones.
+reflejados en `SPEC.md v2.2`, `AGENTS.md §8-9`, el manifest y el catálogo de versiones.
 
 ### SEC-039 - Residuos de buffers cifrados en backup Drive
 - **Estado:** Resuelto / riesgo residual aceptado
@@ -343,7 +343,7 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
   dentro del archivo (no son secretos). En restore: leer cabecera → derivar clave con esos
   params → descifrar.
 - **Prevención:** test de round-trip "cifrar en dispositivo A, descifrar en dispositivo B
-  (salt distinto en login)" obligatorio en Fase 12. Documentado en `CLAUDE.md §7`.
+  (salt distinto en login)" obligatorio en Fase 12. Documentado en `AGENTS.md §9`.
 
 ### SEC-002 — Cambio de contraseña invalida backups anteriores (sin avisar)
 - **Estado:** 🔵 Aceptado + mitigado con UX
@@ -368,7 +368,7 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
   arrancado mientras la app está visible, accede a ubicación con la UI en segundo plano sin
   ese permiso. Pedirlo dispara revisión manual de Google Play y es causa frecuente de rechazo
   en apps de fitness.
-- **Prevención:** regla en `CLAUDE.md §7`; revisión de manifest en Fase 13.
+- **Prevención:** regla en `AGENTS.md §9`; revisión de manifest en Fase 13.
 
 ### SEC-004 — `google-services.json` y confusión de credenciales
 - **Estado:** 🟢 Resuelto
@@ -381,7 +381,7 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
 - **Solución:** **no se usa `google-services.json`.** `AuthorizationClient` + Drive REST solo
   necesitan el **Web OAuth Client ID** (no secreto, pero gestionado via `secrets.properties`
   para no esparcirlo). `google-services.json` añadido al `.gitignore` por si acaso.
-- **Prevención:** documentado en `CLAUDE.md §6`.
+- **Prevención:** documentado en `AGENTS.md §8`.
 
 ### SEC-005 — Maps API key sin gestión (config faltante + riesgo de exposición)
 - **Estado:** 🟢 Resuelto (mecanismo listo; valor lo pone el usuario)
@@ -392,7 +392,7 @@ reflejados en `SPEC.md v2.2`, `CLAUDE.md §6-7`, el manifest y el catálogo de v
 - **Solución:** la key se lee de `secrets.properties` (`MAPS_API_KEY`) y se inyecta via
   `manifestPlaceholders`. `secrets.properties` está en `.gitignore`. Restringir la key en
   Google Cloud Console (por SHA-1 + package name) antes de release.
-- **Prevención:** plantilla `secrets.properties.template`; regla en `CLAUDE.md §6`.
+- **Prevención:** plantilla `secrets.properties.template`; regla en `AGENTS.md §8`.
 
 ### SEC-006 — Iteraciones PBKDF2 bajas para amenaza offline
 - **Estado:** 🟢 Resuelto

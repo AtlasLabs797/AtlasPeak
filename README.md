@@ -10,7 +10,7 @@ Cero tracking.
 
 | Archivo | Para qué |
 |---------|----------|
-| **`CLAUDE.md`** | Instrucciones maestras para Claude Code. Reglas, fases, convenciones. **Empieza aquí.** |
+| **`AGENTS.md`** | Instrucciones maestras para todos los agentes (Claude Code, Codex, OpenCode). Reglas, fases, convenciones. **Empieza aquí.** (`CLAUDE.md` solo redirige aquí.) |
 | **`SPEC.md`** | Especificación funcional y técnica completa (v2.2, ya corregida). |
 | **`DESIGN.md`** | Sistema de diseño (color, tipografía, espaciado, componentes). |
 | **`DOCS_TECNICA.md`** | Arquitectura y contratos, para el técnico. |
@@ -45,8 +45,8 @@ En otra máquina, instala JDK 17 + Android SDK Platform 36 y crea tu propio `loc
 
 ## Estado
 
-- **v1:** teléfono. Wear OS **diferido a v2** (decisión documentada en `CLAUDE.md §9`).
-- Plan de 16 fases en `SPEC.md §9` / tabla en `CLAUDE.md §3`. Una fase cada vez.
+- **v1:** teléfono. Wear OS **diferido a v2** (decisión documentada en `AGENTS.md §13`).
+- Plan de fases en `SPEC.md §9` / tabla de estado en `AGENTS.md §4`. Una fase cada vez.
 
 ---
 

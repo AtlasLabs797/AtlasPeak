@@ -1,9 +1,0 @@
-{
-  "name": "basic-agent-example",
-  "private": true,
-  "type": "module",
-  "dependencies": {
-    "@an-sdk/agent": "latest",
-    "zod": "^3.24"
-  }
-}
