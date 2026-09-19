@@ -31,13 +31,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          forbidden_files="$(git ls-files | grep -E '(^|/)(secrets\.properties|keystore\.properties|local\.properties|google-services\.json|\.env)$|\.(jks|keystore|p12|pfx|pem|key)      - name: Unit tests
-        run: ./gradlew test
-      - name: Domain/data coverage
-        run: ./gradlew jacocoDebugDomainDataCoverageVerification
-      - name: Lint
-        run: ./gradlew lint
- || true)"
+          forbidden_files="$(git ls-files | grep -E '(^|/)(secrets\.properties|keystore\.properties|local\.properties|google-services\.json|\.env)$|\.(jks|keystore|p12|pfx|pem|key)$' || true)"
           if [ -n "$forbidden_files" ]; then
             echo "Forbidden secret-bearing files are tracked:"
             echo "$forbidden_files"
@@ -48,7 +42,6 @@ jobs:
             echo "Potential high-confidence secret detected in tracked content."
             exit 1
           fi
-
       - name: Build debug
         run: ./gradlew assembleDebug
       - name: Unit tests
