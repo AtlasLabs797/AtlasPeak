@@ -10,6 +10,15 @@
 
 ## [Unreleased]
 
+### 2026-09-20 - Inicio version V-01.10
+
+**Cambiado**
+- Creada rama de trabajo `V-01.10` desde `V-01.09` como nueva rama de desarrollo.
+- Fijada la version de app en `versionName = "V-01.10"` y `versionCode = 110`.
+- Arranca el plan de correccion y mejora definido en
+  `C:\Users\usuario\Downloads\Plan Atlas Peak.txt`, ejecutado por fases (P0 a P3).
+  La trazabilidad detallada vive en este CHANGELOG y en `BUGS.md`.
+
 ### 2026-09-20 - Inicio version V-01.09
 
 **Cambiado**
