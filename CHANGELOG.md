@@ -10,6 +10,12 @@
 
 ## [Unreleased]
 
+### 2026-09-20 - Inicio version V-01.09
+
+**Cambiado**
+- Creada rama de trabajo `V-01.09` desde `main` como nueva rama de desarrollo.
+- Fijada la version de app en `versionName = "V-01.09"` y `versionCode = 109`.
+
 ### 2026-07-28 - Skills fuera del repositorio
 
 **Eliminado**
