@@ -26,6 +26,29 @@ jobs:
         run: |
           echo "OAUTH_WEB_CLIENT_ID=ci-placeholder.apps.googleusercontent.com" > secrets.properties
           echo "MAPS_API_KEY=ci-placeholder" >> secrets.properties
+      - name: Reject committed secrets
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          forbidden_files="$(git ls-files | grep -E '(^|/)(secrets\.properties|keystore\.properties|local\.properties|google-services\.json|\.env)$|\.(jks|keystore|p12|pfx|pem|key)      - name: Unit tests
+        run: ./gradlew test
+      - name: Domain/data coverage
+        run: ./gradlew jacocoDebugDomainDataCoverageVerification
+      - name: Lint
+        run: ./gradlew lint
+ || true)"
+          if [ -n "$forbidden_files" ]; then
+            echo "Forbidden secret-bearing files are tracked:"
+            echo "$forbidden_files"
+            exit 1
+          fi
+
+          if git grep -n -I -E -- '-----BEGIN (RSA |EC |OPENSSH )?PRIVATE KEY-----|ghp_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|AIza[0-9A-Za-z_-]{30,}|sk-[A-Za-z0-9_-]{20,}' -- .; then
+            echo "Potential high-confidence secret detected in tracked content."
+            exit 1
+          fi
+
       - name: Build debug
         run: ./gradlew assembleDebug
       - name: Unit tests
