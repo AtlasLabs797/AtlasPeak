@@ -24,6 +24,104 @@
 
 ## Entradas
 
+### BUG-093 - CardioForegroundService no cubre todos los caminos de tipos de FGS en Android 14+/15+
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-09-20
+- **Fase:** V-01.10 (P0 - Bloqueante del plan de mejora, Fase 4)
+- **Severidad:** Alta
+- **Sintoma:** `CardioForegroundService` distinguia entre `FOREGROUND_SERVICE_TYPE_LOCATION` y
+  `FOREGROUND_SERVICE_TYPE_HEALTH` con `if (locationTracking)` en `startForegroundCompat`, pero
+  la logica no cubria tres escenarios problemáticos en Android 14+ (API 34+) y 15+ (API 35):
+    1. Sesion de cardio GPS sin permiso `ACCESS_FINE_LOCATION` concedido: el VM enviaba
+       `gpsEnabled = false` pero el FGS seguia intentando reclamar `FOREGROUND_SERVICE_TYPE_HEALTH`
+       sin uso real de datos de salud (no habia `ACTIVITY_RECOGNITION` ni escritura a Health
+       Connect desde el FGS), lo que en Android 14+ dispara `SecurityException`. Resultado: el
+       servicio se mata y la sesion se queda sin notificacion persistente.
+    2. Sesion de cardio sin GPS en un dispositivo sin `ACTIVITY_RECOGNITION`: la politica estricta
+       de tipos FGS exige un uso real de datos de salud para reclamar `HEALTH`. Reclamarlo sin
+       ese uso hace que el sistema rechace el `startForeground` con `SecurityException`.
+    3. Cualquier combinacion anterior + un dispositivo que ya ni siquiera acepta
+       `startForegroundService` por la politica de background activities: el VM capturaba
+       `RuntimeException` pero el catch englobaba `SecurityException` y otras subclases sin
+       distinguir el caso `SecurityException` explicito del tipo FGS.
+  En todos los casos, el resultado era el mismo: `CardioTrackerRegistry` quedaba en
+  `failed=true`, el usuario veia la nota `cardio_tracker_unavailable` y el cronometro quedaba
+  congelado (antes del BUG-091 / BUG-092 ya tenia fallback local, pero el VM no distinguia el
+  modo "ningun FGS legal" del modo "FGS fallo por politica").
+- **Causa raiz:** la decision del tipo se tomaba inline en `startForegroundCompat` con un
+  booleano `locationTracking`, sin una funcion pura que modele "que tipos de FGS son legales
+  AHORA, dados los permisos reales del dispositivo". El VM no tenia forma de etiquetar el
+  escenario (Location/Health/None) para que la UI pudiera mostrar la nota apropiada ("modo
+  local: cronometro sigue, pero el sistema puede parar el proceso en background") cuando
+  no hay un FGS legal. El catch era `catch (_: RuntimeException)` sin distinguir
+  `SecurityException`, que es la excepcion que Android 14+ lanza cuando incumple la politica
+  de tipos.
+- **Solucion:** preflight puro `CardioForegroundService.preflightFgsType(hasGps,
+  hasFineLocation, hasActivityRecognition)` que devuelve `CardioFgsMode` (`Location`, `Health`
+  o `None`). La UI expone este modo en `ActiveCardioUiState.fgsMode` para que la pantalla
+  pueda etiquetar el escenario. Cambios:
+    - `domain/model/cardio/CardioModels.kt`: nuevo enum `CardioFgsMode { Location, Health,
+      None }`.
+    - `CardioForegroundService.startTracking` calcula `fgsMode = preflightFgsType(...)`. Si
+      es `None`, salta `startForeground` y deja correr `timerJob` + `persistJob` sin
+      notificacion persistente. Si es `Location` o `Health`, reclama el tipo correspondiente.
+      El catch de `startForeground` ahora tiene un `catch (_: SecurityException)` explicito
+      seguido de un `catch (_: RuntimeException)` (mismo cuerpo) para claridad del lector:
+      SecurityException es subclase de RuntimeException, pero queremos que la intencion sea
+      obvia. Nuevo `hasActivityRecognitionPermission()` (Android 10+ runtime grant via
+      `ContextCompat.checkSelfPermission`).
+    - `ActiveCardioViewModel.startTrackingService` calcula `requestedFgsMode` con
+      `preflightFgsType` antes de llamar a `startForegroundService`. Si la llamada lanza
+      `SecurityException` (explicit catch) o `RuntimeException` (fallback), baja el modo a
+      `None` y arranca el cronometro local. El collector del registry, cuando detecta
+      `tracker.failed && sessionId == ours`, baja `fgsMode` a `None` para reflejar el modo
+      efectivo. Ademas, ahora recibe un reloj inyectable `now: () -> Long` (mismo patron que
+      `ActiveWorkoutViewModel` post-BUG-092) para que los tests del fallback local sean
+      deterministas.
+    - `ActiveCardioUiState.fgsMode: CardioFgsMode` (default `None`).
+  La pantalla (`ActiveCardioScreen`) NO referencia `fgsMode` en esta fase: el plan lo
+  reservaba como dato disponible para iteraciones posteriores (la nota visible
+  "modo local, sin notificacion persistente" entraria en una fase UX posterior, no aqui).
+- **Prevencion:**
+    - Tests en `ActiveCardioViewModelTest` (JUnit5, hand-written fakes, `StandardTestDispatcher`):
+      - `startTrackingService with location allowed sets fgsMode to Location`: contexto
+        AllowingContext, cardio GPS, `locationAllowed = true` -> `fgsMode = Location`,
+        intent enviado al sistema.
+      - `startTrackingService with location denied sets fgsMode to None with
+        LocationPermissionDenied`: cardio GPS, `locationAllowed = false` -> `fgsMode =
+        None`, mensaje `LocationPermissionDenied`, formulario manual visible. El intent
+        llega al sistema; el FGS re-evalua el preflight y tambien devuelve None.
+      - `startTrackingService for non-GPS cardio with ACTIVITY_RECOGNITION sets fgsMode to
+        Health`: cardio manual + AllowingContext -> `fgsMode = Health`.
+      - `startTrackingService for non-GPS cardio without ACTIVITY_RECOGNITION sets fgsMode
+        to None`: cardio manual + ActivityRecognitionDeniedContext -> `fgsMode = None`,
+        formulario manual visible.
+      - `startTrackingService rejection by system falls back to local timer with fgsMode
+        None`: RejectingContext (lanza SecurityException al `startForegroundService`) ->
+        `fgsMode = None`, mensaje `TrackerUnavailable`.
+      - `elapsed seconds keeps increasing when foreground service is rejected`: misma
+        configuracion que el anterior + reloj inyectable +5s -> `elapsedSeconds` sube al
+        menos 5. Patron espejo del BUG-092.
+    - Fake contexts `AllowingContext`, `RejectingContext`, `ActivityRecognitionDeniedContext`
+      (mismo patron que `NoopContext` existente), siguiendo el estilo de
+      `ActiveWorkoutViewModelTest`.
+    - `TestClock(initialMillis)` con `reset / advanceBy / currentMillis / asNow()` para
+      inyectar reloj determinista.
+- **Limitacion conocida (documentada en CHANGELOG):** el VM computa `fgsMode` con su propia
+  copia del preflight y lo publica antes de llamar a `startForegroundService`. El FGS vuelve a
+  calcular el preflight en `startTracking` y puede divergir en una ventana de carrera (p. ej.,
+  el usuario revoca el permiso entre el check del VM y el check del FGS). En ese caso el modo
+  que refleja el VM refleja su intencion; el modo efectivo del FGS seria None si la
+  disponibilidad de permiso cambia. Ambos caminos convergen a `tracker.running=true` /
+  `failed=false` o a `failed=true` y el collector del VM baja a `None` automaticamente. No se
+  expone el fgsMode del FGS en el registry: aceptado como deuda para una fase posterior si se
+  necesita precision bit-exact entre el modo pedido y el modo realmente reclamado.
+- **Limitacion conocida (documentada en CHANGELOG):** la nota visible en la UI para
+  `fgsMode == None` ("modo local, sin notificacion persistente") NO se añade en esta fase; el
+  plan la reservaba para una iteracion UX posterior. El campo ya esta disponible en el estado
+  para cuando se anada.
+- **Fecha resolucion:** 2026-09-20
+
 ### BUG-092 - Cronometro visual de fuerza se congela si WorkoutForegroundService falla o no llega a arrancar
 - **Estado:** Resuelto
 - **Fecha deteccion:** 2026-09-20

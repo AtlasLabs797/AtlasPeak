@@ -10,6 +10,130 @@
 
 ## [Unreleased]
 
+### 2026-09-20 - CardioForegroundService robusto frente a politica estricta de tipos de FGS en Android 14+/15+ (Fase 4 P0)
+
+**Corregido**
+- `BUG-093`: el `CardioForegroundService` ya no reclama un tipo de foreground service
+  ilegal para el escenario actual. Antes, la eleccion de tipo se hacia inline en
+  `startForegroundCompat` con un booleano `locationTracking`, lo que dejaba tres
+  agujeros en Android 14+ (API 34+) / 15+ (API 35):
+    1. Cardio GPS sin permiso `ACCESS_FINE_LOCATION`: el FGS intentaba reclamar
+       `FOREGROUND_SERVICE_TYPE_HEALTH` sin uso real de datos de salud
+       (`ACTIVITY_RECOGNITION`, Health Connect write), y la politica estricta de
+       Android 14+ dispara `SecurityException`.
+    2. Cardio sin GPS sin `ACTIVITY_RECOGNITION`: mismo problema, el sistema rechaza
+       reclamar `HEALTH` sin un uso real de salud.
+    3. Cualquier combinacion anterior + dispositivo que rechaza `startForegroundService`
+       por background activities: el VM capturaba `RuntimeException` (que cubre
+       `SecurityException` por ser subclase) pero no distinguia el caso del resto de
+       `RuntimeException`s, y el VM no etiquetaba el modo efectivo del FGS, asi que
+       la UI no podia mostrar la nota de "modo local" cuando no habia un FGS legal.
+  Ahora `preflightFgsType(hasGps, hasFineLocation, hasActivityRecognition)` decide
+  en funcion de los permisos reales del dispositivo que tipo de FGS es legal:
+  `Location` (GPS + permiso), `Health` (no GPS + `ACTIVITY_RECOGNITION`) o `None`
+  (ninguno legal). Cuando devuelve `None`, el FGS salta `startForeground` y deja
+  que `timerJob` y `persistJob` corran en foreground mientras la app este visible:
+  el cronometro sigue, pero el sistema puede parar el proceso en background
+  (documentado como limitacion conocida).
+
+**Cambiado**
+- `CardioForegroundService`:
+  - Nuevo helper `preflightFgsType(hasGps, hasFineLocation, hasActivityRecognition)` en el
+    `companion object`: sin estado, sin dependencias de Android, facil de testear.
+  - `startTracking` lo invoca y, si devuelve `None`, NO llama a `startForeground`;
+    sigue con `timerJob` y `persistJob` para que el cronometro local funcione.
+  - `startForegroundCompat(notification, fgsMode)` toma un `CardioFgsMode` en vez de
+    un booleano. Mantiene `require(fgsMode != None)` como red de seguridad para que un
+    caller incorrecto falle ruidosamente en vez de reclamar un tipo arbitrario.
+  - El catch alrededor de `startForeground` ahora tiene un `catch (_: SecurityException)`
+    explicito seguido del `catch (_: RuntimeException)` existente (mismo cuerpo):
+    SecurityException es subclase de RuntimeException, pero queremos que la intencion
+    sea visible al lector. No se elimina el catch de RuntimeException: sigue cubriendo
+    cualquier otra excepcion inesperada.
+  - Nuevo `hasActivityRecognitionPermission()` que usa
+    `ContextCompat.checkSelfPermission(this, Manifest.permission.ACTIVITY_RECOGNITION)`.
+- `ActiveCardioViewModel`:
+  - Constructor primario recibe `now: () -> Long` inyectable; el `@Inject` secundario
+    (Hilt) pasa `{ System.currentTimeMillis() }` (mismo patron que el post-BUG-092
+    en `ActiveWorkoutViewModel`).
+  - `loadSession` y `startLocalTimerIfNeeded` ahora usan `now()` en vez de
+    `System.currentTimeMillis()` para derivar `elapsedSeconds` desde `session.startTime`.
+  - `startTrackingService(locationAllowed)`:
+    - Calcula `requestedFgsMode = CardioForegroundService.preflightFgsType(hasGps =
+      session.hasGps, hasFineLocation = locationAllowed, hasActivityRecognition = ...)`
+      consultando `ContextCompat.checkSelfPermission` para `ACTIVITY_RECOGNITION`.
+    - Publica `fgsMode` en el estado antes de la llamada. Si el usuario denego
+      localizacion y el tipo es GPS, fija el mensaje `LocationPermissionDenied`
+      (comportamiento previo preservado).
+    - El try alrededor de `startForegroundService` ahora tiene `catch (_: SecurityException)`
+      explicito seguido del `catch (_: RuntimeException)` existente (mismo cuerpo). Si
+      cualquiera de los dos dispara, baja `fgsMode` a `None`, fija el mensaje
+      `TrackerUnavailable` y arranca el cronometro local.
+  - El collector del `CardioTrackerRegistry`: cuando `tracker.failed && tracker.sessionId ==
+    sessionId`, ademas de fijar el mensaje `TrackerUnavailable`, baja `fgsMode` a `None`
+    para reflejar el modo efectivo (el FGS fallo, asi que no hay un FGS reclamable
+    en este momento aunque el preflight hubiera dicho otra cosa).
+- `domain/model/cardio/CardioModels.kt`:
+  - Nuevo enum `CardioFgsMode { Location, Health, None }` con comentario KDoc que
+    documenta cada valor y cuando se aplica.
+
+**Añadido**
+- `ActiveCardioUiState.fgsMode: CardioFgsMode = CardioFgsMode.None`: campo nuevo
+  para que la UI pueda etiquetar el escenario. La pantalla `ActiveCardioScreen` NO
+  lo referencia en esta fase: el plan reservaba la nota visible ("modo local, sin
+  notificacion persistente") para una iteracion UX posterior. El dato ya esta
+  disponible para cuando se anada.
+- Tests en `ActiveCardioViewModelTest` (JUnit5, hand-written fakes, `StandardTestDispatcher`):
+  - `startTrackingService with location allowed sets fgsMode to Location`: contexto
+    AllowingContext, cardio GPS, `locationAllowed = true` -> `fgsMode = Location`,
+    intent enviado al sistema.
+  - `startTrackingService with location denied sets fgsMode to None with
+    LocationPermissionDenied`: cardio GPS, `locationAllowed = false` -> `fgsMode =
+    None`, mensaje `LocationPermissionDenied`, formulario manual visible.
+  - `startTrackingService for non-GPS cardio with ACTIVITY_RECOGNITION sets fgsMode
+    to Health`: cardio manual + AllowingContext -> `fgsMode = Health`.
+  - `startTrackingService for non-GPS cardio without ACTIVITY_RECOGNITION sets fgsMode
+    to None`: cardio manual + ActivityRecognitionDeniedContext -> `fgsMode = None`,
+    formulario manual visible.
+  - `startTrackingService rejection by system falls back to local timer with fgsMode
+    None`: RejectingContext (lanza `SecurityException` en `startForegroundService`) ->
+    `fgsMode = None`, mensaje `TrackerUnavailable`.
+  - `elapsed seconds keeps increasing when foreground service is rejected`: misma
+    configuracion que el anterior + reloj inyectable +5s -> `elapsedSeconds` sube al
+    menos 5. Patron espejo del BUG-092.
+- Fake contexts `AllowingContext`, `RejectingContext` y `ActivityRecognitionDeniedContext`
+  al estilo del `NoopContext` existente, siguiendo el estilo de
+  `ActiveWorkoutViewModelTest`.
+- Helper privado `TestClock(initialMillis)` con `reset / advanceBy / currentMillis /
+  asNow()` para inyectar reloj determinista al test del fallback local
+  (mismo patron que `ActiveWorkoutViewModelTest`).
+
+**Limitaciones conocidas**
+- El VM computa `fgsMode` con su propia copia del preflight y lo publica antes de
+  llamar a `startForegroundService`. El FGS vuelve a calcular el preflight en
+  `startTracking` y puede divergir en una ventana de carrera (p. ej., el usuario
+  revoca el permiso entre el check del VM y el check del FGS). En ese caso el modo
+  del VM refleja su intencion; el modo efectivo del FGS seria None si la
+  disponibilidad de permiso cambia. Ambos caminos convergen a `tracker.running=true`
+  o a `failed=true` y el collector del VM baja a `None` automaticamente. No se
+  expone el fgsMode del FGS en el registry: aceptado como deuda para una fase
+  posterior si se necesita precision bit-exact entre el modo pedido y el modo
+  realmente reclamado.
+- La nota visible en la UI para `fgsMode == None` ("modo local, sin notificacion
+  persistente") NO se añade en esta fase; el plan la reservaba para una iteracion
+  UX posterior. El campo ya esta disponible en el estado para cuando se anada.
+
+**Verificado**
+- Compilacion a nivel de tipos y referencias en Kotlin. No se pudo ejecutar
+  `./gradlew test` ni `./gradlew lint` en este entorno por falta de JDK
+  (`JAVA_HOME` apunta a `C:\tmp\atlas-dev-tools\jdk-17.0.19+10`, ruta inexistente).
+- Los 6 tests del BUG-093 estan escritos siguiendo los mismos patrones que los
+  casos preexistentes de `ActiveCardioViewModelTest` (mismo `FakeCardioRepository`,
+  mismo `dispatcher`, mismo `CardioTrackerRegistry.update(CardioTrackerState())` en
+  `setUp()`), y reflejan los mismos helpers (`advanceLocalTimer`, `TestClock`) que
+  `ActiveWorkoutViewModelTest` introdujo para BUG-092. Su semantica es la misma que
+  el resto de la suite.
+
 ### 2026-09-20 - Cronometro de fuerza robusto frente a caida del WorkoutForegroundService (Fase 3 P0)
 
 **Corregido**

@@ -14,6 +14,7 @@ import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import com.atlaspeak.R
 import com.atlaspeak.data.location.LocationTracker
+import com.atlaspeak.domain.model.cardio.CardioFgsMode
 import com.atlaspeak.domain.model.cardio.CardioMode
 import com.atlaspeak.domain.model.cardio.LocationPoint
 import com.atlaspeak.domain.usecase.cardio.CardioUseCase
@@ -126,7 +127,21 @@ class CardioForegroundService : LifecycleService() {
         targetDurationSeconds: Int?,
     ) {
         ensureNotificationChannel()
-        val locationTracking = hasGps && hasFineLocationPermission()
+        // BUG-093 (Fase 4 P0): preflightFgsType decide, en funcion de los
+        // permisos reales del dispositivo, que tipo de foreground service es
+        // legal reclamar ahora. Android 14+ aplica una politica estricta: si
+        // pedimos FOREGROUND_SERVICE_TYPE_LOCATION sin ACCESS_FINE_LOCATION
+        // concedida, o FOREGROUND_SERVICE_TYPE_HEALTH sin un uso real de datos
+        // de salud (ACTIVITY_RECOGNITION, Health Connect write), el sistema
+        // lanza `SecurityException` y la app puede quedar sin notificacion
+        // persistente. Si no hay un tipo legal, dejamos que el cronometro local
+        // siga (no reclamamos FGS): documentado en la UI como "modo local".
+        val fgsMode = preflightFgsType(
+            hasGps = hasGps,
+            hasFineLocation = hasFineLocationPermission(),
+            hasActivityRecognition = hasActivityRecognitionPermission(),
+        )
+        val locationTracking = fgsMode == CardioFgsMode.Location
         // BUG-091: preservamos ruta/distancia/etc. si el VM ya rehidrato el
         // registro antes de arrancar el FGS (process recreation). El FGS solo
         // se responsabiliza de los campos de cronometro/notificacion.
@@ -140,12 +155,27 @@ class CardioForegroundService : LifecycleService() {
                 running = true,
             ),
         )
-        try {
-            startForegroundCompat(buildNotification(CardioTrackerRegistry.state.value), locationTracking)
-        } catch (_: RuntimeException) {
-            CardioTrackerRegistry.update(CardioTrackerRegistry.state.value.copy(running = false, failed = true))
-            stopSelf()
-            return
+        // BUG-093: solo reclamamos un foreground cuando preflight confirma que
+        // hay un tipo legal. Si devuelve None, saltamos startForeground y
+        // dejamos que timerJob/persistJob corran en foreground mientras la app
+        // este visible: la sesion sigue activa localmente aunque sin
+        // notificacion persistente.
+        if (fgsMode != CardioFgsMode.None) {
+            try {
+                startForegroundCompat(buildNotification(CardioTrackerRegistry.state.value), fgsMode)
+            } catch (_: SecurityException) {
+                // BUG-093: SecurityException explicito (subclase de
+                // RuntimeException, pero mas claro para el lector). Android 14+
+                // puede lanzar esto si la politica de tipos FGS no se cumple
+                // pese a que preflight pensaba que si.
+                CardioTrackerRegistry.update(CardioTrackerRegistry.state.value.copy(running = false, failed = true))
+                stopSelf()
+                return
+            } catch (_: RuntimeException) {
+                CardioTrackerRegistry.update(CardioTrackerRegistry.state.value.copy(running = false, failed = true))
+                stopSelf()
+                return
+            }
         }
         timerJob?.cancel()
         timerJob = lifecycleScope.launch {
@@ -199,12 +229,19 @@ class CardioForegroundService : LifecycleService() {
         }
     }
 
-    private fun startForegroundCompat(notification: Notification, locationTracking: Boolean) {
+    private fun startForegroundCompat(notification: Notification, fgsMode: CardioFgsMode) {
+        // BUG-093: el caller (startTracking) ya filtra CardioFgsMode.None antes
+        // de llamar aqui. Dejamos el require como red de seguridad: si alguien
+        // intenta reclamar un FGS con None, fallamos ruidosamente en vez de
+        // reclamar un tipo incorrecto.
+        require(fgsMode != CardioFgsMode.None) {
+            "startForegroundCompat called with CardioFgsMode.None; skip startForeground instead."
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            val serviceType = if (locationTracking) {
-                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
-            } else {
-                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH
+            val serviceType = when (fgsMode) {
+                CardioFgsMode.Location -> android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION
+                CardioFgsMode.Health -> android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_HEALTH
+                CardioFgsMode.None -> error("precondition violated: CardioFgsMode.None")
             }
             startForeground(NOTIFICATION_ID, notification, serviceType)
         } else {
@@ -228,6 +265,13 @@ class CardioForegroundService : LifecycleService() {
 
     private fun hasFineLocationPermission(): Boolean {
         return ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+    }
+
+    private fun hasActivityRecognitionPermission(): Boolean {
+        // BUG-093 (Fase 4 P0): en Android 10+ ACTIVITY_RECOGNITION es permiso
+        // runtime; en API < 29 es normal (concedido por declararse en el
+        // manifest). checkSelfPermission cubre ambos casos correctamente.
+        return ContextCompat.checkSelfPermission(this, Manifest.permission.ACTIVITY_RECOGNITION) == PackageManager.PERMISSION_GRANTED
     }
 
     private fun buildNotification(state: CardioTrackerState): Notification {
@@ -285,6 +329,31 @@ class CardioForegroundService : LifecycleService() {
 
         fun stopIntent(context: Context): Intent {
             return Intent(context, CardioForegroundService::class.java).setAction(ACTION_STOP)
+        }
+
+        /**
+         * Decide que tipo de foreground service cabe en el escenario actual de
+         * cardio en funcion de los permisos reales del dispositivo. BUG-093
+         * (Fase 4 P0): Android 14+ (API 34+) aplica una politica estricta de
+         * tipos de FGS -- reclamar un tipo sin los permisos/uso real que lo
+         * justifican dispara `SecurityException` y deja la sesion sin
+         * notificacion persistente. Si ningun tipo es legal, devolvemos
+         * [CardioFgsMode.None] y el caller debe dejar el cronometro local
+         * correr sin reclamar foreground.
+         *
+         * Pure function: sin dependencias de Android, facil de testear.
+         */
+        fun preflightFgsType(
+            hasGps: Boolean,
+            hasFineLocation: Boolean,
+            hasActivityRecognition: Boolean,
+        ): CardioFgsMode {
+            return when {
+                hasGps && hasFineLocation -> CardioFgsMode.Location
+                hasGps && !hasFineLocation -> CardioFgsMode.None
+                !hasGps && hasActivityRecognition -> CardioFgsMode.Health
+                else -> CardioFgsMode.None
+            }
         }
     }
 }

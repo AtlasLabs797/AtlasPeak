@@ -1,10 +1,13 @@
 package com.atlaspeak.presentation.cardio
 
+import android.Manifest
 import android.content.Context
+import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.atlaspeak.domain.model.cardio.CardioFgsMode
 import com.atlaspeak.domain.model.cardio.CardioMode
 import com.atlaspeak.domain.model.cardio.CardioSession
 import com.atlaspeak.domain.model.cardio.LocationPoint
@@ -27,13 +30,31 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 @HiltViewModel
-class ActiveCardioViewModel @Inject constructor(
+class ActiveCardioViewModel(
     savedStateHandle: SavedStateHandle,
     private val cardioUseCase: CardioUseCase,
     private val resumeCardioSessionUseCase: ResumeCardioSessionUseCase,
     private val cardioRepository: CardioRepository,
     @ApplicationContext private val context: Context,
+    private val now: () -> Long,
 ) : ViewModel() {
+
+    @Inject
+    constructor(
+        savedStateHandle: SavedStateHandle,
+        cardioUseCase: CardioUseCase,
+        resumeCardioSessionUseCase: ResumeCardioSessionUseCase,
+        cardioRepository: CardioRepository,
+        @ApplicationContext context: Context,
+    ) : this(
+        savedStateHandle = savedStateHandle,
+        cardioUseCase = cardioUseCase,
+        resumeCardioSessionUseCase = resumeCardioSessionUseCase,
+        cardioRepository = cardioRepository,
+        context = context,
+        now = { System.currentTimeMillis() },
+    )
+
     private val cardioTypeId: String = requireNotNull(savedStateHandle[AppRoute.ActiveCardio.CARDIO_TYPE_ID])
     private val mode: CardioMode = when (savedStateHandle.get<String>(AppRoute.ActiveCardio.MODE)) {
         AppRoute.ActiveCardio.MODE_COUNTDOWN -> CardioMode.Countdown(
@@ -53,7 +74,14 @@ class ActiveCardioViewModel @Inject constructor(
                     val sessionId = current.session?.id
                     when {
                         tracker.failed && tracker.sessionId == sessionId -> {
-                            current.copy(message = ActiveCardioMessage.TrackerUnavailable)
+                            // BUG-093 (Fase 4 P0): si el FGS falla para nuestra
+                            // sesion, el modo efectivo pasa a None: la UI debe
+                            // mostrar la nota de "modo local" si estaba esperando
+                            // Location/Health.
+                            current.copy(
+                                message = ActiveCardioMessage.TrackerUnavailable,
+                                fgsMode = CardioFgsMode.None,
+                            )
                         }
                         tracker.sessionId == sessionId -> current.copy(
                             elapsedSeconds = tracker.elapsedSeconds,
@@ -81,9 +109,23 @@ class ActiveCardioViewModel @Inject constructor(
         val session = mutableState.value.session ?: return
         if (mutableState.value.trackerServiceStartHandled) return
         val gpsEnabled = session.hasGps && locationAllowed
+        // BUG-093 (Fase 4 P0): calculamos el modo FGS pedido antes de llamar
+        // a startForegroundService. La UI usa este valor para etiquetar el
+        // escenario; si el startForegroundService falla despues, lo rebajamos
+        // a None en el catch.
+        val hasActivityRecognition = ContextCompat.checkSelfPermission(
+            context,
+            Manifest.permission.ACTIVITY_RECOGNITION,
+        ) == PackageManager.PERMISSION_GRANTED
+        val requestedFgsMode = CardioForegroundService.preflightFgsType(
+            hasGps = session.hasGps,
+            hasFineLocation = locationAllowed,
+            hasActivityRecognition = hasActivityRecognition,
+        )
         mutableState.update {
             it.copy(
                 trackerServiceStartHandled = true,
+                fgsMode = requestedFgsMode,
                 message = if (session.hasGps && !locationAllowed) {
                     ActiveCardioMessage.LocationPermissionDenied
                 } else {
@@ -96,8 +138,25 @@ class ActiveCardioViewModel @Inject constructor(
                 context,
                 CardioForegroundService.startIntent(context, session.id, session.startTime, gpsEnabled, session.mode),
             )
+        } catch (_: SecurityException) {
+            // BUG-093: SecurityException explicito (subclase de
+            // RuntimeException, pero mas claro para el lector). Android 14+
+            // puede lanzar esto al reclamar un tipo de FGS que la politica
+            // del sistema no admite.
+            mutableState.update {
+                it.copy(
+                    fgsMode = CardioFgsMode.None,
+                    message = ActiveCardioMessage.TrackerUnavailable,
+                )
+            }
+            startLocalTimerIfNeeded()
         } catch (_: RuntimeException) {
-            mutableState.update { it.copy(message = ActiveCardioMessage.TrackerUnavailable) }
+            mutableState.update {
+                it.copy(
+                    fgsMode = CardioFgsMode.None,
+                    message = ActiveCardioMessage.TrackerUnavailable,
+                )
+            }
             startLocalTimerIfNeeded()
         }
     }
@@ -235,13 +294,13 @@ class ActiveCardioViewModel @Inject constructor(
             CardioTrackerRegistry.state.value.copy(
                 sessionId = session.id,
                 startedAt = session.startTime,
-                elapsedSeconds = ((System.currentTimeMillis() - session.startTime) / 1000L).coerceAtLeast(0L),
+                elapsedSeconds = ((now() - session.startTime) / 1000L).coerceAtLeast(0L),
                 distanceKm = restore.distanceKm,
                 route = restore.points,
                 running = false,
             ),
         )
-        val elapsedSeconds = (System.currentTimeMillis() - session.startTime) / 1000L
+        val elapsedSeconds = (now() - session.startTime) / 1000L
         mutableState.update {
             it.copy(
                 isLoading = false,
@@ -267,7 +326,7 @@ class ActiveCardioViewModel @Inject constructor(
         if (localTimerJob?.isActive == true) return
         localTimerJob = viewModelScope.launch {
             while (true) {
-                val elapsed = ((System.currentTimeMillis() - session.startTime) / 1000).coerceAtLeast(0)
+                val elapsed = ((now() - session.startTime) / 1000).coerceAtLeast(0)
                 mutableState.update { it.copy(elapsedSeconds = elapsed) }
                 if (shouldAutoComplete(mutableState.value.remainingSeconds)) {
                     completeCardio()
@@ -305,6 +364,12 @@ data class ActiveCardioUiState(
     val conflict: ActiveCardioConflictUi? = null,
     val discardInProgress: Boolean = false,
     val message: ActiveCardioMessage? = null,
+    // BUG-093 (Fase 4 P0): modo de foreground service que aplica esta sesion.
+    // Location = FGS con permiso GPS; Health = FGS con ACTIVITY_RECOGNITION sin
+    // GPS; None = sin FGS legal (permiso denegado o escenario manual sin AR).
+    // La UI lo usa para mostrar la nota de "modo local" cuando no hay
+    // notificacion persistente en la bandeja del sistema.
+    val fgsMode: CardioFgsMode = CardioFgsMode.None,
 ) {
     val requiresManualMetrics: Boolean = session?.hasGps != true || route.isEmpty()
     val hasValidManualMetrics: Boolean =
