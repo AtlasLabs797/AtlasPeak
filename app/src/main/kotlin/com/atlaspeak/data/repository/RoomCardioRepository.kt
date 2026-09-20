@@ -171,6 +171,7 @@ class RoomCardioRepository @Inject constructor(
         completed = completed,
         caloriesBurned = caloriesBurned,
         totalVolumeKg = null,
+        weeklyPlanSessionId = weeklyPlanSessionId,
     )
 
     private fun CardioSession.toEntity() = CardioSessionEntity(

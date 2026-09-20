@@ -411,7 +411,8 @@ interface WeeklyPlanDao {
             workout_sessions.type AS type,
             workout_sessions.routine_id AS routineId,
             cardio_sessions.cardio_type_id AS cardioTypeId,
-            workout_sessions.start_time AS startTime
+            workout_sessions.start_time AS startTime,
+            workout_sessions.weekly_plan_session_id AS weeklyPlanSessionId
         FROM workout_sessions
         LEFT JOIN cardio_sessions ON cardio_sessions.session_id = workout_sessions.id
         WHERE workout_sessions.completed = 1
@@ -427,6 +428,11 @@ data class WeeklyPlanCompletionRow(
     val routineId: String?,
     val cardioTypeId: String?,
     val startTime: Long,
+    // BUG-097 (Fase 8 P1): si la sesion se inicio desde el plan semanal, este
+    // campo lleva el id del row `weekly_plan` que la origino. Cuando esta
+    // presente, "completar" se asocia a esa entrada concreta (no a cualquier
+    // sesion del mismo tipo/rutina ese dia).
+    val weeklyPlanSessionId: String? = null,
 )
 
 @Dao

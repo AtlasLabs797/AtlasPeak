@@ -304,6 +304,36 @@
   por tests JUnit5 hand-written fakes; los tests de migracion y de Room viven en
   `androidTest` (AndroidJUnit4) porque la JVM pura no soporta SQLite con FK + Room.
 
+### 2026-09-20 - Plan semanal por sesion concreta (Fase 8 P1)
+
+**Corregido**
+- `BUG-097`: dos sesiones de la misma rutina en el mismo dia del plan semanal
+  ya no se marcan como completadas al cerrar solo una. La FK
+  `workout_sessions.weekly_plan_session_id` apunta a la entrada concreta del
+  plan que origino la sesion y la regla de matching la respeta.
+
+**Anadido**
+- Nueva columna `weekly_plan_session_id TEXT` (indexada) en `workout_sessions`.
+  Migracion Room `MIGRATION_8_9` no destructiva (`ALTER TABLE ...` + `CREATE
+  INDEX`).
+- `WorkoutSessionEntity`, `WorkoutSession` (dominio) y `CardioSession` ganan
+  `weeklyPlanSessionId: String?`. Mapeos toEntity/toDomain del repo llevan el
+  campo.
+- `WeeklyPlanCompletionKey.planSessionId: String?`.
+- `WeeklyPlanUseCase.plan()`: primero match por `planSessionId == session.id`;
+  fallback por `(day, type, targetId)` solo para claves sin FK (compatibilidad
+  con sesiones historicas).
+- `StartWorkoutSessionUseCase.invoke(routineId, weeklyPlanSessionId?)` y
+  `CardioUseCase.startSession(cardioTypeId, mode, weeklyPlanSessionId?)`.
+
+**Limitaciones**
+- Sesiones iniciadas antes de esta fase siguen contando via fallback; no hay
+  forma fiable de vincularlas a la entrada del plan.
+- La UI todavia no expone un selector para iniciar "desde el plan" vs "libre".
+
+**Verificado**
+- Sin build local por falta de JDK.
+
 ### 2026-09-20 - Backup automatico no silencioso (Fase 7 P1)
 
 **Corregido**

@@ -68,6 +68,12 @@ data class WeeklyPlanCompletionKey(
     val dayOfWeek: Int,
     val type: WeeklyPlanDayType,
     val targetId: String,
+    // BUG-097 (Fase 8 P1): si la sesion completada referencia una entrada
+    // concreta del plan semanal, este campo lleva su id. El caso de uso del
+    // plan mira primero esta clave antes de recurrir al fallback por
+    // (day, type, targetId), que se mantiene para sesiones iniciadas sin
+    // plan (compatibilidad hacia atras).
+    val planSessionId: String? = null,
 )
 
 data class NotificationSettings(

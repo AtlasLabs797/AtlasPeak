@@ -151,6 +151,11 @@ data class WorkoutSessionEntity(
     val completed: Boolean = false,
     @ColumnInfo(name = "calories_burned") val caloriesBurned: Int? = null,
     @ColumnInfo(name = "total_volume_kg") val totalVolumeKg: Double? = null,
+    // BUG-097 (Fase 8 P1): referencia opcional a la entrada concreta del plan
+    // semanal. Cuando la sesion se inicia desde el plan, este campo lleva el id
+    // del row `weekly_plan` correspondiente, asi "completar" se refiere a esa
+    // entrada y no a "cualquier sesion del mismo tipo/rutina ese dia".
+    @ColumnInfo(name = "weekly_plan_session_id", index = true) val weeklyPlanSessionId: String? = null,
 )
 
 @Entity(

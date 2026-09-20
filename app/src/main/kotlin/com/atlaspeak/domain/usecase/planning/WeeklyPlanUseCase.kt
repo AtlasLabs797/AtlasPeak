@@ -41,11 +41,21 @@ class WeeklyPlanUseCase(
                             } else {
                                 session.routineId
                             }
+                            // BUG-097 (Fase 8 P1): primero miramos si hay una
+                            // sesion completada que apunte a este id concreto
+                            // del plan (via weeklyPlanSessionId). Si no,
+                            // caemos al match por (day, type, targetId) para
+                            // sesiones historicas iniciadas sin plan.
                             session.copy(
                                 completedThisWeek = completedKeys.any {
                                     it.dayOfWeek == day &&
                                         it.type == session.type &&
-                                        it.targetId == targetId
+                                        it.planSessionId == session.id
+                                } || completedKeys.any {
+                                    it.dayOfWeek == day &&
+                                        it.type == session.type &&
+                                        it.targetId == targetId &&
+                                        it.planSessionId == null
                                 },
                             )
                         },

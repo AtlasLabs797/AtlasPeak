@@ -79,6 +79,10 @@ data class WorkoutSession(
     val completed: Boolean,
     val totalVolumeKg: Double?,
     val exercises: List<ActiveWorkoutExercise>,
+    // BUG-097 (Fase 8 P1): si la sesion se origino desde una entrada del
+    // plan semanal, este campo guarda el id de esa entrada. Cuando es no-null,
+    // la regla "completar" del plan mira especificamente a esta entrada.
+    val weeklyPlanSessionId: String? = null,
 )
 
 data class WorkoutSummary(

@@ -24,6 +24,50 @@
 
 ## Entradas
 
+### BUG-097 - Plan semanal marcaba todas las sesiones del mismo tipo/dia al completar una
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-09-20
+- **Fase:** V-01.10 (P1 - Alta del plan de mejora, Fase 8)
+- **Severidad:** Media
+- **Sintoma:** si el lunes el plan tenia dos sesiones de la misma rutina (p.ej. dos
+  bloques de "Upper"), al completar solo la primera la UI marcaba ambas como
+  completadas, porque la regla de completion comparaba (dayOfWeek, type,
+  targetId) sin distinguir entre entradas individuales del plan.
+- **Causa raiz:** la consulta de sesiones completadas en
+  `WeeklyPlanRepository.completedTrainingKeys` agrupaba por (day, type, targetId),
+  y `WeeklyPlanUseCase.plan()` reusaba esa clave para todas las sesiones del
+  mismo dia con la misma rutina. No existia una FK de la sesion a la entrada
+  concreta del plan.
+- **Solucion:**
+    - Nueva columna `weekly_plan_session_id` (TEXT, indexada) en
+      `workout_sessions`. Migracion Room `MIGRATION_8_9` no destructiva
+      (`ALTER TABLE workout_sessions ADD COLUMN ...` + `CREATE INDEX`).
+    - `WorkoutSessionEntity` y `WorkoutSession` (dominio) ganan
+      `weeklyPlanSessionId: String?`; `CardioSession` lo replica. El mapeo
+      toEntity/toDomain del repo lleva el campo en ambos sentidos.
+    - `WeeklyPlanCompletionKey` gana `planSessionId: String?` opcional.
+    - `WeeklyPlanUseCase.plan()` primero mira `planSessionId == session.id`;
+      si falla, cae al match por (day, type, targetId) solo para claves con
+      `planSessionId == null`. Asi las sesiones historicas (sin FK al plan)
+      siguen funcionando y las nuevas se asocian a la entrada correcta.
+    - `StartWorkoutSessionUseCase.invoke(routineId, weeklyPlanSessionId?)` y
+      `CardioUseCase.startSession(cardioTypeId, mode, weeklyPlanSessionId?)`
+      propagan el id al crear la sesion.
+- **Prevencion:** la regla de matching queda concentrada en `WeeklyPlanUseCase.plan()`
+  con la jerarquia explicita (FK al plan primero, fallback por target solo si no
+  hay FK). Tests del caso de uso del plan siguen aplicando las dos ramas.
+- **Limitacion conocida:** las sesiones iniciadas desde el plan semanal antes de
+  esta fase no tienen `weeklyPlanSessionId`; cuentan via fallback. La UI no puede
+  migrar sesiones historicas porque ya estan cerradas y no hay forma fiable de
+  vincularlas a la entrada concreta del plan que las origino.
+- **Limitacion conocida:** la UI todavia no expone un selector para que el
+  usuario elija si inicia la sesion "desde el plan" (con FK) o "libre" (sin FK).
+  Por ahora el hook esta en el ViewModel; los argumentos de navegacion pueden
+  pasar el `weeklyPlanSessionId` opcional cuando se quiera.
+- **Fecha resolucion:** 2026-09-20
+
+---
+
 ### BUG-096 - Backup automatico fallaba en silencio durante semanas
 - **Estado:** Resuelto
 - **Fecha deteccion:** 2026-09-20

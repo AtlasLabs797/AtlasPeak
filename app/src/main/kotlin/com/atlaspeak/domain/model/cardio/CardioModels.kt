@@ -79,6 +79,11 @@ data class CardioSession(
     // `totalPausedDurationMillis` y vuelve a dejar `pausedAtMillis = null`.
     val pausedAtMillis: Long? = null,
     val totalPausedDurationMillis: Long = 0L,
+    // BUG-097 (Fase 8 P1): si la sesion se origino desde una entrada del
+    // plan semanal, este campo guarda el id de esa entrada. Cuando es
+    // no-null, la regla "completar" del plan mira especificamente a esta
+    // entrada.
+    val weeklyPlanSessionId: String? = null,
 )
 
 /**

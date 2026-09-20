@@ -36,12 +36,12 @@ class StartWorkoutSessionUseCase(
         workoutRepository: WorkoutRepository,
     ) : this(routineRepository, workoutRepository, { System.currentTimeMillis() })
 
-    suspend operator fun invoke(routineId: String): ActiveSessionStartResult {
+    suspend operator fun invoke(routineId: String, weeklyPlanSessionId: String? = null): ActiveSessionStartResult {
         val routine = routineRepository.routine(routineId) ?: return ActiveSessionStartResult.NotFound
         val active = workoutRepository.findActiveSession()
         when {
             active == null -> {
-                val session = routine.toWorkoutSession(startedAt = now())
+                val session = routine.toWorkoutSession(startedAt = now(), weeklyPlanSessionId = weeklyPlanSessionId)
                 val created = workoutRepository.createSession(session)
                 return ActiveSessionStartResult.Started(created.id)
             }
@@ -54,7 +54,7 @@ class StartWorkoutSessionUseCase(
         }
     }
 
-    private fun Routine.toWorkoutSession(startedAt: Long): WorkoutSession {
+    private fun Routine.toWorkoutSession(startedAt: Long, weeklyPlanSessionId: String? = null): WorkoutSession {
         val sessionId = UUID.randomUUID().toString()
         return WorkoutSession(
             id = sessionId,
@@ -65,6 +65,7 @@ class StartWorkoutSessionUseCase(
             durationSeconds = null,
             completed = false,
             totalVolumeKg = null,
+            weeklyPlanSessionId = weeklyPlanSessionId,
             exercises = exercises.sortedBy { it.orderIndex }.map { routineExercise ->
                 ActiveWorkoutExercise(
                     exerciseId = routineExercise.exerciseId,

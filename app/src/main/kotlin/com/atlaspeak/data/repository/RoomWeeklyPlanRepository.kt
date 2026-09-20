@@ -43,6 +43,7 @@ class RoomWeeklyPlanRepository @Inject constructor(
                         dayOfWeek = row.startTime.toIsoDayOfWeek(),
                         type = type,
                         targetId = it,
+                        planSessionId = row.weeklyPlanSessionId,
                     )
                 }
             }

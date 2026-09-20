@@ -56,7 +56,11 @@ class CardioUseCase(
         repository.archiveType(id)
     }
 
-    suspend fun startSession(cardioTypeId: String, mode: CardioMode): ActiveSessionStartResult {
+    suspend fun startSession(
+        cardioTypeId: String,
+        mode: CardioMode,
+        weeklyPlanSessionId: String? = null,
+    ): ActiveSessionStartResult {
         val type = repository.cardioTypes().firstOrNull { it.id == cardioTypeId }
             ?: return ActiveSessionStartResult.NotFound
         val active = repository.findActiveSession()
@@ -81,6 +85,10 @@ class CardioUseCase(
                     // pausa acumulada. El VM es quien mueve ambos campos.
                     pausedAtMillis = null,
                     totalPausedDurationMillis = 0L,
+                    // BUG-097 (Fase 8 P1): propagamos la entrada del plan
+                    // semanal (si existe) para que la regla "completar"
+                    // apunte a esa entrada concreta.
+                    weeklyPlanSessionId = weeklyPlanSessionId,
                 )
                 val created = repository.createSession(session)
                 return ActiveSessionStartResult.Started(created.id)

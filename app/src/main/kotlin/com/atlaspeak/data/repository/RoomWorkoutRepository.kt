@@ -87,6 +87,7 @@ class RoomWorkoutRepository @Inject constructor(
             durationSeconds = durationSeconds,
             completed = completed,
             totalVolumeKg = totalVolumeKg,
+            weeklyPlanSessionId = weeklyPlanSessionId,
             exercises = sets.groupBy { it.exerciseId }.map { (exerciseId, exerciseSets) ->
                 val routineEntry = routineEntries[exerciseId]
                 ActiveWorkoutExercise(
@@ -114,6 +115,7 @@ class RoomWorkoutRepository @Inject constructor(
         completed = completed,
         caloriesBurned = null,
         totalVolumeKg = totalVolumeKg,
+        weeklyPlanSessionId = weeklyPlanSessionId,
     )
 
     private fun WorkoutSet.toEntity() = WorkoutSetEntity(

@@ -64,7 +64,7 @@ import com.atlaspeak.data.db.entity.WorkoutSetEntity
         HcSleepStageEntity::class,
         HcHeartRateSampleEntity::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -398,6 +398,24 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL(
                     "ALTER TABLE cardio_sessions ADD COLUMN total_paused_duration_ms " +
                         "INTEGER NOT NULL DEFAULT 0",
+                )
+            }
+        }
+
+        // BUG-097 (Fase 8 P1): anadimos `weekly_plan_session_id` a
+        // `workout_sessions` para que las sesiones iniciadas desde el plan
+        // semanal apunten al row concreto de `weekly_plan` que las origino.
+        // Asi, la regla "completar" se aplica por entrada individual y no
+        // por (day, type, targetId), que es lo que producia el bug de las dos
+        // sesiones del mismo dia marcadas a la vez.
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE workout_sessions ADD COLUMN weekly_plan_session_id TEXT",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_workout_sessions_weekly_plan_session_id " +
+                        "ON workout_sessions(weekly_plan_session_id)",
                 )
             }
         }
