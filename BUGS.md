@@ -24,6 +24,110 @@
 
 ## Entradas
 
+### BUG-101 - Historial recargaba en cada pulsacion de tecla (sin debounce)
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-09-20
+- **Fase:** V-01.10 (P2 - Media del plan de mejora, Fase 12)
+- **Severidad:** Baja
+- **Sintoma:** escribir en el campo de busqueda del historial disparaba una recarga
+  completa por cada pulsacion, generando consultas Room innecesarias y leve flicker
+  visual en listas largas.
+- **Causa raiz:** `ProgressViewModel.onHistorySearchChanged(query)` actualizaba el
+  estado y llamaba `refreshHistory()` directamente. No habia `delay` ni cancelacion
+  del job anterior.
+- **Solucion:** nuevo `historySearchJob` que cancela el anterior y aplica un
+  `delay(300 ms)` antes de invocar `refreshHistory()`. Cambios rapidos de texto
+  colapsan en una sola consulta al use case.
+- **Prevencion:** la constante `SEARCH_DEBOUNCE_MS = 300L` es el unico parametro
+  a tocar; cualquier reordenacion deberia pasar por `historySearchJob?.cancel()`.
+- **Fecha resolucion:** 2026-09-20
+
+---
+
+### BUG-100 - Mapa de cardio centraba siempre en el primer punto y zoom fijo
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-09-20
+- **Fase:** V-01.10 (P2 - Media del plan de mejora, Fase 11)
+- **Severidad:** Baja
+- **Sintoma:** `CardioRouteMap` centraba siempre en `points.first()` con zoom 15f.
+  En sesiones largas (varios km) el resto del recorrido quedaba fuera del viewport
+  y el usuario no veia nada util.
+- **Causa raiz:** `CameraPosition.fromLatLngZoom(points.first(), 15f)` no tenia en
+  cuenta los limites geograficos de la ruta.
+- **Solucion:** `LaunchedEffect(route.size)` calcula `LatLngBounds` para 2+ puntos
+  y aplica `CameraUpdateFactory.newLatLngBounds` con padding 96 px. Para 1 punto
+  conserva el zoom fijo 15f. Marcadores inicio/fin para que la polilinea no se
+  confunda con segmentos abiertos.
+- **Prevencion:** el efecto depende solo de `route.size`, asi que cambios en el
+  tamano de la ruta recuadran automaticamente. Si en el futuro se quiere
+  animacion continua durante la sesion, hay que añadir una heuristica de
+  "cambio significativo" (no incluida en esta fase).
+- **Limitacion conocida:** `animate` se llama en cada cambio de `route.size`. En
+  una sesion GPS activa con muchos puntos la camara se repintara a cada fix,
+  lo cual es molesto. Pendiente para Fase 13 (UX cardio) introducir una
+  heuristica de cambio significativo.
+- **Fecha resolucion:** 2026-09-20
+
+---
+
+### BUG-099 - Validaciones de perfil y composicion corporal divergian entre UI y dominio
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-09-20
+- **Fase:** V-01.10 (P2 - Media del plan de mejora, Fase 10)
+- **Severidad:** Media
+- **Sintoma:** `EditProfileViewModel` validaba edad en 10..120 y altura en
+  80..250 cm, pero `OnboardingViewModel` no validaba nada (aceptaba 999 anos,
+  altura 999.99). En composicion corporal, `BodyCompositionDraft.isValidRaw()`
+  permitia grasa muscular hasta 500 kg, agua hasta 500 kg, masa osea hasta 500
+  kg y edad biologica hasta 130, mientras que `BodyCompositionUseCase.BodyCompositionInput.isValid()`
+  limitaba grasa muscular y agua a 250 kg, masa osea a 20 kg y edad biologica
+  a 120. La UI y el dominio aplicaban reglas distintas.
+- **Causa raiz:** constantes duplicadas en dos lugares (composicion) y ninguna
+  validacion centralizada (perfil).
+- **Solucion:** `ProfileValidation` (limites de edad y altura) y
+  `BodyCompositionValidation` (rangos de peso, porcentajes, grasa muscular,
+  agua, masa osea, grasa visceral y edad biologica) en `domain/usecase/profile`
+  y `domain/usecase/body`. La UI los reutiliza para la validacion temprana.
+- **Prevencion:** un cambio futuro de limites vive en un unico sitio (los
+  constantes de los validadores). Tests de unidad sobre los validadores
+  daran confianza.
+- **Limitacion conocida:** `EditProfileViewModel` sigue validando con sus
+  constantes locales; conviene migrar en una fase posterior a usar
+  `ProfileValidation` directamente para no dejar la duplicacion. Documentado.
+- **Fecha resolucion:** 2026-09-20
+
+---
+
+### BUG-098 - WeeklyPlan saveDay reentraba con refresh() y borraba su propio feedback
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-09-20
+- **Fase:** V-01.10 (P2 - Media del plan de mejora, Fase 9)
+- **Severidad:** Media
+- **Sintoma:** `saveDay(dayOfWeek)` llamaba a `weeklyPlanUseCase.updateDay(...)`
+  y luego ejecutaba `refresh()` que tambien escribia en `messageRes`. El
+  feedback de "Guardado" o el de "Hora invalida" podia desaparecer o quedar
+  inconsistente por culpa del job paralelo. Si el usuario pulsaba Guardar
+  dos veces seguidas antes de que terminara el primero, se lanzaban dos
+  jobs de actualizacion concurrentes.
+- **Causa raiz:** `saveDay` no tenia un flag de "guardando" y `refresh()` no
+  esperaba a `saveDay` (corre en su propio launch).
+- **Solucion:** nuevo flag `isSaving: Boolean` en `WeeklyPlanUiState`. Al
+  pulsar Guardar: (1) se marca `isSaving=true` y se limpia `messageRes`; (2)
+  se ejecuta el use case; (3) en exito se hace `refresh()` y luego se
+  actualiza `messageRes` + `isSaving=false`; (4) en fallo se actualiza
+  `messageRes=invalid_time` + `isSaving=false`. Doble click: el segundo
+  se ignora porque `isSaving=true` ya esta activo.
+- **Prevencion:** cualquier futuro metodo que toque Room + UI debe usar
+  `isSaving` (o un patron similar) para evitar carreras; el codigo de la VM
+  tiene comentario explicito apuntando a este caso.
+- **Limitacion conocida:** si dos `saveDay` se llaman para dias distintos
+  en paralelo, cada uno lleva su propio `isSaving` pero `messageRes` es
+  compartido y el orden de los feedbacks puede no coincidir con el orden de
+  los clicks. Aceptable: el caso es raro en UX real.
+- **Fecha resolucion:** 2026-09-20
+
+---
+
 ### BUG-097 - Plan semanal marcaba todas las sesiones del mismo tipo/dia al completar una
 - **Estado:** Resuelto
 - **Fecha deteccion:** 2026-09-20

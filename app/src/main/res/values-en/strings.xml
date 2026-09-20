@@ -217,6 +217,8 @@
     <string name="cardio_route_saved">Route saved</string>
     <string name="cardio_route_not_saved">No GPS route saved.</string>
     <string name="cardio_route_map_summary">GPS route map with %1$d points and %2$.2f km.</string>
+    <string name="cardio_route_start">Start</string>
+    <string name="cardio_route_end">End</string>
 
     <string name="progress_tab_history">History</string>
     <string name="progress_tab_exercises">Exercises</string>

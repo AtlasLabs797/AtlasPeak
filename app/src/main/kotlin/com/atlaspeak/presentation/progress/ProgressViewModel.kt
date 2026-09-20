@@ -27,6 +27,7 @@ class ProgressViewModel @Inject constructor(
     private val mutableState = MutableStateFlow(ProgressUiState())
     private var allRefreshJob: Job? = null
     private var historyRefreshJob: Job? = null
+    private var historySearchJob: Job? = null
     val state: StateFlow<ProgressUiState> = mutableState.asStateFlow()
 
     init {
@@ -70,7 +71,16 @@ class ProgressViewModel @Inject constructor(
                 errorMessageRes = null,
             )
         }
-        refreshHistory()
+        // BUG-101 (Fase 12 P2): antes `refreshHistory()` se lanzaba en cada
+        // pulsacion de tecla, generando flicker y consultas Room innecesarias.
+        // Ahora el `historySearchJob` espera 300 ms de inactividad antes de
+        // llamar al use case; un cambio rapido cancela el job anterior y solo
+        // el ultimo query llega a la query.
+        historySearchJob?.cancel()
+        historySearchJob = viewModelScope.launch {
+            kotlinx.coroutines.delay(SEARCH_DEBOUNCE_MS)
+            refreshHistory()
+        }
     }
 
     fun selectHistoryItem(id: String) {
@@ -191,3 +201,8 @@ enum class ProgressTab {
     Exercises,
     MuscleGroups,
 }
+
+// BUG-101 (Fase 12 P2): debounce de la busqueda en historial. 300 ms es
+// suficiente para evitar flicker en busquedas tipadas rapidamente sin
+// hacer sentir al usuario que hay lag.
+private const val SEARCH_DEBOUNCE_MS: Long = 300L

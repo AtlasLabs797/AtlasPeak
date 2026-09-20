@@ -225,6 +225,8 @@
     <string name="cardio_route_saved">Ruta guardada</string>
     <string name="cardio_route_not_saved">Sin ruta GPS guardada.</string>
     <string name="cardio_route_map_summary">Mapa de ruta GPS con %1$d puntos y %2$.2f km.</string>
+    <string name="cardio_route_start">Inicio</string>
+    <string name="cardio_route_end">Fin</string>
 
     <!-- Errores genéricos -->
     <!-- Progreso -->

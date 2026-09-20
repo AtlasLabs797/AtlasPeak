@@ -304,6 +304,44 @@
   por tests JUnit5 hand-written fakes; los tests de migracion y de Room viven en
   `androidTest` (AndroidJUnit4) porque la JVM pura no soporta SQLite con FK + Room.
 
+### 2026-09-20 - Lote P2: WeeklyPlan race + validaciones compartidas + mapa cardio bounds + debounce historial (Fases 9-12)
+
+**Corregido**
+- `BUG-098`: `WeeklyPlanViewModel.saveDay()` ya no compite con su propio
+  `refresh()`; nuevo flag `isSaving` deshabilita el boton y serializa el
+  feedback (`Saved` / `Invalid` / `Error`) sin carreras.
+- `BUG-099`: limites de perfil y composicion corporal centralizados en
+  `domain/usecase/profile/ProfileValidation` y
+  `domain/usecase/body/BodyCompositionValidation`. Antes la UI de onboarding
+  no validaba nada y los rangos de composicion divergian entre VM y use case.
+- `BUG-100`: `CardioRouteMap` ahora calcula `LatLngBounds` para 2+ puntos
+  y usa `CameraUpdateFactory.newLatLngBounds` con padding 96 px. Para 1
+  punto conserva el zoom fijo 15f. Marcadores inicio/fin en la polilinea.
+- `BUG-101`: `ProgressViewModel.onHistorySearchChanged` aplica un debounce
+  de 300 ms antes de llamar a `refreshHistory()`, cancelando el job anterior
+  para evitar consultas Room innecesarias por cada pulsacion de tecla.
+
+**Anadido**
+- `ProfileValidation` (MIN_AGE / MAX_AGE / MIN_HEIGHT_CM / MAX_HEIGHT_CM)
+  y helpers `ageIsValid` / `heightIsValid`.
+- `BodyCompositionValidation` (rangos canonicos para peso, porcentajes,
+  grasa muscular, agua, masa osea, grasa visceral y edad biologica) y
+  helpers `weightIsValid`, `percentIsValid`, etc.
+- Strings `cardio_route_start` / `cardio_route_end` ES + EN para los
+  marcadores del mapa.
+- Constante `SEARCH_DEBOUNCE_MS = 300L` y nuevo `historySearchJob` en
+  `ProgressViewModel`.
+
+**Limitaciones**
+- `EditProfileViewModel` sigue validando con sus constantes locales; la
+  migracion a `ProfileValidation` queda pendiente para limpieza futura.
+- `LaunchedEffect(route.size)` re-encuadra en cada cambio de tamano; en
+  sesiones GPS activas largas es molesto (Fase 13 introduce heuristica de
+  cambio significativo).
+
+**Verificado**
+- Sin build local por falta de JDK.
+
 ### 2026-09-20 - Plan semanal por sesion concreta (Fase 8 P1)
 
 **Corregido**
