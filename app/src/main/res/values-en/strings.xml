@@ -188,6 +188,13 @@
     <string name="cardio_active_mode_timer">Timer</string>
     <string name="cardio_active_mode_countdown">Countdown</string>
     <string name="cardio_active_remaining">Remaining: %1$s</string>
+    <string name="cardio_action_pause">Pause</string>
+    <string name="cardio_action_resume">Resume</string>
+    <string name="cardio_active_paused">Timer paused</string>
+    <string name="cardio_active_searching_gps">Searching for GPS…</string>
+    <string name="cardio_active_no_route">No route yet</string>
+    <string name="cardio_active_enter_manual">Enter distance manually</string>
+    <string name="cardio_finish_disabled_no_route">Start moving or enter the distance to be able to finish.</string>
     <string name="cardio_metric_distance">Distance</string>
     <string name="cardio_metric_current_speed">Current speed</string>
     <string name="cardio_metric_avg_speed">Average speed</string>

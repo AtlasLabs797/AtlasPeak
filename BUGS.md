@@ -24,6 +24,56 @@
 
 ## Entradas
 
+### BUG-094 - Cardio sin pause/resume y boton Finalizar siempre habilitado
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-09-20
+- **Fase:** V-01.10 (P1 - Alta del plan de mejora, Fase 5)
+- **Severidad:** Media
+- **Sintoma:** (a) `state.canComplete` ya estaba calculado en el VM pero el boton Finalizar de
+  `ActiveCardioScreen` solo respetaba `!completionInProgress`, ignorando la validez de las
+  metricas manuales. Resultado: el usuario podia pulsar Finalizar sin haber rellenado distancia
+  manual, quedandose en un estado bloqueado con `ManualMetricsRequired`. (b) No existia
+  funcionalidad de Pausar/Reanudar para sesiones de cardio: si el usuario queria parar
+  momentaneamente (por un semaforo, una parada tecnica, etc.) el cronometro seguia contando,
+  inflando el tiempo efectivo de entrenamiento.
+- **Causa raiz:** (a) El composable de pantalla leia `!state.completionInProgress` y nunca
+  pasaba `state.canComplete` como `enabled`. (b) El modelo de dominio `CardioSession` no
+  tenia campos para representar pausa y el VM solo ofrecia start/stop/cancel. Faltaba una
+  fuente canonica de tiempo efectivo que restase el tiempo pausado sin falsear `startTime`.
+- **Solucion:**
+    - CardioSessionEntity gana `paused_at_ms INTEGER` (nullable) y `total_paused_duration_ms
+      INTEGER NOT NULL DEFAULT 0`. Migracion Room `MIGRATION_7_8` con `ALTER TABLE` no
+      destructiva.
+    - CardioSession (dominio) replica los dos campos con semantica identica: `pausedAtMillis`
+      mientras este pausada, `totalPausedDurationMillis` acumulado tras cada reanudacion.
+    - Helper `effectiveElapsedSeconds(session, now)` en `domain/model/cardio` que resta
+      `totalPausedDurationMillis` y, si esta pausada, `(now - pausedAtMillis)`. Es la unica
+      fuente de verdad del tiempo efectivo; la reutilizan el VM (local fallback y loadSession)
+      y el caso de uso (`completeSession`).
+    - ActiveCardioViewModel: `pauseCardio()` / `resumeCardio()` idempotentes, `state.canComplete`
+      considera `!completionInProgress && completedSessionId == null && (!requiresManualMetrics ||
+      hasValidManualMetrics)`, nuevo `state.isPaused` derivado.
+    - ActiveCardioScreen: boton Finalizar con `enabled = state.canComplete`, botones Pausar /
+      Reanudar conmutados por `state.isPaused`. Strings ES + EN nuevos.
+    - CardioForegroundService: nuevas acciones `ACTION_PAUSE` y `ACTION_RESUME` que cancelan o
+      reactivan los jobs (`timerJob`, `locationJob`, `persistJob`) sin tocar el registro ni
+      reclamar foreground nuevo (la notificacion existente sigue visible durante la pausa).
+- **Prevencion:** `ActiveCardioViewModelTest` cubre 6 casos (pausa simple, multiples pausas,
+  process recreation pausada, countdown durante pausa, gating del Finalizar segun
+  `canComplete`, idempotencia de `completeCardio`). El helper `effectiveElapsedSeconds` vive
+  en `domain/model/cardio` y cualquier futuro consumidor (ej. historial, statistics) debe
+  usarlo en lugar de reinventar la formula.
+- **Limitacion conocida:** `completeCardio` mientras la sesion esta pausada deja el tiempo
+  pausado excluido del tiempo total registrado, lo cual es coherente. No se permite reanudar
+  automaticamente al finalizar.
+- **Limitacion conocida:** el resume del FGS usa la heuristica "si la ruta antes de pausar no
+  estaba vacia, asume GPS y reanuda `locationJob`". Si el escenario es GPS-permitido-pero-
+  sin-puntos-todavia (raro: el usuario pauso antes del primer fix), no se reanuda la captura
+  GPS hasta que el VM fuerce un reinicio manual. Documentado.
+- **Fecha resolucion:** 2026-09-20
+
+---
+
 ### BUG-093 - CardioForegroundService no cubre todos los caminos de tipos de FGS en Android 14+/15+
 - **Estado:** Resuelto
 - **Fecha deteccion:** 2026-09-20

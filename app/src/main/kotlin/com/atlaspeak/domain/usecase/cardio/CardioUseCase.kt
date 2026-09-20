@@ -5,6 +5,7 @@ import com.atlaspeak.domain.model.cardio.CardioRoutePoint
 import com.atlaspeak.domain.model.cardio.CardioSession
 import com.atlaspeak.domain.model.cardio.CardioType
 import com.atlaspeak.domain.model.cardio.LocationPoint
+import com.atlaspeak.domain.model.cardio.effectiveElapsedSeconds
 import com.atlaspeak.domain.repository.BodyCompositionRepository
 import com.atlaspeak.domain.repository.CardioRepository
 import com.atlaspeak.domain.usecase.workout.ActiveSessionStartResult
@@ -76,6 +77,10 @@ class CardioUseCase(
                     hasGps = type.hasGps,
                     route = emptyList(),
                     completed = false,
+                    // BUG-094 (Fase 5 P1): toda sesion nueva arranca sin
+                    // pausa acumulada. El VM es quien mueve ambos campos.
+                    pausedAtMillis = null,
+                    totalPausedDurationMillis = 0L,
                 )
                 val created = repository.createSession(session)
                 return ActiveSessionStartResult.Started(created.id)
@@ -147,7 +152,12 @@ class CardioUseCase(
     ): CardioSession? {
         val session = repository.session(sessionId) ?: return null
         val restored = restoreRoute(sessionId)
-        val durationSeconds = ((endedAt - session.startTime) / 1000).coerceAtLeast(0).toInt()
+        // BUG-094 (Fase 5 P1): la duracion efectiva sale del helper de
+        // dominio (`effectiveElapsedSeconds`) que ya resta el tiempo en
+        // pausa acumulado y, si la sesion sigue pausada, el tramo en vivo
+        // desde el ultimo `pauseCardio()`. Asi evitamos duplicar la formula
+        // entre VM y use case (BUG-088).
+        val durationSeconds = effectiveElapsedSeconds(session, endedAt).toInt()
         val maxSpeedKmh = session.reasonableMaxSpeedKmh()
         val sanitizedRoute = restored.points.sanitizedRoute(maxSpeedKmh)
         val routeDistance = sanitizedRoute.distanceKm()

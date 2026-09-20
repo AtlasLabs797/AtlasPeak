@@ -72,4 +72,30 @@ data class CardioSession(
     val hasGps: Boolean,
     val route: List<LocationPoint>,
     val completed: Boolean,
+    // BUG-094 (Fase 5 P1): tiempo en pausa excluido del cronometro efectivo sin
+    // falsificar `startTime`. Mientras la sesion esta corriendo ambos campos valen
+    // `pausedAtMillis = null` y `totalPausedDurationMillis = 0`. Al pausar, el VM
+    // fija `pausedAtMillis` con la hora actual. Al reanudar, acumula el delta en
+    // `totalPausedDurationMillis` y vuelve a dejar `pausedAtMillis = null`.
+    val pausedAtMillis: Long? = null,
+    val totalPausedDurationMillis: Long = 0L,
 )
+
+/**
+ * Calcula los segundos efectivos transcurridos de una sesion de cardio, excluyendo
+ * el tiempo en pausa. BUG-094 (Fase 5 P1). Mientras la sesion esta pausada
+ * ([CardioSession.pausedAtMillis] != null) el delta pendiente
+ * `(now - pausedAtMillis)` se resta ademas del acumulado previo; con la sesion
+ * corriendo solo se resta `totalPausedDurationMillis`. El resultado nunca es
+ * negativo (se hace coerce a 0 para tolerar pequenas carreras de reloj o una
+ * ordenacion invertida entre start/pause).
+ */
+fun effectiveElapsedSeconds(session: CardioSession, now: Long): Long {
+    val pendingPauseMs = if (session.pausedAtMillis != null) {
+        (now - session.pausedAtMillis).coerceAtLeast(0L)
+    } else {
+        0L
+    }
+    val totalPausedMs = session.totalPausedDurationMillis + pendingPauseMs
+    return ((now - session.startTime - totalPausedMs) / 1000L).coerceAtLeast(0L)
+}

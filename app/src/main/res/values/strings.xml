@@ -196,6 +196,13 @@
     <string name="cardio_active_mode_timer">Timer</string>
     <string name="cardio_active_mode_countdown">Countdown</string>
     <string name="cardio_active_remaining">Restante: %1$s</string>
+    <string name="cardio_action_pause">Pausar</string>
+    <string name="cardio_action_resume">Reanudar</string>
+    <string name="cardio_active_paused">Cronómetro en pausa</string>
+    <string name="cardio_active_searching_gps">Buscando GPS…</string>
+    <string name="cardio_active_no_route">Aún no hay recorrido</string>
+    <string name="cardio_active_enter_manual">Introducir distancia manualmente</string>
+    <string name="cardio_finish_disabled_no_route">Empieza a moverte o introduce la distancia para poder finalizar.</string>
     <string name="cardio_metric_distance">Distancia</string>
     <string name="cardio_metric_current_speed">Velocidad actual</string>
     <string name="cardio_metric_avg_speed">Velocidad media</string>

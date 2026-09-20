@@ -234,6 +234,13 @@ data class CardioSessionEntity(
     @ColumnInfo(name = "has_gps") val hasGps: Boolean = false,
     @ColumnInfo(name = "route_polyline_json") val routePolylineJson: String? = null,
     val source: String,
+    // BUG-094 (Fase 5 P1): campos para pausar/reanudar la sesion activa sin
+    // falsificar `startTime`. `paused_at_ms` es null mientras la sesion esta
+    // corriendo; al pausar toma la hora actual (epoch ms) y al reanudar se
+    // acumula `(now - paused_at_ms)` en `total_paused_duration_ms` y se vuelve
+    // a null. El tiempo efectivo excluye ambos tramos.
+    @ColumnInfo(name = "paused_at_ms") val pausedAtMs: Long? = null,
+    @ColumnInfo(name = "total_paused_duration_ms") val totalPausedDurationMs: Long = 0L,
 )
 
 /**

@@ -155,6 +155,8 @@ fun ActiveCardioRoute(
         onManualSpeedChanged = viewModel::onManualSpeedChanged,
         onCompleteCardio = viewModel::completeCardio,
         onCancelCardio = { showCancelDialog = true },
+        onPauseCardio = viewModel::pauseCardio,
+        onResumeCardio = viewModel::resumeCardio,
     )
 }
 
@@ -165,6 +167,8 @@ fun ActiveCardioScreen(
     onManualSpeedChanged: (String) -> Unit,
     onCompleteCardio: () -> Unit,
     onCancelCardio: () -> Unit,
+    onPauseCardio: () -> Unit,
+    onResumeCardio: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
@@ -200,10 +204,23 @@ fun ActiveCardioScreen(
                         onClick = onCancelCardio,
                         text = stringResource(R.string.action_cancel),
                     )
+                    if (state.isPaused) {
+                        AtlasSecondaryButton(
+                            modifier = Modifier.weight(1f),
+                            onClick = onResumeCardio,
+                            text = stringResource(R.string.cardio_action_resume),
+                        )
+                    } else {
+                        AtlasSecondaryButton(
+                            modifier = Modifier.weight(1f),
+                            onClick = onPauseCardio,
+                            text = stringResource(R.string.cardio_action_pause),
+                        )
+                    }
                     AtlasPrimaryButton(
                         modifier = Modifier.weight(1f),
                         onClick = onCompleteCardio,
-                        enabled = !state.completionInProgress,
+                        enabled = state.canComplete,
                         text = stringResource(R.string.cardio_finish_action),
                     )
                 }

@@ -108,6 +108,8 @@ class CardioForegroundService : LifecycleService() {
                 targetDurationSeconds = intent.getIntExtra(EXTRA_TARGET_DURATION_SECONDS, 0).takeIf { it > 0 },
             )
             ACTION_STOP -> stopTracking(clearState = true)
+            ACTION_PAUSE -> pauseTracking()
+            ACTION_RESUME -> resumeTracking()
         }
         // BUG-058: START_STICKY provocaba servicio zombi tras presión de memoria.
         // Con START_NOT_STICKY, si Android mata el servicio, el cardio se reanuda
@@ -263,6 +265,84 @@ class CardioForegroundService : LifecycleService() {
         stopSelf()
     }
 
+    /**
+     * BUG-094 (Fase 5 P1): pausa los jobs del FGS (cronometro, persistencia de
+     * ruta, captura GPS) sin tocar el registro: el VM ya ha guardado el
+     * `pausedAtMillis` en Room, asi que `effectiveElapsedSeconds` congelara el
+     * contador mientras tanto. No reclamamos foreground nuevo: la notificacion
+     * existente sigue visible y se actualizara al reanudar.
+     */
+    private fun pauseTracking() {
+        timerJob?.cancel()
+        locationJob?.cancel()
+        persistJob?.cancel()
+        timerJob = null
+        locationJob = null
+        persistJob = null
+        CardioTrackerRegistry.update(CardioTrackerRegistry.state.value.copy(running = false))
+    }
+
+    /**
+     * BUG-094 (Fase 5 P1): reanuda los jobs del FGS. Re-deriva el `startedAt`
+     * y `elapsedSeconds` desde Room (vía el VM, que ya actualizo
+     * `totalPausedDurationMillis`). Si la sesion no tenia GPS, no arranca
+     * `locationJob` (sin captura de ubicacion durante la pausa).
+     */
+    private fun resumeTracking() {
+        val current = CardioTrackerRegistry.state.value
+        if (current.sessionId == null || current.running) return
+        CardioTrackerRegistry.update(current.copy(running = true))
+        timerJob?.cancel()
+        timerJob = lifecycleScope.launch {
+            while (true) {
+                CardioTrackerRegistry.tick(System.currentTimeMillis())
+                getSystemService(NotificationManager::class.java).notify(
+                    NOTIFICATION_ID,
+                    buildNotification(CardioTrackerRegistry.state.value),
+                )
+                delay(1000)
+            }
+        }
+        persistJob?.cancel()
+        persistJob = lifecycleScope.launch {
+            var lastSeenSize = current.route.size
+            CardioTrackerRegistry.state
+                .map { it.route }
+                .distinctUntilChanged()
+                .collect { route ->
+                    if (route.size > lastSeenSize) {
+                        val previousPoint = if (lastSeenSize == 0) {
+                            null
+                        } else {
+                            route.getOrNull(lastSeenSize - 1)
+                        }
+                        route.drop(lastSeenSize).forEachIndexed { index, point ->
+                            cardioUseCase.appendRoutePoint(
+                                sessionId = current.sessionId ?: return@collect,
+                                point = point,
+                                accuracyMeters = null,
+                                previousAcceptedPoint = if (index == 0) previousPoint else route[lastSeenSize + index - 1],
+                            )
+                        }
+                    }
+                    lastSeenSize = route.size
+                }
+        }
+        if (current.route.isNotEmpty()) {
+            // Solo reanuda captura GPS si la sesion la tenia. No tenemos aqui
+            // `hasGps` de forma fiable, asi que usamos la heuristica: si ya
+            // habia ruta antes de pausar, asume GPS.
+            locationJob?.cancel()
+            locationJob = lifecycleScope.launch {
+                LocationTracker(this@CardioForegroundService).locations().collect { location ->
+                    CardioTrackerRegistry.addPoint(
+                        LocationPoint(location.latitude, location.longitude, location.time),
+                    )
+                }
+            }
+        }
+    }
+
     private fun hasFineLocationPermission(): Boolean {
         return ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
     }
@@ -313,6 +393,8 @@ class CardioForegroundService : LifecycleService() {
         private const val NOTIFICATION_ID = 1301
         private const val ACTION_START = "com.atlaspeak.action.START_CARDIO"
         private const val ACTION_STOP = "com.atlaspeak.action.STOP_CARDIO"
+        private const val ACTION_PAUSE = "com.atlaspeak.action.PAUSE_CARDIO"
+        private const val ACTION_RESUME = "com.atlaspeak.action.RESUME_CARDIO"
         private const val EXTRA_SESSION_ID = "session_id"
         private const val EXTRA_STARTED_AT = "started_at"
         private const val EXTRA_HAS_GPS = "has_gps"
@@ -329,6 +411,18 @@ class CardioForegroundService : LifecycleService() {
 
         fun stopIntent(context: Context): Intent {
             return Intent(context, CardioForegroundService::class.java).setAction(ACTION_STOP)
+        }
+
+        fun pauseIntent(context: Context, sessionId: String): Intent {
+            return Intent(context, CardioForegroundService::class.java)
+                .setAction(ACTION_PAUSE)
+                .putExtra(EXTRA_SESSION_ID, sessionId)
+        }
+
+        fun resumeIntent(context: Context, sessionId: String): Intent {
+            return Intent(context, CardioForegroundService::class.java)
+                .setAction(ACTION_RESUME)
+                .putExtra(EXTRA_SESSION_ID, sessionId)
         }
 
         /**

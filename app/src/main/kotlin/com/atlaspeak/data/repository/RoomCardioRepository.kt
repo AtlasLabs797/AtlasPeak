@@ -151,6 +151,12 @@ class RoomCardioRepository @Inject constructor(
             hasGps = hasGps,
             route = routePolylineJson?.let { decodeRoute(it) }.orEmpty(),
             completed = workout.completed,
+            // BUG-094 (Fase 5 P1): el tiempo pausado se persiste por sesion
+            // (no por punto) para sobrevivir a muertes de proceso sin tener
+            // que escanear `cardio_route_points`. La columna `paused_at_ms`
+            // es nullable; un valor null significa "sesion no pausada".
+            pausedAtMillis = pausedAtMs,
+            totalPausedDurationMillis = totalPausedDurationMs,
         )
     }
 
@@ -181,6 +187,11 @@ class RoomCardioRepository @Inject constructor(
         hasGps = hasGps,
         routePolylineJson = route.takeIf { it.isNotEmpty() }?.let { encodeRoute(it) },
         source = if (route.isNotEmpty()) "GPS" else "MANUAL",
+        // BUG-094 (Fase 5 P1): persistimos el estado de pausa junto al resto
+        // de campos de cardio. Con `pausedAtMillis = null` la columna toma
+        // su default (null); el delta acumulado se escribe tal cual.
+        pausedAtMs = pausedAtMillis,
+        totalPausedDurationMs = totalPausedDurationMillis,
     )
 
     private fun encodeRoute(route: List<LocationPoint>): String {

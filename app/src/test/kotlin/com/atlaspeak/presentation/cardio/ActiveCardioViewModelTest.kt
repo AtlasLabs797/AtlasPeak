@@ -340,11 +340,15 @@ class ActiveCardioViewModelTest {
         return viewModel.state.value
     }
 
-    private fun newViewModel(cardioTypeId: String): ActiveCardioViewModel {
+    private fun newViewModel(
+        cardioTypeId: String,
+        mode: CardioMode = CardioMode.Timer,
+    ): ActiveCardioViewModel {
         return newViewModel(
             cardioTypeId = cardioTypeId,
             context = NoopContext,
             now = fixedClock.asNow(),
+            mode = mode,
         )
     }
 
@@ -352,9 +356,10 @@ class ActiveCardioViewModelTest {
         cardioTypeId: String,
         context: android.content.Context,
         now: () -> Long = fixedClock.asNow(),
+        mode: CardioMode = CardioMode.Timer,
     ): ActiveCardioViewModel {
         return ActiveCardioViewModel(
-            savedStateHandle = handleFor(cardioTypeId, CardioMode.Timer),
+            savedStateHandle = handleFor(cardioTypeId, mode),
             cardioUseCase = cardioUseCase,
             resumeCardioSessionUseCase = resumeCardioSessionUseCase,
             cardioRepository = cardioRepository,
@@ -467,6 +472,136 @@ class ActiveCardioViewModelTest {
     private fun advanceLocalTimer(virtualMillis: Long) {
         dispatcher.scheduler.advanceTimeBy(virtualMillis + 1_100L)
         dispatcher.scheduler.runCurrent()
+    }
+
+    @Test
+    fun `elapsed seconds excludes paused time on a single pause resume cycle`() = runTest(dispatcher) {
+        val viewModel = newViewModel("run")
+        fixedClock.advanceBy(10_000L)
+        advanceLocalTimer(10_000L)
+        val beforePause = viewModel.state.value.elapsedSeconds
+        assertEquals(10L, beforePause)
+
+        viewModel.pauseCardio()
+        assertEquals(true, viewModel.state.value.isPaused)
+        assertEquals(10L, viewModel.state.value.elapsedSeconds)
+
+        // Tiempo en pausa: el cronometro efectivo NO debe crecer.
+        fixedClock.advanceBy(7_000L)
+        advanceLocalTimer(7_000L)
+        assertEquals(10L, viewModel.state.value.elapsedSeconds)
+
+        viewModel.resumeCardio()
+        assertEquals(false, viewModel.state.value.isPaused)
+
+        // Despues de reanudar, el cronometro continua desde 10 y la pausa queda
+        // acumulada en totalPausedDurationMillis.
+        fixedClock.advanceBy(3_000L)
+        advanceLocalTimer(3_000L)
+        assertEquals(13L, viewModel.state.value.elapsedSeconds)
+
+        val persisted = cardioRepository.sessions.single()
+        assertEquals(null, persisted.pausedAtMillis)
+        assertEquals(7_000L, persisted.totalPausedDurationMillis)
+    }
+
+    @Test
+    fun `elapsed seconds sums multiple pauses correctly`() = runTest(dispatcher) {
+        val viewModel = newViewModel("run")
+        fixedClock.advanceBy(4_000L)
+        advanceLocalTimer(4_000L)
+
+        viewModel.pauseCardio()
+        fixedClock.advanceBy(3_000L)
+        advanceLocalTimer(3_000L)
+        viewModel.resumeCardio()
+
+        fixedClock.advanceBy(5_000L)
+        advanceLocalTimer(5_000L)
+        viewModel.pauseCardio()
+        fixedClock.advanceBy(2_000L)
+        advanceLocalTimer(2_000L)
+        viewModel.resumeCardio()
+
+        fixedClock.advanceBy(6_000L)
+        advanceLocalTimer(6_000L)
+
+        // total activo = 4 + 5 + 6 = 15 s
+        assertEquals(15L, viewModel.state.value.elapsedSeconds)
+        val persisted = cardioRepository.sessions.single()
+        assertEquals(5_000L, persisted.totalPausedDurationMillis)
+        assertEquals(null, persisted.pausedAtMillis)
+    }
+
+    @Test
+    fun `process recreation while paused resumes the paused state`() = runTest(dispatcher) {
+        val viewModel = newViewModel("run")
+        fixedClock.advanceBy(8_000L)
+        advanceLocalTimer(8_000L)
+        viewModel.pauseCardio()
+        fixedClock.advanceBy(4_000L)
+        advanceLocalTimer(4_000L)
+
+        // Simulamos muerte de proceso: nuevo VM sobre el mismo repositorio.
+        val viewModel2 = newViewModel("run")
+        fixedClock.advanceBy(2_000L)
+        advanceLocalTimer(2_000L)
+
+        assertEquals(true, viewModel2.state.value.isPaused)
+        // Elapsed efectivo sigue en 8 s: la pausa actual (6 s) NO cuenta.
+        assertEquals(8L, viewModel2.state.value.elapsedSeconds)
+
+        viewModel2.resumeCardio()
+        fixedClock.advanceBy(3_000L)
+        advanceLocalTimer(3_000L)
+        // Tras reanudar: 8 s activos + 3 s nuevos = 11 s.
+        assertEquals(11L, viewModel2.state.value.elapsedSeconds)
+    }
+
+    @Test
+    fun `countdown mode ticks down only during unpaused time`() = runTest(dispatcher) {
+        val viewModel = newViewModel("run", mode = CardioMode.Countdown(targetDurationSeconds = 20))
+        fixedClock.advanceBy(5_000L)
+        advanceLocalTimer(5_000L)
+        assertEquals(15L, viewModel.state.value.remainingSeconds)
+
+        viewModel.pauseCardio()
+        fixedClock.advanceBy(10_000L)
+        advanceLocalTimer(10_000L)
+        // El countdown no avanza durante la pausa.
+        assertEquals(15L, viewModel.state.value.remainingSeconds)
+
+        viewModel.resumeCardio()
+        fixedClock.advanceBy(4_000L)
+        advanceLocalTimer(4_000L)
+        assertEquals(11L, viewModel.state.value.remainingSeconds)
+    }
+
+    @Test
+    fun `finalize button is disabled when canComplete is false`() = runTest(dispatcher) {
+        val viewModel = newViewModel("run")
+        // Sesion sin ruta y sin metricas manuales: requiresManualMetrics && !hasValidManualMetrics.
+        assertEquals(false, viewModel.state.value.canComplete)
+
+        viewModel.onManualDistanceChanged("0") // entrada invalida (<=0)
+        assertEquals(false, viewModel.state.value.canComplete)
+
+        viewModel.onManualDistanceChanged("5.2")
+        assertEquals(true, viewModel.state.value.canComplete)
+    }
+
+    @Test
+    fun `completeCardio is idempotent and second call is a no-op`() = runTest(dispatcher) {
+        val viewModel = newViewModel("run")
+        viewModel.onManualDistanceChanged("5.2")
+        viewModel.completeCardio()
+        val firstId = viewModel.state.value.completedSessionId
+        assertNotNull(firstId)
+
+        viewModel.completeCardio()
+        assertEquals(firstId, viewModel.state.value.completedSessionId)
+        // La sesion en repo solo se completa una vez (no se duplica).
+        assertEquals(1, cardioRepository.sessions.count { it.completed })
     }
 
     /**

@@ -304,6 +304,44 @@
   por tests JUnit5 hand-written fakes; los tests de migracion y de Room viven en
   `androidTest` (AndroidJUnit4) porque la JVM pura no soporta SQLite con FK + Room.
 
+### 2026-09-20 - Finalizacion de cardio correcta + pause/resume (Fase 5 P1)
+
+**Corregido**
+- `BUG-094`: el boton Finalizar del cardio ahora respeta `state.canComplete`
+  (ademas de `!completionInProgress`). Mientras falten metricas manuales
+  obligatorias, el boton esta deshabilitado.
+- `BUG-094`: anadida pausa/reanudacion para sesiones de cardio. El tiempo en
+  pausa se resta del tiempo efectivo sin falsificar `startTime`: el helper de
+  dominio `effectiveElapsedSeconds(session, now)` resta `totalPausedDurationMillis`
+  y, si esta pausada, `(now - pausedAtMillis)`.
+
+**Anadido**
+- CardioSessionEntity gana `paused_at_ms INTEGER` (nullable) y
+  `total_paused_duration_ms INTEGER NOT NULL DEFAULT 0`. Migracion Room
+  `MIGRATION_7_8` no destructiva (`ALTER TABLE cardio_sessions ...`).
+- CardioSession (dominio) replica los dos campos.
+- `pauseCardio()` / `resumeCardio()` idempotentes en ActiveCardioViewModel;
+  `state.isPaused` derivado de `session.pausedAtMillis != null`.
+- Acciones `ACTION_PAUSE` / `ACTION_RESUME` en CardioForegroundService que
+  cancelan/reactivan los jobs (`timerJob`, `locationJob`, `persistJob`) sin
+  reclamar foreground nuevo.
+- Botones Pausar/Reanudar conmutados por `state.isPaused` en ActiveCardioScreen.
+- Strings ES + EN (`cardio_action_pause`, `cardio_action_resume`,
+  `cardio_active_paused`, `cardio_active_searching_gps`, `cardio_active_no_route`,
+  `cardio_active_enter_manual`, `cardio_finish_disabled_no_route`).
+- Tests: 6 nuevos en `ActiveCardioViewModelTest` (pausa simple, multiples
+  pausas, process recreation pausada, countdown durante pausa, gating del
+  Finalizar, idempotencia de completeCardio).
+
+**Limitaciones conocidas**
+- Si el FGS recibe `ACTION_RESUME` cuando la sesion estaba en su primer fix
+  todavia sin ruta persistida, la heuristica `route.isNotEmpty() -> locationJob`
+  no reanuda la captura GPS hasta el siguiente reinicio manual del VM.
+- `completeCardio` durante pausa deja el tiempo pausado fuera del total.
+
+**Verificado**
+- Sin build local por falta de JDK; validacion por inspeccion.
+
 ### 2026-09-20 - Identidad de sesion activa persistente en Room (Fase 1 P0)
 
 **Corregido**

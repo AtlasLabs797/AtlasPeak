@@ -11,6 +11,7 @@ import com.atlaspeak.domain.model.cardio.CardioFgsMode
 import com.atlaspeak.domain.model.cardio.CardioMode
 import com.atlaspeak.domain.model.cardio.CardioSession
 import com.atlaspeak.domain.model.cardio.LocationPoint
+import com.atlaspeak.domain.model.cardio.effectiveElapsedSeconds
 import com.atlaspeak.domain.repository.CardioRepository
 import com.atlaspeak.domain.usecase.cardio.CardioUseCase
 import com.atlaspeak.domain.usecase.cardio.ResumeCardioSessionUseCase
@@ -252,6 +253,57 @@ class ActiveCardioViewModel(
         mutableState.update { it.copy(conflict = null) }
     }
 
+    /**
+     * Pausa la sesion activa: congela el cronometro guardando `pausedAtMillis`
+     * (no falsificamos `startTime`) y detiene los jobs del FGS. BUG-094.
+     *
+     * Idempotente: si la sesion ya esta pausada, sale sin tocar Room.
+     */
+    fun pauseCardio() {
+        val session = mutableState.value.session ?: return
+        if (session.pausedAtMillis != null) return
+        val pausedAt = now()
+        val updated = session.copy(pausedAtMillis = pausedAt)
+        mutableState.update { it.copy(session = updated) }
+        viewModelScope.launch {
+            cardioRepository.updateSession(updated)
+        }
+        runCatching {
+            context.startService(CardioForegroundService.pauseIntent(context, session.id))
+        }
+        stopLocalTimer()
+    }
+
+    /**
+     * Reanuda la sesion pausada: acumula el tiempo en pausa en
+     * `totalPausedDurationMillis`, vacia `pausedAtMillis` y reactiva los jobs
+     * del FGS. BUG-094.
+     *
+     * Idempotente: si la sesion no estaba pausada, sale sin tocar Room.
+     */
+    fun resumeCardio() {
+        val session = mutableState.value.session ?: return
+        val pausedAt = session.pausedAtMillis ?: return
+        val added = (now() - pausedAt).coerceAtLeast(0L)
+        val updated = session.copy(
+            pausedAtMillis = null,
+            totalPausedDurationMillis = session.totalPausedDurationMillis + added,
+        )
+        mutableState.update {
+            it.copy(
+                session = updated,
+                elapsedSeconds = effectiveElapsedSeconds(updated, now()),
+            )
+        }
+        viewModelScope.launch {
+            cardioRepository.updateSession(updated)
+        }
+        runCatching {
+            context.startService(CardioForegroundService.resumeIntent(context, session.id))
+        }
+        startLocalTimerIfNeeded()
+    }
+
     private fun startCardio(): Job {
         return viewModelScope.launch {
             when (val result = cardioUseCase.startSession(cardioTypeId, mode)) {
@@ -290,23 +342,29 @@ class ActiveCardioViewModel(
         // al CardioTrackerRegistry ANTES de que el FGS arranque su persistJob, para
         // que la sesion continue justo donde se quedo tras una muerte de proceso.
         val restore = cardioUseCase.restoreRoute(sessionId)
+        // BUG-094 (Fase 5 P1): si la sesion quedo pausada antes de la muerte
+        // del proceso, `state.startedAt` sigue siendo `session.startTime` (no
+        // lo falsificamos) y el contador efectivo se calcula con el helper
+        // comun (`effectiveElapsedSeconds`) que ya excluye el tiempo en pausa.
+        // Si esta pausada ahora mismo, ademas congelamos `running=false` para
+        // que el FGS, si arranca, no intente reanudar por su cuenta.
+        val effectiveSeconds = effectiveElapsedSeconds(session, now())
         CardioTrackerRegistry.update(
             CardioTrackerRegistry.state.value.copy(
                 sessionId = session.id,
                 startedAt = session.startTime,
-                elapsedSeconds = ((now() - session.startTime) / 1000L).coerceAtLeast(0L),
+                elapsedSeconds = effectiveSeconds,
                 distanceKm = restore.distanceKm,
                 route = restore.points,
                 running = false,
             ),
         )
-        val elapsedSeconds = (now() - session.startTime) / 1000L
         mutableState.update {
             it.copy(
                 isLoading = false,
                 conflict = null,
                 session = session,
-                elapsedSeconds = elapsedSeconds.coerceAtLeast(0L),
+                elapsedSeconds = effectiveSeconds,
                 route = restore.points,
             )
         }
@@ -323,16 +381,29 @@ class ActiveCardioViewModel(
 
     private fun startLocalTimerIfNeeded() {
         val session = mutableState.value.session ?: return
+        // BUG-094 (Fase 5 P1): no arrancamos cronometro local mientras la
+        // sesion este pausada. Si arrancase, contariamos tiempo en pausa
+        // como tiempo activo por culpa de un tick que ignora el flag.
+        if (session.pausedAtMillis != null) return
         if (localTimerJob?.isActive == true) return
         localTimerJob = viewModelScope.launch {
             while (true) {
-                val elapsed = ((now() - session.startTime) / 1000).coerceAtLeast(0)
-                mutableState.update { it.copy(elapsedSeconds = elapsed) }
+                val snapshot = mutableState.value
+                val current = snapshot.session ?: break
+                // BUG-094: si el usuario pulsa Pausar mientras el job ya
+                // estaba corriendo, salimos del bucle para no introducir
+                // ticks espurios. La salida se reconcilia al reanudar, que
+                // vuelve a llamar a este metodo.
+                if (current.pausedAtMillis != null) break
+                val effective = effectiveElapsedSeconds(current, now())
+                mutableState.update { it.copy(elapsedSeconds = effective) }
                 if (shouldAutoComplete(mutableState.value.remainingSeconds)) {
                     completeCardio()
+                    break
                 }
                 delay(1000)
             }
+            localTimerJob = null
         }
     }
 
@@ -375,7 +446,10 @@ data class ActiveCardioUiState(
     val hasValidManualMetrics: Boolean =
         (manualDistanceKm.toDoubleOrNull()?.let { it > 0.0 } == true) &&
             (manualAvgSpeedKmh.isBlank() || manualAvgSpeedKmh.toDoubleOrNull()?.let { it > 0.0 } == true)
-    val canComplete: Boolean = !requiresManualMetrics || hasValidManualMetrics
+    val canComplete: Boolean = !completionInProgress &&
+        completedSessionId == null &&
+        (!requiresManualMetrics || hasValidManualMetrics)
+    val isPaused: Boolean = session?.pausedAtMillis != null
     val shouldShowManualMetrics: Boolean = session?.hasGps != true ||
         message == ActiveCardioMessage.LocationPermissionDenied ||
         message == ActiveCardioMessage.TrackerUnavailable ||

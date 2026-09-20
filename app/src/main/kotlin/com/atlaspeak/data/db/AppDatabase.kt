@@ -64,7 +64,7 @@ import com.atlaspeak.data.db.entity.WorkoutSetEntity
         HcSleepStageEntity::class,
         HcHeartRateSampleEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -382,6 +382,22 @@ abstract class AppDatabase : RoomDatabase() {
                 db.execSQL(
                     "CREATE INDEX IF NOT EXISTS index_cardio_route_points_session_id_timestamp_ms " +
                         "ON cardio_route_points(session_id, timestamp_ms)",
+                )
+            }
+        }
+
+        // BUG-094 (Fase 5 P1): soporte de pausa/reanudacion para sesiones de
+        // cardio activas. Anadimos `paused_at_ms` (INTEGER nullable, ausente =>
+        // sesion no pausada) y `total_paused_duration_ms` (INTEGER NOT NULL
+        // con DEFAULT 0 para que las filas existentes la rellenen sin rewrite
+        // de la tabla). No alteramos `start_time`: la pausa se descuenta en
+        // lectura (`effectiveElapsedSeconds`) sin falsificar el origen.
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE cardio_sessions ADD COLUMN paused_at_ms INTEGER")
+                db.execSQL(
+                    "ALTER TABLE cardio_sessions ADD COLUMN total_paused_duration_ms " +
+                        "INTEGER NOT NULL DEFAULT 0",
                 )
             }
         }
