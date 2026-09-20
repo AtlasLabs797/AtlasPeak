@@ -7,6 +7,7 @@ import androidx.room.Query
 import com.atlaspeak.data.db.entity.AppSettingsEntity
 import com.atlaspeak.data.db.entity.AuthSecurityEntity
 import com.atlaspeak.data.db.entity.BodyCompositionEntity
+import com.atlaspeak.data.db.entity.CardioRoutePointEntity
 import com.atlaspeak.data.db.entity.CardioTypeEntity
 import com.atlaspeak.data.db.entity.CardioSessionEntity
 import com.atlaspeak.data.db.entity.ExerciseEntity
@@ -236,6 +237,32 @@ interface CardioDao {
         """,
     )
     suspend fun getActiveCardioSession(): CardioSessionEntity?
+}
+
+/**
+ * Puntos GPS de cardio persistidos incrementalmente durante la sesion activa.
+ * BUG-091 / Fase 2 P0. La ruta completa se serializa en cardio_sessions.route_polyline_json
+ * solo al finalizar la sesion; aqui viven los puntos en vuelo para sobrevivir a la muerte
+ * del proceso.
+ */
+@Dao
+interface CardioRoutePointDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(point: CardioRoutePointEntity)
+
+    @Query("SELECT * FROM cardio_route_points WHERE session_id = :sessionId ORDER BY timestamp_ms ASC")
+    suspend fun getRoutePoints(sessionId: String): List<CardioRoutePointEntity>
+
+    @Query("SELECT COUNT(*) FROM cardio_route_points WHERE session_id = :sessionId")
+    suspend fun countRoutePoints(sessionId: String): Int
+
+    @Query(
+        "SELECT IFNULL(SUM(distance_from_previous_km), 0.0) FROM cardio_route_points WHERE session_id = :sessionId",
+    )
+    suspend fun totalDistanceKm(sessionId: String): Double
+
+    @Query("DELETE FROM cardio_route_points WHERE session_id = :sessionId")
+    suspend fun deleteRoutePoints(sessionId: String)
 }
 
 @Dao

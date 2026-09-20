@@ -236,6 +236,37 @@ data class CardioSessionEntity(
     val source: String,
 )
 
+/**
+ * Punto GPS aceptado durante una sesion de cardio activa. Se inserta incrementalmente
+ * (no se serializa la ruta completa en cada fix) para que la ruta sobreviva a la
+ * muerte del proceso. BUG-091 / Fase 2 P0.
+ */
+@Entity(
+    tableName = "cardio_route_points",
+    foreignKeys = [
+        ForeignKey(
+            entity = WorkoutSessionEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["session_id"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [
+        Index(value = ["session_id"]),
+        Index(value = ["session_id", "timestamp_ms"]),
+    ],
+)
+data class CardioRoutePointEntity(
+    @PrimaryKey val id: String,
+    @ColumnInfo(name = "session_id") val sessionId: String,
+    @ColumnInfo(name = "timestamp_ms") val timestampMs: Long,
+    val latitude: Double,
+    val longitude: Double,
+    @ColumnInfo(name = "accuracy_m") val accuracyM: Float? = null,
+    @ColumnInfo(name = "speed_kmh") val speedKmh: Double? = null,
+    @ColumnInfo(name = "distance_from_previous_km") val distanceFromPreviousKm: Double = 0.0,
+)
+
 @Entity(tableName = "body_composition", indices = [Index(value = ["measured_at"]), Index(value = ["source"])])
 data class BodyCompositionEntity(
     @PrimaryKey val id: String,

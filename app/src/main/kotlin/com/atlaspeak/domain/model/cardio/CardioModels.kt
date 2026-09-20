@@ -20,6 +20,24 @@ data class LocationPoint(
     val timestamp: Long,
 )
 
+/**
+ * Punto GPS persistido de una sesion de cardio activa. Mantiene la distancia
+ * incremental desde el punto anterior para que la distancia total de la sesion
+ * sea SUM(distance_from_previous_km). BUG-091 / Fase 2 P0.
+ */
+data class CardioRoutePoint(
+    val id: String,
+    val sessionId: String,
+    val timestampMs: Long,
+    val latitude: Double,
+    val longitude: Double,
+    val accuracyMeters: Float? = null,
+    val speedKmh: Double? = null,
+    val distanceFromPreviousKm: Double = 0.0,
+) {
+    fun toLocationPoint(): LocationPoint = LocationPoint(latitude, longitude, timestampMs)
+}
+
 data class CardioSession(
     val id: String,
     val cardioTypeId: String,

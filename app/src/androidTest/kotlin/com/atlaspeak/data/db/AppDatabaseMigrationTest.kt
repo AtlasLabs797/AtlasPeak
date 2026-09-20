@@ -194,6 +194,62 @@ class AppDatabaseMigrationTest {
         migrated.close()
     }
 
+    @Test
+    fun migration6To7CreatesCardioRoutePointsTable() {
+        helper.createDatabase(TEST_DB, 6).apply {
+            insertV6CardioSession()
+            close()
+        }
+
+        val migrated = helper.runMigrationsAndValidate(
+            TEST_DB,
+            7,
+            true,
+            AppDatabase.MIGRATION_6_7,
+        )
+
+        migrated.query(
+            "SELECT COUNT(*) FROM cardio_route_points WHERE session_id = 'session-cardio-1'",
+        ).use { cursor ->
+            cursor.moveToFirst()
+            assertEquals(0, cursor.getInt(0))
+        }
+        migrated.query(
+            """
+            SELECT COUNT(*) FROM sqlite_master
+            WHERE type='index' AND name='index_cardio_route_points_session_id'
+            """.trimIndent(),
+        ).use { cursor ->
+            cursor.moveToFirst()
+            assertEquals(1, cursor.getInt(0))
+        }
+        migrated.query(
+            """
+            SELECT COUNT(*) FROM sqlite_master
+            WHERE type='index' AND name='index_cardio_route_points_session_id_timestamp_ms'
+            """.trimIndent(),
+        ).use { cursor ->
+            cursor.moveToFirst()
+            assertEquals(1, cursor.getInt(0))
+        }
+        migrated.execSQL(
+            """
+            INSERT INTO cardio_route_points (
+                id, session_id, timestamp_ms, latitude, longitude,
+                accuracy_m, speed_kmh, distance_from_previous_km
+            ) VALUES (
+                'route-1', 'session-cardio-1', 1700000000000, 40.0, -3.0,
+                5.0, 4.5, 0.0
+            )
+            """.trimIndent(),
+        )
+        migrated.query("SELECT latitude FROM cardio_route_points WHERE id = 'route-1'").use { cursor ->
+            cursor.moveToFirst()
+            assertEquals(40.0, cursor.getDouble(0), 0.0)
+        }
+        migrated.close()
+    }
+
     private fun SupportSQLiteDatabase.insertV1BodyComposition() {
         execSQL(
             """
@@ -414,6 +470,18 @@ class AppDatabaseMigrationTest {
             ) VALUES
                 ('weekly_plan_1', 1, 0, 'STRENGTH', 'routine-1', NULL, NULL, 0, 1, '18:00'),
                 ('weekly_plan_2', 1, 0, 'STRENGTH', 'routine-2', NULL, NULL, 0, 1, '19:00')
+            """.trimIndent(),
+        )
+    }
+
+    private fun SupportSQLiteDatabase.insertV6CardioSession() {
+        execSQL(
+            """
+            INSERT INTO workout_sessions (
+                id, type, start_time, completed
+            ) VALUES (
+                'session-cardio-1', 'CARDIO', 1700000000000, 0
+            )
             """.trimIndent(),
         )
     }

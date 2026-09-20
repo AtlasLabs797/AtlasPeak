@@ -24,6 +24,87 @@
 
 ## Entradas
 
+### BUG-091 - Ruta GPS de cardio se pierde si Android mata el proceso durante la sesion
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-09-20
+- **Fase:** V-01.10 (P0 - Bloqueante del plan de mejora, Fase 2)
+- **Severidad:** Alta
+- **Sintoma:** durante una sesion de cardio con GPS, si Android mataba el proceso por
+  presion de memoria (LMK) o el usuario cerraba la app desde recientes, al volver a
+  abrir `ActiveCardioScreen` la sesion activa se reanuda con la `startTime`
+  correcta (BUG-090) pero la ruta GPS estaba en cero: el recorrido se perdia aunque
+  la sesion siguiera marcada como activa en Room. Ademas, en cada fix entrante
+  `CardioTrackerRegistry.addPoint` hacia `route = route + point` y `route.distanceKm()`,
+  lo que es O(N) por punto y hacia crecer el coste con la duracion del entrenamiento.
+- **Causa raiz:** `CardioTrackerRegistry` mantenia la ruta exclusivamente en memoria
+  (un `MutableStateFlow<CardioTrackerState>`). El snapshot JSON en
+  `cardio_sessions.route_polyline_json` solo se escribia al ejecutar `completeSession`,
+  asi que cualquier salida del proceso antes de finalizar descartaba la ruta. El
+  recomputo O(N) por fix era residuo del diseno inicial donde la ruta se reconstruia
+  desde el primer punto cada vez; a pequenas escalas (carrera de 1h con ~720 puntos) el
+  coste es despreciable pero el diseno lo arrastraba.
+- **Solucion:** nueva tabla `cardio_route_points` indexada por `(session_id,
+  timestamp_ms)` con FK `CASCADE` a `workout_sessions(id)`. Cada punto aceptado por
+  `LocationTracker.isUsableForCardioTracking` se persiste via
+  `CardioUseCase.appendRoutePoint`, que:
+  - valida coordenadas (`lat` en [-90, 90], `lon` en [-180, 180]; `NaN` rechazado por
+    la semantica del operador `in` en rangos),
+  - rechaza `accuracyMeters <= 0` (defensa en profundidad: `LocationTracker` ya
+    descarta accuracy > 30 m, y valores nulos se aceptan para no romper al FGS que
+    todavia no expone esa senal),
+  - calcula `distance_from_previous_km` incremental (haverine entre el ultimo punto
+    aceptado y el nuevo),
+  - aplica el cap de velocidad por tipo (45 km/h correr, 90 km/h ciclismo, 15 km/h
+    natacion, 35 km/h remo/eliptica, 60 km/h resto),
+  - rechaza puntos imposibles sin escribirlos.
+  El `CardioForegroundService` (ahora `@AndroidEntryPoint`) mantiene un `persistJob`
+  que observa `CardioTrackerRegistry.state.map { it.route }.distinctUntilChanged()` y
+  persiste solo los puntos nuevos (delta desde el ultimo seen), evitando duplicar la
+  ruta preexistente al arrancar. Al volver a abrir la sesion tras una muerte de
+  proceso, `ActiveCardioViewModel.loadSession` llama a
+  `cardioUseCase.restoreRoute(sessionId)` que devuelve `List<LocationPoint>` +
+  distancia total, y los vuelca al registro antes de que el FGS levante su
+  `persistJob`. `completeSession` ya no recibe la ruta como parametro: la reconstruye
+  desde Room, aplica `sanitizedRoute` (mismo cap de velocidad) sobre el perimetro
+  persistido y delega en `CardioRepository.finalizeCardioSessionRoute`, que escribe
+  el snapshot final en `cardio_sessions.route_polyline_json` y borra los puntos en
+  vuelo en una unica transaccion de base de datos (asi no quedan residuos si el
+  proceso muere a mitad del cierre).
+- **Revision 2026-09-20:** se anade el filtro de `accuracyMeters <= 0` en
+  `appendRoutePoint` y se mueve el borrado de route points a la misma transaccion
+  que el snapshot final (`finalizeCardioSessionRoute`). El plan marcaba ambos como
+  requisito; el primer pase los habia dejado fuera.
+- **Prevencion:**
+  - Migracion Room explicita `MIGRATION_6_7` con test instrumentado
+    `migration6To7CreatesCardioRoutePointsTable` que valida la tabla, los dos indices
+    (`session_id`, `(session_id, timestamp_ms)`) y permite una insercion de prueba.
+  - `CardioRoutePointsInstrumentedTest` (androidTest, archivo real) cubre los
+    escenarios del plan: N puntos persistidos, cerrar y reabrir mantiene la distancia
+    y el conteo, `deleteSession` borra los route points via `CASCADE`,
+    `deleteRoutePoints` no toca la sesion padre, FK rechaza huérfanos.
+  - `CardioUseCaseTest`: nuevos casos `appendRoutePoint` (5 puntos + restore, ahora
+    con tipo `bike` para que el segmento 60s/0.77 km no supere el cap de velocidad),
+    `rechaza coordenadas invalidas`, `rechaza velocidades imposibles`,
+    `rechaza accuracy <= 0 y acepta accuracy nula` (cubren la regla de defensa en
+    profundidad anadida en la revision), `continua desde el ultimo punto tras
+    recreacion` (tipo `bike` por el mismo motivo), `completeSession borra los route
+    points`.
+  - `ActiveCardioViewModelTest`: nuevo caso `process recreation restores route from
+    persisted route points not from in-memory session` que verifica que la ruta
+    rehidratada viene de `cardio_route_points` (no de `CardioSession.route`, que
+    permanece vacia mientras la sesion esta activa).
+- **Limitacion conocida (documentada en CHANGELOG):** existe una ventana minima
+  (sub-milisegundo por fix) entre `addPoint` y la escritura a Room del `persistJob`:
+  si el proceso muere justo ahi, el ultimo fix se pierde. Room serializa lecturas y
+  escrituras, asi que `completeSession` siempre ve un estado consistente. Se acepta
+  como deuda: seguir este camino requeria acoplar el registro a Room (rompiendo el
+  contrato de `CardioTrackerRegistry` como cache en memoria).
+- **Limitacion conocida (documentada en CHANGELOG):** `CardioForegroundService` ahora
+  requiere `@AndroidEntryPoint` e inyeccion de Hilt para acceder a `CardioUseCase`.
+  Los tests del FGS no se han ampliado en esta fase (la cobertura del `persistJob`
+  se ejerce indirectamente via `appendRoutePoint`).
+- **Fecha resolucion:** 2026-09-20
+
 ### BUG-090 - Sesiones activas duplicadas tras muerte de proceso y sin dialogo de conflicto
 - **Estado:** Resuelto
 - **Fecha deteccion:** 2026-09-20

@@ -71,5 +71,11 @@ class ResumeCardioSessionUseCaseTest {
         override suspend fun deleteSession(id: String) {
             sessions = sessions.filterNot { it.id == id }
         }
+        override suspend fun addRoutePoint(point: com.atlaspeak.domain.model.cardio.CardioRoutePoint) = Unit
+        override suspend fun routePoints(sessionId: String): List<com.atlaspeak.domain.model.cardio.CardioRoutePoint> = emptyList()
+        override suspend fun routePointsCount(sessionId: String): Int = 0
+        override suspend fun routeDistanceKm(sessionId: String): Double = 0.0
+        override suspend fun deleteRoutePoints(sessionId: String) = Unit
+        override suspend fun finalizeCardioSessionRoute(session: CardioSession) = Unit
     }
 }

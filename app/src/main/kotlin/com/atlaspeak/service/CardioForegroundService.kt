@@ -16,13 +16,18 @@ import com.atlaspeak.R
 import com.atlaspeak.data.location.LocationTracker
 import com.atlaspeak.domain.model.cardio.CardioMode
 import com.atlaspeak.domain.model.cardio.LocationPoint
+import com.atlaspeak.domain.usecase.cardio.CardioUseCase
 import com.atlaspeak.domain.usecase.cardio.CardioUseCase.Companion.distanceKm
 import com.atlaspeak.domain.usecase.cardio.CardioUseCase.Companion.maxSegmentSpeedKmh
+import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -84,9 +89,13 @@ object CardioTrackerRegistry {
 
 private const val CURRENT_SPEED_MAX_AGE_MS = 5_000L
 
+@AndroidEntryPoint
 class CardioForegroundService : LifecycleService() {
+    @Inject lateinit var cardioUseCase: CardioUseCase
+
     private var timerJob: Job? = null
     private var locationJob: Job? = null
+    private var persistJob: Job? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
@@ -118,8 +127,12 @@ class CardioForegroundService : LifecycleService() {
     ) {
         ensureNotificationChannel()
         val locationTracking = hasGps && hasFineLocationPermission()
+        // BUG-091: preservamos ruta/distancia/etc. si el VM ya rehidrato el
+        // registro antes de arrancar el FGS (process recreation). El FGS solo
+        // se responsabiliza de los campos de cronometro/notificacion.
+        val current = CardioTrackerRegistry.state.value
         CardioTrackerRegistry.update(
-            CardioTrackerState(
+            current.copy(
                 sessionId = sessionId,
                 startedAt = startedAt,
                 elapsedSeconds = ((System.currentTimeMillis() - startedAt) / 1000).coerceAtLeast(0),
@@ -144,6 +157,35 @@ class CardioForegroundService : LifecycleService() {
                 )
                 delay(1000)
             }
+        }
+        // BUG-091 / Fase 2 P0: persistimos cada punto aceptado a Room para que
+        // la ruta sobreviva a la muerte del proceso. Solo persistimos los puntos
+        // nuevos desde que este job arranco (la ruta preexistente en el registro
+        // ya viene de Room via VM.restoreRoute).
+        persistJob?.cancel()
+        persistJob = lifecycleScope.launch {
+            var lastSeenSize = CardioTrackerRegistry.state.value.route.size
+            CardioTrackerRegistry.state
+                .map { it.route }
+                .distinctUntilChanged()
+                .collect { route ->
+                    if (route.size > lastSeenSize) {
+                        val previousPoint = if (lastSeenSize == 0) {
+                            null
+                        } else {
+                            route.getOrNull(lastSeenSize - 1)
+                        }
+                        route.drop(lastSeenSize).forEachIndexed { index, point ->
+                            cardioUseCase.appendRoutePoint(
+                                sessionId = sessionId,
+                                point = point,
+                                accuracyMeters = null,
+                                previousAcceptedPoint = if (index == 0) previousPoint else route[lastSeenSize + index - 1],
+                            )
+                        }
+                    }
+                    lastSeenSize = route.size
+                }
         }
         if (locationTracking) {
             locationJob?.cancel()
@@ -173,8 +215,10 @@ class CardioForegroundService : LifecycleService() {
     private fun stopTracking(clearState: Boolean) {
         timerJob?.cancel()
         locationJob?.cancel()
+        persistJob?.cancel()
         timerJob = null
         locationJob = null
+        persistJob = null
         if (clearState) {
             CardioTrackerRegistry.update(CardioTrackerState())
         }

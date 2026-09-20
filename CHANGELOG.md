@@ -10,6 +10,104 @@
 
 ## [Unreleased]
 
+### 2026-09-20 - Persistencia GPS de cardio durante la sesion activa (Fase 2 P0)
+
+**Corregido**
+- `BUG-091`: la ruta GPS de cardio ya no se pierde cuando Android mata el proceso o el
+  usuario reabre la app. `CardioTrackerRegistry` seguia manteniendo la ruta unicamente
+  en memoria y `route.distanceKm()` recomputaba el total desde el primer punto en cada
+  fix. Ademas, `ActiveCardioViewModel.completeCardio()` solo almacenaba la ruta al cerrar
+  la sesion, asi que cualquier cierre brusco del proceso la descartaba entera. Ahora
+  cada fix aceptado por `LocationTracker.isUsableForCardioTracking` se persiste en una
+  nueva tabla Room `cardio_route_points` con su `distance_from_previous_km` incremental,
+  de forma que la distancia total se reconstruye con `SUM(distance_from_previous_km)`
+  sin recalcular la polilinea completa. Al volver a abrir la sesion de cardio tras una
+  muerte de proceso, `ActiveCardioViewModel.loadSession()` rehidrata el registro desde
+  Room y continua justo donde se quedo.
+
+**Añadido**
+- `cardio_route_points` (entidad + DAO `CardioRoutePointDao`): tabla indexada por
+  `(session_id, timestamp_ms)` con FK `CASCADE` a `workout_sessions(id)`. Almacena
+  `id`, `session_id`, `timestamp_ms`, `latitude`, `longitude`, `accuracy_m`,
+  `speed_kmh`, `distance_from_previous_km`. Migracion explicita `MIGRATION_6_7`.
+- `CardioRoutePoint` (modelo de dominio): replica plana de la entidad sin acoplar
+  presentation a Room.
+- `CardioRepository`: nuevos metodos `addRoutePoint`, `routePoints`,
+  `routePointsCount`, `routeDistanceKm`, `deleteRoutePoints`.
+- `RoomCardioRepository`: implementa los metodos anteriores; `deleteSession` se
+  apoya en el `ON DELETE CASCADE` del FK para limpiar los route points al borrar la
+  sesion.
+- `CardioUseCase`:
+  - `appendRoutePoint(sessionId, point, accuracyMeters, previousAcceptedPoint)`:
+    valida coordenadas, valida segmento vs velocidad maxima por tipo (run/ciclismo/natacion)
+    y escribe el punto con distancia incremental. Devuelve el punto persistido o null
+    si fue rechazado.
+  - `restoreRoute(sessionId): RouteRestoreResult`: lee los puntos persistidos y los
+    devuelve como `List<LocationPoint>` junto con la distancia total.
+  - `completeSession(sessionId, endedAt, manualDistanceKm, manualAvgSpeedKmh)` ya no
+    recibe la ruta como parametro: la reconstruye desde Room, aplica el filtro final
+    (`sanitizedRoute`) sobre el perimetro persistido, escribe el snapshot a
+    `cardio_sessions.route_polyline_json` y borra los puntos en vuelo para que la
+    siguiente sesion no herede residuos.
+- `CardioForegroundService` ahora es `@AndroidEntryPoint` e inyecta `CardioUseCase`.
+  - `startTracking` preserva `route`/`distanceKm`/`currentSpeedKmh`/`avgSpeedKmh`
+    del estado actual del registro en lugar de pisarlos con un `CardioTrackerState`
+    vacio (BUG-091: rehidratacion desde VM llega antes que el FGS).
+  - Nuevo `persistJob` que observa `state.map { it.route }.distinctUntilChanged()` y
+    persiste solo los puntos nuevos (delta entre `lastSeenSize` y `route.size`)
+    usando `appendRoutePoint`. Asi no se duplican los puntos ya cargados desde Room.
+- `ActiveCardioViewModel.loadSession` llama a `restoreRoute` y vuelca los puntos
+  en el `CardioTrackerRegistry` antes de que el FGS arranque; ademas pobla `state.route`
+  con los puntos restaurados.
+- `DatabaseModule`: registra `MIGRATION_6_7` para que la migracion explicita se
+  aplique en produccion.
+- Tests:
+  - `CardioUseCaseTest`: nuevos casos
+    `appendRoutePoint persists each point incrementally and rebuilds same distance on restore`,
+    `appendRoutePoint rejects invalid coordinates without modifying distance`,
+    `appendRoutePoint rejects impossibly fast segment and does not persist it`,
+    `appendRoutePoint continues from previous accepted point after recreation`,
+    `complete session deletes persisted route points after snapshotting route into json`.
+    Los casos existentes (`complete session calculates distance speed and stores route`,
+    etc.) se actualizan para invocar `appendRoutePoint` antes de `completeSession`.
+  - `ActiveCardioViewModelTest`: nuevo caso
+    `process recreation restores route from persisted route points not from in-memory session`
+    que verifica que la ruta rehidratada viene de `cardio_route_points`, no de
+    `CardioSession.route` (que permanece vacia durante la sesion activa).
+  - `ResumeCardioSessionUseCaseTest`, `WeeklyPlanViewModelTest`,
+    `ProgressViewModelTest`, `ProgressUseCaseTest`: actualizados sus `FakeCardioRepository`
+    con los nuevos metodos del repositorio (no-op para los casos que no los ejercen).
+  - `AppDatabaseMigrationTest` (androidTest): nuevo caso `migration6To7CreatesCardioRoutePointsTable`
+    que crea la DB en v6, ejecuta `MIGRATION_6_7`, valida la nueva tabla + sus dos
+    indices y permite insertar una fila de prueba.
+  - `CardioRoutePointsInstrumentedTest` (androidTest, archivo real, no in-memory):
+    cubre los escenarios end-to-end del plan: N puntos persistidos, cerrar y reabrir la
+    DB mantiene la distancia y el conteo, `deleteSession` borra los route points via
+    `CASCADE`, `deleteRoutePoints` deja viva la sesion padre, FK rechaza huérfanos.
+
+**Limitaciones conocidas**
+- Sigue existiendo una ventana minima (sub-milisegundo por fix) entre `addPoint` y la
+  escritura a Room del `persistJob`: si el proceso muere en ese gap, el ultimo fix se
+  pierde. Es la mejor garantia posible sin acoplarel registro a Room; aceptada como
+  deuda. Room serializa escrituras y lecturas, asi que `completeSession` siempre ve un
+  estado consistente.
+- `CardioForegroundService` ahora requiere `@AndroidEntryPoint` e inyeccion de Hilt.
+  Los tests instrumentados del FGS no se han ampliado en esta fase: la cobertura del
+  flujo `persistJob` se hace via `CardioUseCase.appendRoutePoint` y la prueba de
+  rehidratacion en `ActiveCardioViewModelTest`.
+- El FK `cardio_route_points -> workout_sessions` con `CASCADE` requiere que la sesion
+  viva en `workout_sessions` (no en una tabla alternativa). Esto ya era asi por diseno,
+  pero la nueva tabla lo explicita: cualquier intento de insertar un route point
+  huérfano falla con la excepcion de SQLite.
+
+**Verificado**
+- Compilacion manual (verificacion a nivel de tipos y referencias en Kotlin. No se pudo
+  ejecutar `./gradlew test` en este entorno por falta de JDK -- `JAVA_HOME` apunta a
+  `C:\tmp\atlas-dev-tools\jdk-17.0.19+10`, ruta inexistente).
+- Cobertura del flujo `appendRoutePoint` + `restoreRoute` + `completeSession` cubierta
+  por tests JUnit5 hand-written fakes; los tests de migracion y de Room viven en
+  `androidTest` (AndroidJUnit4) porque la JVM pura no soporta SQLite con FK + Room.
+
 ### 2026-09-20 - Identidad de sesion activa persistente en Room (Fase 1 P0)
 
 **Corregido**

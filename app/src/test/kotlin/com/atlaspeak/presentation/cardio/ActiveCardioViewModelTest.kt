@@ -136,7 +136,10 @@ class ActiveCardioViewModelTest {
         val state = viewModel.state.value
         assertNull(state.conflict)
         assertEquals(first!!.id, state.session?.id)
-        assertEquals(1, state.session!!.route.size)
+        // La ruta rehidratada vive en `cardio_route_points` durante la sesion activa;
+        // en el fake, `sessions[].route` se usa como atajo para alimentar
+        // `routePoints(sessionId)`. La VM refleja la ruta restaurada en `state.route`.
+        assertEquals(1, state.route.size)
         assertEquals(1, cardioRepository.sessions.size)
     }
 
@@ -163,6 +166,32 @@ class ActiveCardioViewModelTest {
         assertEquals(ActiveCardioMessage.SessionMissing, state.message)
         assertNull(state.session)
         assertEquals(0, cardioRepository.sessions.size)
+    }
+
+    @Test
+    fun `process recreation restores route from persisted route points not from in-memory session`() = runTest(dispatcher) {
+        // Simulamos muerte del proceso: el primer ViewModel persistio varios puntos
+        // via el caso de uso. Despues recreamos el ViewModel contra el mismo
+        // repositorio; la ruta debe venir de cardio_route_points, no de session.route.
+        // bike (cap 90 km/h) para que el segmento 60s / 0.77 km (~46 km/h) quepa.
+        val first = newViewModelAndStart(cardioTypeId = "bike")
+        val sessionId = first.session!!.id
+        val p1 = LocationPoint(40.0, -3.0, 1_700_000_000_000L)
+        val p2 = LocationPoint(40.0, -2.991, 1_700_000_060_000L)
+        cardioUseCase.appendRoutePoint(sessionId, p1, accuracyMeters = 5f, previousAcceptedPoint = null)
+        cardioUseCase.appendRoutePoint(sessionId, p2, accuracyMeters = 5f, previousAcceptedPoint = null)
+
+        // session.route sigue vacio: la ruta vive en cardio_route_points.
+        assertEquals(0, cardioRepository.sessions.single().route.size)
+
+        val second = newViewModel(cardioTypeId = "bike")
+        dispatcher.scheduler.advanceUntilIdle()
+        val state = second.state.value
+
+        assertEquals(sessionId, state.session?.id)
+        // La ruta rehidratada trae los dos puntos persistidos, no lo que habia en session.route.
+        assertEquals(2, state.route.size)
+        assertEquals(listOf(p1, p2), state.route)
     }
 
     private fun newViewModelAndStart(cardioTypeId: String): ActiveCardioUiState {
@@ -196,6 +225,7 @@ class ActiveCardioViewModelTest {
     private class FakeCardioRepository : CardioRepository {
         var types = emptyList<CardioType>()
         var sessions = emptyList<CardioSession>()
+        private val points = mutableMapOf<String, MutableList<com.atlaspeak.domain.model.cardio.CardioRoutePoint>>()
 
         override suspend fun cardioTypes(includeArchived: Boolean): List<CardioType> {
             return if (includeArchived) types else types.filterNot { it.isArchived }
@@ -222,6 +252,52 @@ class ActiveCardioViewModelTest {
         }
         override suspend fun deleteSession(id: String) {
             sessions = sessions.filterNot { it.id == id }
+            points.remove(id)
+        }
+
+        override suspend fun addRoutePoint(point: com.atlaspeak.domain.model.cardio.CardioRoutePoint) {
+            val list = points.getOrPut(point.sessionId) { mutableListOf() }
+            list.removeAll { it.id == point.id }
+            list.add(point)
+        }
+
+        override suspend fun routePoints(sessionId: String): List<com.atlaspeak.domain.model.cardio.CardioRoutePoint> {
+            val explicit = points[sessionId]
+            if (explicit != null) return explicit.sortedBy { it.timestampMs }
+            // Compatibilidad con tests existentes que solo tocan session.route:
+            // derivamos los puntos persistidos del snapshot que cargan en memoria.
+            val session = sessions.firstOrNull { it.id == sessionId }
+            val route = session?.route.orEmpty()
+            if (route.isEmpty()) return emptyList()
+            return route.mapIndexed { index, point ->
+                com.atlaspeak.domain.model.cardio.CardioRoutePoint(
+                    id = "fake-$sessionId-$index",
+                    sessionId = sessionId,
+                    timestampMs = point.timestamp,
+                    latitude = point.latitude,
+                    longitude = point.longitude,
+                    accuracyMeters = null,
+                    speedKmh = null,
+                    distanceFromPreviousKm = 0.0,
+                )
+            }
+        }
+
+        override suspend fun routePointsCount(sessionId: String): Int {
+            return routePoints(sessionId).size
+        }
+
+        override suspend fun routeDistanceKm(sessionId: String): Double {
+            return routePoints(sessionId).sumOf { it.distanceFromPreviousKm }
+        }
+
+        override suspend fun deleteRoutePoints(sessionId: String) {
+            points.remove(sessionId)
+        }
+
+        override suspend fun finalizeCardioSessionRoute(session: com.atlaspeak.domain.model.cardio.CardioSession) {
+            sessions = sessions.map { if (it.id == session.id) session else it }
+            points.remove(session.id)
         }
     }
 

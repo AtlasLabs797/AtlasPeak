@@ -3,10 +3,12 @@ package com.atlaspeak.data.repository
 import android.content.Context
 import androidx.room.withTransaction
 import com.atlaspeak.data.db.AppDatabase
+import com.atlaspeak.data.db.entity.CardioRoutePointEntity
 import com.atlaspeak.data.db.entity.CardioSessionEntity
 import com.atlaspeak.data.db.entity.CardioTypeEntity
 import com.atlaspeak.data.db.entity.WorkoutSessionEntity
 import com.atlaspeak.domain.model.cardio.CardioMode
+import com.atlaspeak.domain.model.cardio.CardioRoutePoint
 import com.atlaspeak.domain.model.cardio.CardioSession
 import com.atlaspeak.domain.model.cardio.CardioType
 import com.atlaspeak.domain.model.cardio.LocationPoint
@@ -88,6 +90,37 @@ class RoomCardioRepository @Inject constructor(
         }
     }
 
+    override suspend fun addRoutePoint(point: CardioRoutePoint) {
+        database.cardioRoutePointDao().upsert(point.toEntity())
+    }
+
+    override suspend fun routePoints(sessionId: String): List<CardioRoutePoint> {
+        return database.cardioRoutePointDao().getRoutePoints(sessionId).map { it.toDomain() }
+    }
+
+    override suspend fun routePointsCount(sessionId: String): Int {
+        return database.cardioRoutePointDao().countRoutePoints(sessionId)
+    }
+
+    override suspend fun routeDistanceKm(sessionId: String): Double {
+        return database.cardioRoutePointDao().totalDistanceKm(sessionId)
+    }
+
+    override suspend fun deleteRoutePoints(sessionId: String) {
+        database.cardioRoutePointDao().deleteRoutePoints(sessionId)
+    }
+
+    override suspend fun finalizeCardioSessionRoute(session: CardioSession) {
+        // BUG-091 / Fase 2 P0: el snapshot JSON y el borrado de los route points
+        // en vuelo deben ser atomicos: si el proceso muere a mitad, la sesion
+        // completada queda con la polilinea final y sin residuos en vuelo.
+        database.withTransaction {
+            database.workoutDao().upsertSession(session.toWorkoutSessionEntity())
+            database.cardioDao().upsertCardioSession(session.toEntity())
+            database.cardioRoutePointDao().deleteRoutePoints(session.id)
+        }
+    }
+
     private fun CardioTypeEntity.toDomain() = CardioType(
         id = id,
         name = if (isEnglishLocale()) nameEn else nameEs,
@@ -163,6 +196,32 @@ class RoomCardioRepository @Inject constructor(
 
     private fun isEnglishLocale(): Boolean {
         return context.resources.configuration.locales[0]?.language == "en"
+    }
+
+    private fun CardioRoutePointEntity.toDomain(): CardioRoutePoint {
+        return CardioRoutePoint(
+            id = id,
+            sessionId = sessionId,
+            timestampMs = timestampMs,
+            latitude = latitude,
+            longitude = longitude,
+            accuracyMeters = accuracyM,
+            speedKmh = speedKmh,
+            distanceFromPreviousKm = distanceFromPreviousKm,
+        )
+    }
+
+    private fun CardioRoutePoint.toEntity(): CardioRoutePointEntity {
+        return CardioRoutePointEntity(
+            id = id,
+            sessionId = sessionId,
+            timestampMs = timestampMs,
+            latitude = latitude,
+            longitude = longitude,
+            accuracyM = accuracyMeters,
+            speedKmh = speedKmh,
+            distanceFromPreviousKm = distanceFromPreviousKm,
+        )
     }
 
     @Serializable

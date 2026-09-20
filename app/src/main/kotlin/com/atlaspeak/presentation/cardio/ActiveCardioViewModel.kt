@@ -126,7 +126,6 @@ class ActiveCardioViewModel @Inject constructor(
                 sessionId = session.id,
                 manualDistanceKm = manualDistance,
                 manualAvgSpeedKmh = manualSpeed,
-                route = snapshot.route,
             )
             context.stopService(CardioForegroundService.stopIntent(context))
             stopLocalTimer()
@@ -224,14 +223,32 @@ class ActiveCardioViewModel @Inject constructor(
     }
 
     private suspend fun loadSession(sessionId: String) {
-        val session = cardioRepository.session(sessionId)
-        val elapsedSeconds = session?.let { (System.currentTimeMillis() - it.startTime) / 1000L } ?: 0L
+        val session = cardioRepository.session(sessionId) ?: run {
+            mutableState.update { it.copy(isLoading = false, conflict = null) }
+            return
+        }
+        // BUG-091 / Fase 2 P0: rehidratamos la ruta persistida en Room y la volcamos
+        // al CardioTrackerRegistry ANTES de que el FGS arranque su persistJob, para
+        // que la sesion continue justo donde se quedo tras una muerte de proceso.
+        val restore = cardioUseCase.restoreRoute(sessionId)
+        CardioTrackerRegistry.update(
+            CardioTrackerRegistry.state.value.copy(
+                sessionId = session.id,
+                startedAt = session.startTime,
+                elapsedSeconds = ((System.currentTimeMillis() - session.startTime) / 1000L).coerceAtLeast(0L),
+                distanceKm = restore.distanceKm,
+                route = restore.points,
+                running = false,
+            ),
+        )
+        val elapsedSeconds = (System.currentTimeMillis() - session.startTime) / 1000L
         mutableState.update {
             it.copy(
                 isLoading = false,
                 conflict = null,
                 session = session,
                 elapsedSeconds = elapsedSeconds.coerceAtLeast(0L),
+                route = restore.points,
             )
         }
     }
