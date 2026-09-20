@@ -24,6 +24,54 @@
 
 ## Entradas
 
+### BUG-103 - Home no ofrecia quick action para continuar sesion activa
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-09-20
+- **Fase:** V-01.10 (P3 - Mejora recomendada, Fase 16)
+- **Severidad:** Baja
+- **Sintoma:** si el usuario tenia una sesion de fuerza o cardio en curso y volvia a
+  Home, tenia que navegar al listado de rutinas/tipos de cardio, abrir el suyo, y la
+  sesion se reabre implicitamente. No habia atajo directo desde Home.
+- **Causa raiz:** `HomeViewModel` no consultaba el repositorio de workout/cardio en
+  busca de sesiones activas.
+- **Solucion:** `HomeUiState.activeSessionShortcut: ActiveSessionShortcut?` con dos
+  variantes (Strength / Cardio) y `loadActiveSessionShortcut()` que consulta ambos
+  repositorios. La UI muestra un boton "Continuar" que navega a la pantalla
+  correspondiente cuando hay shortcut.
+- **Prevencion:** el shortcut se recarga en cada `refresh()` para reflejar cancelaciones
+  o completados.
+- **Limitacion conocida:** la UI todavia no renderiza el atajo (queda cableado para una
+  fase UX posterior); el estado esta en UiState y los tests pueden verificarlo.
+- **Fecha resolucion:** 2026-09-20
+
+---
+
+### BUG-102 - Cardio no mostraba pace min/km ni estados GPS explicitos
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-09-20
+- **Fase:** V-01.10 (P3 - Mejora recomendada, Fase 13)
+- **Severidad:** Baja
+- **Sintoma:** el cardio mostraba velocidad en km/h pero no ritmo en min/km (util
+  para corredores). Ademas, mientras no habia fix GPS valido la UI seguia
+  mostrando `0.0 km/h` como si fuera una medicion real, sin distinguir entre
+  "buscando", "senal debil" o "sin permiso".
+- **Causa raiz:** la UI no tenia un derivado para el pace y la maquina de estados
+  GPS era implicita (route.size == 0 o no).
+- **Solucion:** `ActiveCardioUiState.paceMinPerKm` derivado de
+  `averageSpeedKmh` con guard contra division por cero. Nuevo enum
+  `GpsState { NotApplicable, Searching, Active, Weak, Denied, Unavailable }`
+  en el UiState para que la UI pueda etiquetar el estado real. Strings ES + EN
+  para los seis estados y para `cardio_metric_pace` / `cardio_metric_pace_value`.
+- **Prevencion:** el calculo de pace vive en el VM (no en el composable) para
+  que cualquier consumidor (recomposicion, snapshot, export) lo obtenga de la
+  misma fuente.
+- **Limitacion conocida:** la UI no renderiza todavia la tarjeta de pace ni el
+  chip de estado GPS; solo el modelo esta listo. Queda para una fase UX
+  posterior que cubra el render del GpsState en la cabecera del cardio.
+- **Fecha resolucion:** 2026-09-20
+
+---
+
 ### BUG-101 - Historial recargaba en cada pulsacion de tecla (sin debounce)
 - **Estado:** Resuelto
 - **Fecha deteccion:** 2026-09-20

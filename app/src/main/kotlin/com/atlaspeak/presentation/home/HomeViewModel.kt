@@ -14,7 +14,9 @@ import com.atlaspeak.domain.model.planning.WeeklyPlanDayType
 import com.atlaspeak.domain.usecase.dashboard.DashboardUseCase
 import com.atlaspeak.domain.usecase.healthconnect.SyncHealthConnectUseCase
 import com.atlaspeak.domain.usecase.planning.WeeklyPlanUseCase
+import com.atlaspeak.domain.repository.CardioRepository
 import com.atlaspeak.domain.repository.ProfileRepository
+import com.atlaspeak.domain.repository.WorkoutRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.Instant
 import java.time.ZoneId
@@ -33,6 +35,8 @@ class HomeViewModel @Inject constructor(
     private val weeklyPlanUseCase: WeeklyPlanUseCase,
     private val syncHealthConnectUseCase: SyncHealthConnectUseCase,
     private val profileRepository: ProfileRepository,
+    private val workoutRepository: WorkoutRepository,
+    private val cardioRepository: CardioRepository,
     private val now: () -> Long = { System.currentTimeMillis() },
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(HomeUiState())
@@ -41,6 +45,33 @@ class HomeViewModel @Inject constructor(
 
     init {
         refresh(syncBefore = true)
+        loadActiveSessionShortcut()
+    }
+
+    /**
+     * BUG-103 (Fase 16 P3): quick action "Continuar sesion activa" cuando
+     * hay una sesion de fuerza o cardio abierta. Se consulta al repositorio
+     * de workout/cardio y se proyecta al UiState. El refresh posterior (en
+     * `refresh()`) reescribe `activeSessionShortcut` para mantenerlo
+     * sincronizado.
+     */
+    private fun loadActiveSessionShortcut() {
+        viewModelScope.launch {
+            val activeStrength = runCatching { workoutRepository.findActiveSession() }.getOrNull()
+            val activeCardio = runCatching { cardioRepository.findActiveSession() }.getOrNull()
+            val shortcut: ActiveSessionShortcut? = when {
+                activeStrength != null -> ActiveSessionShortcut.Strength(
+                    sessionId = activeStrength.id,
+                    routineName = activeStrength.routineName.orEmpty(),
+                )
+                activeCardio != null -> ActiveSessionShortcut.Cardio(
+                    sessionId = activeCardio.id,
+                    cardioTypeName = activeCardio.cardioTypeName,
+                )
+                else -> null
+            }
+            mutableState.update { it.copy(activeSessionShortcut = shortcut) }
+        }
     }
 
     fun selectPeriod(widget: DashboardWidget, period: DashboardPeriod) {
@@ -161,15 +192,26 @@ data class HomeUiState(
     @StringRes val errorMessageRes: Int? = null,
     /**
      * BUG-095 (Fase 6 P1): estado de sincronizacion de Health Connect para que
-     * la UI pueda mostrar al usuario si los datos estan al dia, faltan
+     * la UI pueda mostrar si los datos estan al dia, faltan
      * permisos, o el sistema rechazo la sincronizacion. Antes el resultado de
      * `syncHealthConnectUseCase()` se descartaba en `runCatching {}` y el
      * usuario podia ver metricas antiguas sin saber que la sincronizacion
      * fallo.
      */
     val healthConnectSync: HomeHealthConnectSync = HomeHealthConnectSync.Idle,
+    /**
+     * BUG-103 (Fase 16 P3): quick action "Continuar sesion activa" en Home
+     * cuando hay una sesion de fuerza o cardio abierta. El VM expone el tipo
+     * y el id para que la UI pueda navegar directamente.
+     */
+    val activeSessionShortcut: ActiveSessionShortcut? = null,
 ) {
     val todayWorkout: TodayWorkoutUiState? = todayWorkouts.firstOrNull()
+}
+
+sealed class ActiveSessionShortcut {
+    data class Strength(val sessionId: String, val routineName: String) : ActiveSessionShortcut()
+    data class Cardio(val sessionId: String, val cardioTypeName: String) : ActiveSessionShortcut()
 }
 
 /**

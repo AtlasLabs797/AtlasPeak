@@ -250,6 +250,65 @@ class AppDatabaseMigrationTest {
         migrated.close()
     }
 
+    /**
+     * BUG-097 (Fase 8 P1): la migracion v8 -> v9 anade la columna
+     * `weekly_plan_session_id` a `workout_sessions` y crea su indice. Las
+     * sesiones preexistentes quedan con `weekly_plan_session_id = NULL`,
+     * lo cual mantiene la compatibilidad con el fallback de matching por
+     * (day, type, targetId) en WeeklyPlanUseCase.
+     */
+    @Test
+    fun migration8To9AddsWeeklyPlanSessionIdColumn() {
+        helper.createDatabase(TEST_DB, 8).apply {
+            insertV8StrengthSession()
+            close()
+        }
+
+        val migrated = helper.runMigrationsAndValidate(
+            TEST_DB,
+            9,
+            true,
+            AppDatabase.MIGRATION_8_9,
+        )
+        migrated.query(
+            "SELECT weekly_plan_session_id FROM workout_sessions WHERE id = 'session-strength-1'",
+        ).use { cursor ->
+            cursor.moveToFirst()
+            assertTrue(cursor.isNull(0))
+        }
+        migrated.query(
+            """
+            SELECT COUNT(*) FROM sqlite_master
+            WHERE type='index' AND name='index_workout_sessions_weekly_plan_session_id'
+            """.trimIndent(),
+        ).use { cursor ->
+            cursor.moveToFirst()
+            assertEquals(1, cursor.getInt(0))
+        }
+        migrated.execSQL(
+            "UPDATE workout_sessions SET weekly_plan_session_id = 'plan-1' WHERE id = 'session-strength-1'",
+        )
+        migrated.query(
+            "SELECT weekly_plan_session_id FROM workout_sessions WHERE id = 'session-strength-1'",
+        ).use { cursor ->
+            cursor.moveToFirst()
+            assertEquals("plan-1", cursor.getString(0))
+        }
+        migrated.close()
+    }
+
+    private fun SupportSQLiteDatabase.insertV8StrengthSession() {
+        execSQL(
+            """
+            INSERT INTO workout_sessions (
+                id, routine_id, type, start_time, end_time, completed
+            ) VALUES (
+                'session-strength-1', 'routine-1', 'STRENGTH', 1700000000000, 1700003600000, 1
+            )
+            """.trimIndent(),
+        )
+    }
+
     private fun SupportSQLiteDatabase.insertV1BodyComposition() {
         execSQL(
             """

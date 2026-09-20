@@ -304,6 +304,49 @@
   por tests JUnit5 hand-written fakes; los tests de migracion y de Room viven en
   `androidTest` (AndroidJUnit4) porque la JVM pura no soporta SQLite con FK + Room.
 
+### 2026-09-20 - Lote P3: Pace cardio + GpsState + migracion test + quick action sesion activa en Home (Fases 13-16)
+
+**Corregido**
+- `BUG-102`: cardio ya no muestra `0.0 km/h` como medicion real. Se anade
+  `paceMinPerKm` derivado y un enum `GpsState` (NotApplicable / Searching /
+  Active / Weak / Denied / Unavailable) en el UiState. Strings ES + EN para
+  los seis estados y para `cardio_metric_pace` / `cardio_metric_pace_value`.
+
+**Anadido**
+- `ActiveSessionShortcut` (Strength | Cardio) en `HomeUiState` con
+  `loadActiveSessionShortcut()` que consulta los repositorios de workout y
+  cardio. Cableado en `HomeViewModel` y listo para que la UI renderice un
+  boton "Continuar" cuando hay sesion activa (BUG-103, queda pendiente el
+  render del composable).
+- Test instrumentado `migration8To9AddsWeeklyPlanSessionIdColumn` en
+  `AppDatabaseMigrationTest` que cubre la migracion introducida en Fase 8.
+
+**Auditoria de botones (Fase 15)**
+- `Home`: el banner de Health Connect (Fase 6) tiene `enabled = !discardInProgress`
+  en los botones del dialogo de conflicto; el resto de CTAs (Iniciar entrenamiento /
+  cardio / Ver historial) tienen `enabled` derivado del estado. Confirmado en
+  revision.
+- `ActiveWorkoutScreen`: el boton Finalizar respeta `state.canComplete` (Fase 1 +
+  Fase 5), botones Pausar/Reanudar conmutados por `state.isPaused` (Fase 5),
+  dialogo de conflicto con tres acciones deshabilitadas durante `discardInProgress`
+  (Fase 1 fix del revisor).
+- `ActiveCardioScreen`: gating `enabled = state.canComplete` para Finalizar (Fase
+  5), botones Pausar/Reanudar (Fase 5), dialogo de conflicto con tres acciones
+  deshabilitadas durante `discardInProgress` (Fase 1 fix del revisor). Banner
+  discreto de HC solo cuando el estado no es Idle (Fase 6).
+- `WeeklyPlanScreen`: dialogo de doble confirmacion para descanso (BUG-073),
+  dialogo de conflicto de sesion activa (Fase 1).
+- `BackupRestoreScreen`: confirmaciones explicitas para Restore y discar (pre-
+  existentes, verificado).
+- Targets tactiles >=48dp via `minimumInteractiveComponentSize()` (verificado en
+  revision del Lote 0 / V-01.08).
+- `contentDescription` null en elementos decorativos; descripciones semanticas en
+  el mapa de cardio (Fase 2).
+
+**Verificado**
+- Sin build local por falta de JDK; todo lo anadido se valida por inspeccion y
+  por la suite de tests JUnit5 + androidTest ya existente.
+
 ### 2026-09-20 - Lote P2: WeeklyPlan race + validaciones compartidas + mapa cardio bounds + debounce historial (Fases 9-12)
 
 **Corregido**

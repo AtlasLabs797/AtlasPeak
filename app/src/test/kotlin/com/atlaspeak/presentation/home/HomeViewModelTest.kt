@@ -54,6 +54,8 @@ class HomeViewModelTest {
         weeklyPlanUseCase = weeklyPlanUseCase,
         syncHealthConnectUseCase = syncHealthConnectUseCase,
         profileRepository = profileRepository,
+        workoutRepository = FakeWorkoutRepository(),
+        cardioRepository = FakeCardioRepository(),
     )
 
     @Test
@@ -132,6 +134,8 @@ class HomeViewModelTest {
             weeklyPlanUseCase = weeklyPlanUseCase,
             syncHealthConnectUseCase = failingUseCase,
             profileRepository = profileRepository,
+            workoutRepository = FakeWorkoutRepository(),
+            cardioRepository = FakeCardioRepository(),
         )
         advanceUntilIdle()
         assertNotNull(viewModel.state.value.healthConnectSync as? HomeHealthConnectSync.Failed)
@@ -167,5 +171,35 @@ class HomeViewModelTest {
         override suspend fun getProfile(): UserProfile? = null
         override suspend fun saveProfile(profile: UserProfile) = Unit
         override suspend fun updateProfile(profile: UserProfile) = Unit
+    }
+
+    private class FakeWorkoutRepository : com.atlaspeak.domain.repository.WorkoutRepository {
+        override suspend fun createSession(session: com.atlaspeak.domain.model.workout.WorkoutSession) = session
+        override suspend fun session(id: String): com.atlaspeak.domain.model.workout.WorkoutSession? = null
+        override suspend fun sessions(): List<com.atlaspeak.domain.model.workout.WorkoutSession> = emptyList()
+        override suspend fun deleteSession(id: String) = Unit
+        override suspend fun upsertSet(set: com.atlaspeak.domain.model.workout.WorkoutSet) = Unit
+        override suspend fun deleteSet(id: String) = Unit
+        override suspend fun maxCompletedWeightBefore(exerciseId: String, before: Long): Double? = null
+        override suspend fun updateSessionCompletion(sessionId: String, endTime: Long?, durationSeconds: Int, totalVolumeKg: Double) = Unit
+        override suspend fun findActiveSession(): com.atlaspeak.domain.model.workout.WorkoutSession? = null
+    }
+
+    private class FakeCardioRepository : com.atlaspeak.domain.repository.CardioRepository {
+        override suspend fun cardioTypes(includeArchived: Boolean) = emptyList<com.atlaspeak.domain.model.cardio.CardioType>()
+        override suspend fun upsertCustomType(type: com.atlaspeak.domain.model.cardio.CardioType) = Unit
+        override suspend fun archiveType(id: String) = Unit
+        override suspend fun createSession(session: com.atlaspeak.domain.model.cardio.CardioSession) = session
+        override suspend fun session(id: String) = null as com.atlaspeak.domain.model.cardio.CardioSession?
+        override suspend fun sessions() = emptyList<com.atlaspeak.domain.model.cardio.CardioSession>()
+        override suspend fun updateSession(session: com.atlaspeak.domain.model.cardio.CardioSession) = Unit
+        override suspend fun deleteSession(id: String) = Unit
+        override suspend fun findActiveSession() = null as com.atlaspeak.domain.model.cardio.CardioSession?
+        override suspend fun addRoutePoint(point: com.atlaspeak.domain.model.cardio.CardioRoutePoint) = Unit
+        override suspend fun routePoints(sessionId: String) = emptyList<com.atlaspeak.domain.model.cardio.CardioRoutePoint>()
+        override suspend fun routePointsCount(sessionId: String) = 0
+        override suspend fun routeDistanceKm(sessionId: String) = 0.0
+        override suspend fun deleteRoutePoints(sessionId: String) = Unit
+        override suspend fun finalizeCardioSessionRoute(session: com.atlaspeak.domain.model.cardio.CardioSession) = Unit
     }
 }
