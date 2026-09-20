@@ -124,6 +124,7 @@ class WeeklyPlanViewModelTest {
         override suspend fun createSession(session: CardioSession): CardioSession = session
         override suspend fun session(id: String): CardioSession? = null
         override suspend fun sessions(): List<CardioSession> = emptyList()
+        override suspend fun findActiveSession(): CardioSession? = null
         override suspend fun updateSession(session: CardioSession) = Unit
         override suspend fun deleteSession(id: String) = Unit
     }

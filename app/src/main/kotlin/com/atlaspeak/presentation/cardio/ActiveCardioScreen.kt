@@ -113,6 +113,42 @@ fun ActiveCardioRoute(
         )
     }
 
+    state.conflict?.let { conflict ->
+        AtlasDialog(
+            onDismissRequest = viewModel::dismissActiveSessionConflict,
+            title = stringResource(R.string.workout_active_session_conflict_title),
+            message = stringResource(
+                R.string.cardio_active_session_conflict_body,
+                conflict.activeCardioTypeName.ifBlank {
+                    stringResource(R.string.cardio_active_session_conflict_unknown_type)
+                },
+            ),
+            confirmButton = {
+                AtlasPrimaryButton(
+                    onClick = viewModel::resumeActiveSession,
+                    text = stringResource(R.string.workout_active_session_conflict_continue),
+                    enabled = !state.discardInProgress,
+                )
+            },
+            dismissButton = {
+                Column {
+                    AtlasSecondaryButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = viewModel::discardActiveSessionAndStartNew,
+                        text = stringResource(R.string.workout_active_session_conflict_discard),
+                        enabled = !state.discardInProgress,
+                    )
+                    AtlasSecondaryButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = viewModel::dismissActiveSessionConflict,
+                        text = stringResource(R.string.action_cancel),
+                        enabled = !state.discardInProgress,
+                    )
+                }
+            },
+        )
+    }
+
     ActiveCardioScreen(
         state = state,
         onManualDistanceChanged = viewModel::onManualDistanceChanged,

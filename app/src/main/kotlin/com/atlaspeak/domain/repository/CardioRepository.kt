@@ -10,6 +10,7 @@ interface CardioRepository {
     suspend fun createSession(session: CardioSession): CardioSession
     suspend fun session(id: String): CardioSession?
     suspend fun sessions(): List<CardioSession>
+    suspend fun findActiveSession(): CardioSession?
     suspend fun updateSession(session: CardioSession)
     suspend fun deleteSession(id: String)
 }

@@ -108,6 +108,12 @@
     <string name="workout_notification_rest_done">Descanso terminado</string>
     <string name="workout_active_missing_routine">No se pudo iniciar esta rutina.</string>
     <string name="workout_timer_service_unavailable">El cronómetro persistente no pudo arrancar por permisos del dispositivo.</string>
+    <string name="workout_active_session_conflict_title">Entrenamiento en curso</string>
+    <string name="workout_active_session_conflict_body">Tienes un entrenamiento abierto de %1$s. ¿Qué quieres hacer?</string>
+    <string name="workout_active_session_conflict_continue">Continuar entrenamiento</string>
+    <string name="workout_active_session_conflict_discard">Descartar y empezar uno nuevo</string>
+    <string name="workout_active_session_conflict_unknown_routine">otra rutina</string>
+    <string name="cardio_active_session_conflict_unknown_type">otro cardio</string>
     <string name="workout_exit_dialog_title">¿Salir del entrenamiento?</string>
     <string name="workout_exit_dialog_body">Si sales ahora se descartará la sesión y se perderán las series registradas.</string>
     <string name="workout_exit_dialog_discard">Descartar entrenamiento</string>
@@ -181,6 +187,7 @@
     <string name="cardio_notification_title">Cardio activo</string>
     <string name="cardio_notification_text">%1$s - %2$.2f km</string>
     <string name="cardio_active_missing_session">No se pudo iniciar esta sesión de cardio.</string>
+    <string name="cardio_active_session_conflict_body">Tienes una sesión de cardio abierta de %1$s. ¿Qué quieres hacer?</string>
     <string name="cardio_finish_action">Finalizar cardio</string>
     <string name="cardio_cancel_dialog_title">¿Cancelar la sesión de cardio?</string>
     <string name="cardio_cancel_dialog_body">Si cancelas ahora se descartará la sesión y no se guardará ningún dato.</string>

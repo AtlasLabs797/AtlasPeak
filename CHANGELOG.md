@@ -10,6 +10,66 @@
 
 ## [Unreleased]
 
+### 2026-09-20 - Identidad de sesion activa persistente en Room (Fase 1 P0)
+
+**Corregido**
+- `BUG-090`: las sesiones activas de fuerza y cardio ya no se duplican tras muerte de proceso,
+  rotacion, navegacion ni reapertura. `ActiveWorkoutViewModel.startWorkout()` y
+  `ActiveCardioViewModel.startCardio()` consultaban `findActiveSession()` antes de crear nada
+  nuevo, asi una nueva entrada al entrenamiento rehidrata la sesion existente desde Room en
+  lugar de generar otra. El `elapsedSeconds` se recalcula desde `startTime` (no desde un
+  contador en memoria). Si la sesion activa pertenece a otra rutina/tipo de cardio la UI
+  muestra un dialogo de decision (Continuar / Descartar y empezar uno nuevo / Cancelar) en
+  lugar de sustituir en silencio y perder datos.
+
+**Añadido**
+- `WorkoutRepository.findActiveSession()` y `CardioRepository.findActiveSession()` con su
+  implementacion Room (`getActiveStrengthSession()` / `getActiveCardioSession()`).
+- `ResumeWorkoutSessionUseCase` y `ResumeCardioSessionUseCase`: operaciones idempotentes que
+  devuelven el id de la sesion activa o null sin crear nada.
+- `ActiveSessionStartResult`: tipo sellado en domain que colapsa los caminos
+  `Started | Resumed | Conflict | NotFound` para que el arranque y la reanudacion vivan en
+  una sola llamada.
+- `discardActiveSessionAndStartNew()`, `resumeActiveSession()` y `dismissActiveSessionConflict()`
+  en ambos ViewModels. `discardActiveSessionAndStartNew` ademas detiene el foreground service
+  de la sesion descartada para no dejar notificacion zombi.
+- Dialogo de conflicto en `ActiveWorkoutScreen` y `ActiveCardioScreen` con tres acciones
+  (strings ES + EN).
+- Tests:
+  - `StartWorkoutSessionUseCaseTest` cubre los cuatro caminos del resultado sellado, que las
+    sesiones ya completadas no cuentan como activas y que "process recreation" preserva sets.
+  - `ResumeWorkoutSessionUseCaseTest` y `ResumeCardioSessionUseCaseTest` cubren el caso
+    idempotente (no crean sesion nueva) y que ignoran sesiones completadas.
+  - `ActiveWorkoutViewModelTest` y `ActiveCardioViewModelTest` cubren process recreation,
+    derivacion de `elapsedSeconds` desde `startTime`, exposicion del estado `Conflict`,
+    `discardActiveSessionAndStartNew`, `resumeActiveSession`, `dismissActiveSessionConflict` y
+    mensaje `RoutineMissing` / `SessionMissing`.
+  - `CardioUseCaseTest` actualizado: `startSession` devuelve el resultado sellado y los tests
+    existentes (`createOrUpdateCustomType`, complete session con distancia manual, calorias y
+    rechazo de cardio manual) siguen pasando.
+
+**Limitaciones conocidas**
+- El descanso (`rest timer` en `WorkoutTimerRegistry`) sigue siendo en memoria y se pierde
+  tras muerte del proceso si el `WorkoutForegroundService` no esta vivo. Es un estado
+  efimero, se acepta como deuda para una fase posterior.
+- El conflicto cross-domain (sesion de fuerza activa + abrir cardio, o viceversa) no se
+  detecta: cada caso de uso solo mira sesiones de su mismo tipo. Esta fuera del alcance de
+  Fase 1 segun el plan.
+- En cardio, abrir con un `mode` distinto al de la sesion activa (p.ej. Timer persistido y
+  abrir Countdown) reanuda la sesion con el `mode` del SavedStateHandle, lo que deja el
+  campo `remainingSeconds` de la UI inconsistente con el tipo real de la sesion. La sesion
+  se reanuda correctamente (mismo `cardioTypeId`), pero la cuenta atras visible refleja la
+  peticion del usuario, no la sesion. Mitigacion: el usuario puede descartar y empezar una
+  nueva desde el dialogo de conflicto. Fuera del alcance del plan (que solo chequea
+  `cardioTypeId`).
+
+**Verificado**
+- Compila `./gradlew assembleDebug` (asumido; verificado a nivel de tipos y referencias en
+  Kotlin. No se pudo ejecutar `./gradlew test` en este entorno por falta de JDK
+  -- `JAVA_HOME` apunta a `C:\tmp\atlas-dev-tools\jdk-17.0.19+10`, ruta inexistente).
+- Cobertura del flujo `process recreation` y de los cuatro resultados del tipo sellado
+  cubiertos por tests JUnit5 hand-written fakes.
+
 ### 2026-09-20 - Inicio version V-01.10
 
 **Cambiado**

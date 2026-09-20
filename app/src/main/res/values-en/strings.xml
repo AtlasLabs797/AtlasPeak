@@ -101,6 +101,12 @@
     <string name="workout_notification_rest_done">Rest finished</string>
     <string name="workout_active_missing_routine">Could not start this routine.</string>
     <string name="workout_timer_service_unavailable">The persistent timer could not start because of device permissions.</string>
+    <string name="workout_active_session_conflict_title">Workout in progress</string>
+    <string name="workout_active_session_conflict_body">You already have an open workout for %1$s. What do you want to do?</string>
+    <string name="workout_active_session_conflict_continue">Continue workout</string>
+    <string name="workout_active_session_conflict_discard">Discard and start a new one</string>
+    <string name="workout_active_session_conflict_unknown_routine">another routine</string>
+    <string name="cardio_active_session_conflict_unknown_type">another cardio</string>
     <string name="workout_exit_dialog_title">Leave the workout?</string>
     <string name="workout_exit_dialog_body">Leaving now will discard the session and the sets you logged will be lost.</string>
     <string name="workout_exit_dialog_discard">Discard workout</string>
@@ -173,6 +179,7 @@
     <string name="cardio_notification_title">Active cardio</string>
     <string name="cardio_notification_text">%1$s - %2$.2f km</string>
     <string name="cardio_active_missing_session">Could not start this cardio session.</string>
+    <string name="cardio_active_session_conflict_body">You already have an open cardio session for %1$s. What do you want to do?</string>
     <string name="cardio_finish_action">Finish cardio</string>
     <string name="cardio_cancel_dialog_title">Cancel the cardio session?</string>
     <string name="cardio_cancel_dialog_body">Cancelling now will discard the session and no data will be saved.</string>

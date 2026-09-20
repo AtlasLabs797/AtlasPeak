@@ -14,8 +14,10 @@ import com.atlaspeak.domain.model.workout.completedVolumeKg
 import com.atlaspeak.domain.repository.ExerciseRepository
 import com.atlaspeak.domain.repository.WorkoutRepository
 import com.atlaspeak.domain.repository.WorkoutSettingsRepository
+import com.atlaspeak.domain.usecase.workout.ActiveSessionStartResult
 import com.atlaspeak.domain.usecase.workout.CompleteWorkoutSessionUseCase
 import com.atlaspeak.domain.usecase.workout.DiscardWorkoutSessionUseCase
+import com.atlaspeak.domain.usecase.workout.ResumeWorkoutSessionUseCase
 import com.atlaspeak.domain.usecase.workout.StartWorkoutSessionUseCase
 import com.atlaspeak.presentation.navigation.AppRoute
 import com.atlaspeak.service.WorkoutForegroundService
@@ -30,11 +32,13 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
 
 @HiltViewModel
 class ActiveWorkoutViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val startWorkoutSessionUseCase: StartWorkoutSessionUseCase,
+    private val resumeWorkoutSessionUseCase: ResumeWorkoutSessionUseCase,
     private val completeWorkoutSessionUseCase: CompleteWorkoutSessionUseCase,
     private val discardWorkoutSessionUseCase: DiscardWorkoutSessionUseCase,
     private val workoutRepository: WorkoutRepository,
@@ -71,6 +75,51 @@ class ActiveWorkoutViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    /**
+     * Continua con la sesion activa en curso ignorando la rutina solicitada.
+     * Usado por el boton "Continuar entrenamiento" del dialogo de conflicto.
+     */
+    fun resumeActiveSession() {
+        viewModelScope.launch {
+            val sessionId = resumeWorkoutSessionUseCase() ?: run {
+                startWorkout()
+                return@launch
+            }
+            loadSession(sessionId)
+        }
+    }
+
+    /**
+     * Borra la sesion activa actual y arranca una nueva con la rutina solicitada.
+     */
+    fun discardActiveSessionAndStartNew() {
+        if (mutableState.value.discardInProgress) return
+        mutableState.update { it.copy(discardInProgress = true) }
+        viewModelScope.launch {
+            val activeId = workoutRepository.findActiveSession()?.id
+            if (activeId != null) {
+                discardWorkoutSessionUseCase(activeId)
+                // El servicio de timer de la sesion anterior esta en primer plano;
+                // hay que pararlo para no dejar una notificacion zombi.
+                runCatching {
+                    ContextCompat.startForegroundService(
+                        context,
+                        WorkoutForegroundService.stopIntent(context),
+                    )
+                }
+            }
+            // Esperamos a que la nueva sesion se haya cargado para que el boton siga
+            // deshabilitado durante todo el ciclo y no se pueda re-disparar en una carrera.
+            startWorkout().join()
+            mutableState.update { it.copy(discardInProgress = false) }
+        }
+    }
+
+    /** Cierra el dialogo de conflicto sin tocar nada. */
+    fun dismissActiveSessionConflict() {
+        mutableState.update { it.copy(conflict = null) }
     }
 
     fun onSetCompleted(set: WorkoutSet, completed: Boolean, restSeconds: Int) {
@@ -316,16 +365,46 @@ class ActiveWorkoutViewModel @Inject constructor(
         }
     }
 
-    private fun startWorkout() {
-        viewModelScope.launch {
-            val sessionId = startWorkoutSessionUseCase(routineId)
-            if (sessionId == null) {
-                mutableState.update { it.copy(isLoading = false, message = ActiveWorkoutMessage.RoutineMissing) }
-                return@launch
+    private fun startWorkout(): Job {
+        return viewModelScope.launch {
+            when (val result = startWorkoutSessionUseCase(routineId)) {
+                is ActiveSessionStartResult.Started, is ActiveSessionStartResult.Resumed -> {
+                    loadSession(result.sessionId)
+                }
+                is ActiveSessionStartResult.Conflict -> {
+                    val active = workoutRepository.session(result.sessionId)
+                    mutableState.update {
+                        it.copy(
+                            isLoading = false,
+                            conflict = active?.let { session ->
+                                ActiveSessionConflictUi(
+                                    activeSessionId = session.id,
+                                    activeRoutineName = session.routineName.orEmpty(),
+                                )
+                            },
+                        )
+                    }
+                }
+                ActiveSessionStartResult.NotFound -> {
+                    mutableState.update {
+                        it.copy(isLoading = false, message = ActiveWorkoutMessage.RoutineMissing)
+                    }
+                }
             }
-            val session = workoutRepository.session(sessionId)
-            if (session != null) exerciseOrder = session.exercises.map { it.exerciseId }
-            mutableState.update { it.copy(isLoading = false, session = session?.withCurrentExerciseOrder()) }
+        }
+    }
+
+    private suspend fun loadSession(sessionId: String) {
+        val session = workoutRepository.session(sessionId)
+        if (session != null) exerciseOrder = session.exercises.map { it.exerciseId }
+        val elapsedSeconds = session?.let { (System.currentTimeMillis() - it.startTime) / 1000L } ?: 0L
+        mutableState.update {
+            it.copy(
+                isLoading = false,
+                conflict = null,
+                session = session?.withCurrentExerciseOrder(),
+                elapsedSeconds = elapsedSeconds.coerceAtLeast(0L),
+            )
         }
     }
 
@@ -426,6 +505,8 @@ data class ActiveWorkoutUiState(
         soundEnabled = true,
         vibrationEnabled = true,
     ),
+    val conflict: ActiveSessionConflictUi? = null,
+    val discardInProgress: Boolean = false,
     val message: ActiveWorkoutMessage? = null,
 ) {
     val completedExerciseCount: Int = session?.exercises?.count { exercise ->
@@ -439,6 +520,11 @@ data class ActiveWorkoutUiState(
 
     val liveTotalVolumeKg: Double = session?.completedVolumeKg() ?: 0.0
 }
+
+data class ActiveSessionConflictUi(
+    val activeSessionId: String,
+    val activeRoutineName: String,
+)
 
 data class RestTimerUiState(
     val id: String,

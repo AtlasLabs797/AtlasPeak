@@ -8,9 +8,11 @@ import com.atlaspeak.domain.model.cardio.CardioType
 import com.atlaspeak.domain.model.cardio.LocationPoint
 import com.atlaspeak.domain.repository.BodyCompositionRepository
 import com.atlaspeak.domain.repository.CardioRepository
+import com.atlaspeak.domain.usecase.workout.ActiveSessionStartResult
 import kotlinx.coroutines.test.runTest
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertInstanceOf
 import org.junit.jupiter.api.Assertions.assertNotNull
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
@@ -42,23 +44,78 @@ class CardioUseCaseTest {
     fun `start session creates timer or countdown session from cardio type`() = runTest {
         repository.types = listOf(CardioType("run", "Run", hasGps = true, isPreset = true, isArchived = false))
 
-        val timerSessionId = useCase.startSession("run", CardioMode.Timer)
-        val countdownSessionId = useCase.startSession("run", CardioMode.Countdown(targetDurationSeconds = 1800))
+        val timerResult = useCase.startSession("run", CardioMode.Timer)
+        // Re-create state to simulate opening the screen a second time without an existing session.
+        repository.sessions = emptyList()
+        val countdownResult = useCase.startSession("run", CardioMode.Countdown(targetDurationSeconds = 1800))
 
+        val timerSessionId = assertInstanceOf(ActiveSessionStartResult.Started::class.java, timerResult).sessionId
+        val countdownSessionId = assertInstanceOf(ActiveSessionStartResult.Started::class.java, countdownResult).sessionId
         assertNotNull(timerSessionId)
         assertNotNull(countdownSessionId)
         assertEquals(listOf(CardioMode.Timer, CardioMode.Countdown(1800)), repository.sessions.map { it.mode })
     }
 
     @Test
-    fun `start session returns null for missing type`() = runTest {
-        assertNull(useCase.startSession("missing", CardioMode.Timer))
+    fun `start session returns NotFound for missing type`() = runTest {
+        assertInstanceOf(ActiveSessionStartResult.NotFound::class.java, useCase.startSession("missing", CardioMode.Timer))
+    }
+
+    @Test
+    fun `start session returns Resumed for same cardio type without creating duplicate`() = runTest {
+        repository.types = listOf(CardioType("run", "Run", hasGps = true, isPreset = true, isArchived = false))
+        val first = useCase.startSession("run", CardioMode.Timer) as ActiveSessionStartResult.Started
+        repository.sessions = repository.sessions.map { it.copy(route = listOf(LocationPoint(40.0, -3.0, 1_700_000_500_000L))) }
+
+        val second = useCase.startSession("run", CardioMode.Timer)
+
+        val resumed = assertInstanceOf(ActiveSessionStartResult.Resumed::class.java, second)
+        assertEquals(first.sessionId, resumed.sessionId)
+        // Route is preserved across recreation.
+        assertEquals(1, repository.sessions.size)
+        assertEquals(1, repository.sessions.single().route.size)
+    }
+
+    @Test
+    fun `start session returns Conflict for different cardio type and does not overwrite active session`() = runTest {
+        repository.types = listOf(
+            CardioType("run", "Run", hasGps = true, isPreset = true, isArchived = false),
+            CardioType("bike", "Bike", hasGps = false, isPreset = true, isArchived = false),
+        )
+        val existingId = "session-bike"
+        repository.sessions = listOf(
+            CardioSession(
+                id = existingId,
+                cardioTypeId = "bike",
+                cardioTypeName = "Bike",
+                mode = CardioMode.Timer,
+                startTime = 1_700_000_000_000L,
+                endTime = null,
+                durationSeconds = null,
+                distanceKm = null,
+                avgSpeedKmh = null,
+                maxSpeedKmh = null,
+                caloriesBurned = null,
+                hasGps = false,
+                route = listOf(LocationPoint(40.0, -3.0, 1_700_000_500_000L)),
+                completed = false,
+            ),
+        )
+
+        val result = useCase.startSession("run", CardioMode.Timer)
+
+        val conflict = assertInstanceOf(ActiveSessionStartResult.Conflict::class.java, result)
+        assertEquals(existingId, conflict.sessionId)
+        // No debe sustituir la sesion activa.
+        assertEquals(1, repository.sessions.size)
+        assertEquals("bike", repository.sessions.single().cardioTypeId)
+        assertEquals(1, repository.sessions.single().route.size)
     }
 
     @Test
     fun `complete session calculates distance speed and stores route`() = runTest {
         repository.types = listOf(CardioType("run", "Run", hasGps = true, isPreset = true, isArchived = false))
-        val sessionId = useCase.startSession("run", CardioMode.Timer)!!
+        val sessionId = (useCase.startSession("run", CardioMode.Timer) as ActiveSessionStartResult.Started).sessionId
         val route = listOf(
             LocationPoint(40.0, -3.0, 1_700_000_000_000L),
             LocationPoint(40.0, -2.991, 1_700_000_600_000L),
@@ -81,7 +138,7 @@ class CardioUseCaseTest {
     @Test
     fun `complete session accepts manual distance and speed for non gps cardio`() = runTest {
         repository.types = listOf(CardioType("row", "Rowing", hasGps = false, isPreset = true, isArchived = false))
-        val sessionId = useCase.startSession("row", CardioMode.Timer)!!
+        val sessionId = (useCase.startSession("row", CardioMode.Timer) as ActiveSessionStartResult.Started).sessionId
 
         val completed = useCase.completeSession(
             sessionId = sessionId,
@@ -100,7 +157,7 @@ class CardioUseCaseTest {
     fun `complete session uses latest body weight for calorie estimate`() = runTest {
         repository.types = listOf(CardioType("run", "Run", hasGps = true, isPreset = true, isArchived = false))
         bodyRepository.entries = listOf(bodyEntry(weightKg = 100.0, measuredAt = 1_700_000_000_000L))
-        val sessionId = useCase.startSession("run", CardioMode.Timer)!!
+        val sessionId = (useCase.startSession("run", CardioMode.Timer) as ActiveSessionStartResult.Started).sessionId
 
         val completed = useCase.completeSession(
             sessionId = sessionId,
@@ -116,7 +173,7 @@ class CardioUseCaseTest {
     @Test
     fun `complete session rejects manual cardio without distance and speed`() = runTest {
         repository.types = listOf(CardioType("bike", "Bike", hasGps = false, isPreset = true, isArchived = false))
-        val sessionId = useCase.startSession("bike", CardioMode.Timer)!!
+        val sessionId = (useCase.startSession("bike", CardioMode.Timer) as ActiveSessionStartResult.Started).sessionId
 
         val completed = useCase.completeSession(
             sessionId = sessionId,
@@ -153,6 +210,8 @@ class CardioUseCaseTest {
         override suspend fun session(id: String): CardioSession? = sessions.firstOrNull { it.id == id }
 
         override suspend fun sessions(): List<CardioSession> = sessions
+
+        override suspend fun findActiveSession(): CardioSession? = sessions.firstOrNull { !it.completed }
 
         override suspend fun updateSession(session: CardioSession) {
             sessions = sessions.map { if (it.id == session.id) session else it }

@@ -24,6 +24,56 @@
 
 ## Entradas
 
+### BUG-090 - Sesiones activas duplicadas tras muerte de proceso y sin dialogo de conflicto
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-09-20
+- **Fase:** V-01.10 (P0 - Bloqueante del plan de mejora)
+- **Severidad:** Alta
+- **Sintoma:** al iniciar un entrenamiento de fuerza o cardio con una sesion ya activa en Room
+  (caso tipico: Android mata el proceso por presion de memoria y el usuario vuelve a abrir la
+  pantalla de entrenamiento), `ActiveWorkoutViewModel.startWorkout()` y
+  `ActiveCardioViewModel.startCardio()` creaban SIEMPRE una sesion nueva con un UUID nuevo. La
+  sesion original quedaba huérfana, los sets/ruta ya registrados se perdian y el historial se
+  contaminaba con duplicados. Ademas, abrir una rutina/tipo de cardio distinto al de la sesion
+  activa pisaba en silencio la sesion en curso sin pedir confirmacion al usuario.
+- **Causa raiz:** los casos de uso `StartWorkoutSessionUseCase.invoke` y `CardioUseCase.startSession`
+  ignoraban por completo la sesion activa persistida. No existian operaciones de repositorio para
+  localizarla. La identidad de la sesion dependia del ciclo de vida del ViewModel (que se destruye
+  con el proceso), en lugar de vivir en Room.
+- **Solucion:** se anade `findActiveSession()` a `WorkoutRepository` y `CardioRepository` con una
+  consulta Room que devuelve la sesion mas reciente con `completed = false`. Los casos de uso
+  colapsan los caminos "arrancar" y "reanudar" en un unico resultado sellado
+  `ActiveSessionStartResult { Started | Resumed | Conflict | NotFound }`. Si la sesion activa
+  pertenece a la misma rutina/tipo de cardio se reanuda; si pertenece a otra se devuelve
+  `Conflict` y la UI muestra un dialogo con tres acciones (Continuar / Descartar y empezar uno
+  nuevo / Cancelar) sin sustituir automaticamente. El `elapsedSeconds` se recalcula desde
+  `startTime` al cargar la sesion (no desde un contador en memoria). Se crean
+  `ResumeWorkoutSessionUseCase` y `ResumeCardioSessionUseCase` idempotentes para rehidratar la
+  sesion sin crear nada nuevo.
+- **Prevencion:** `ActiveWorkoutViewModelTest` y `ActiveCardioViewModelTest` cubren el caso de
+  "process recreation" (dos ViewModels sobre el mismo repositorio) y verifican que solo exista
+  una sesion, que los sets completados se preservan y que `elapsedSeconds` se deriva de
+  `startTime`. Tambien cubren `Conflict` con sesion activa de otra rutina (no se sustituye),
+  `discardActiveSessionAndStartNew` (reemplaza) y `resumeActiveSession` (mantiene). Los tests de
+  `StartWorkoutSessionUseCaseTest`, `ResumeWorkoutSessionUseCaseTest`,
+  `CardioUseCaseTest` (casos `start session` y `startSession`) y `ResumeCardioSessionUseCaseTest`
+  cubren los cuatro caminos del resultado sellado.
+- **Limitacion conocida (documentada en CHANGELOG):** el descanso (rest timer) que vive en
+  `WorkoutTimerRegistry` sigue siendo en memoria y se pierde tras muerte del proceso. Solo se
+  restaura si el `WorkoutForegroundService` esta vivo. Para Fase 1 esto es aceptable porque el
+  descanso es efimero; persistirlo requeriria extender el modelo.
+- **Limitacion conocida (documentada en CHANGELOG):** en cardio, si el usuario abre con un
+  `mode` (Timer/Countdown) distinto al de la sesion activa persistida, el caso de uso
+  reanuda por `cardioTypeId` (no chequea `mode`); el contador `remainingSeconds` de la UI
+  refleja el `mode` del SavedStateHandle, no el de la sesion cargada. Mitigacion: el
+  usuario puede descartar y empezar una nueva desde el dialogo de conflicto.
+- **Limitacion conocida (documentada en CHANGELOG):** el conflicto cross-domain (sesion de
+  fuerza activa + abrir cardio, o viceversa) no se detecta; cada caso de uso solo mira
+  sesiones de su mismo tipo. Fuera del alcance del plan.
+- **Fecha resolucion:** 2026-09-20
+
+---
+
 ### BUG-089 - Descanso avisaba una sola vez y se apagaba solo
 - **Estado:** Resuelto
 - **Fecha deteccion:** 2026-07-03

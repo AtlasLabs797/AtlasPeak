@@ -136,6 +136,16 @@ interface WorkoutDao {
     @Query("SELECT * FROM workout_sessions WHERE type = 'STRENGTH' ORDER BY start_time DESC")
     suspend fun getStrengthSessions(): List<WorkoutSessionEntity>
 
+    @Query(
+        """
+        SELECT * FROM workout_sessions
+        WHERE type = 'STRENGTH' AND completed = 0
+        ORDER BY start_time DESC
+        LIMIT 1
+        """,
+    )
+    suspend fun getActiveStrengthSession(): WorkoutSessionEntity?
+
     @Query("DELETE FROM workout_sessions WHERE id = :id")
     suspend fun deleteSession(id: String)
 
@@ -214,6 +224,18 @@ interface CardioDao {
         """,
     )
     suspend fun getCardioSessions(): List<CardioSessionEntity>
+
+    @Query(
+        """
+        SELECT cardio_sessions.*
+        FROM cardio_sessions
+        INNER JOIN workout_sessions ON cardio_sessions.session_id = workout_sessions.id
+        WHERE workout_sessions.completed = 0
+        ORDER BY workout_sessions.start_time DESC
+        LIMIT 1
+        """,
+    )
+    suspend fun getActiveCardioSession(): CardioSessionEntity?
 }
 
 @Dao

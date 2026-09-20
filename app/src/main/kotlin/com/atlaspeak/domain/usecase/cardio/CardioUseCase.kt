@@ -6,6 +6,7 @@ import com.atlaspeak.domain.model.cardio.CardioType
 import com.atlaspeak.domain.model.cardio.LocationPoint
 import com.atlaspeak.domain.repository.BodyCompositionRepository
 import com.atlaspeak.domain.repository.CardioRepository
+import com.atlaspeak.domain.usecase.workout.ActiveSessionStartResult
 import java.util.UUID
 import javax.inject.Inject
 import kotlin.math.atan2
@@ -52,25 +53,38 @@ class CardioUseCase(
         repository.archiveType(id)
     }
 
-    suspend fun startSession(cardioTypeId: String, mode: CardioMode): String? {
-        val type = repository.cardioTypes().firstOrNull { it.id == cardioTypeId } ?: return null
-        val session = CardioSession(
-            id = UUID.randomUUID().toString(),
-            cardioTypeId = type.id,
-            cardioTypeName = type.name,
-            mode = mode,
-            startTime = now(),
-            endTime = null,
-            durationSeconds = null,
-            distanceKm = null,
-            avgSpeedKmh = null,
-            maxSpeedKmh = null,
-            caloriesBurned = null,
-            hasGps = type.hasGps,
-            route = emptyList(),
-            completed = false,
-        )
-        return repository.createSession(session).id
+    suspend fun startSession(cardioTypeId: String, mode: CardioMode): ActiveSessionStartResult {
+        val type = repository.cardioTypes().firstOrNull { it.id == cardioTypeId }
+            ?: return ActiveSessionStartResult.NotFound
+        val active = repository.findActiveSession()
+        when {
+            active == null -> {
+                val session = CardioSession(
+                    id = UUID.randomUUID().toString(),
+                    cardioTypeId = type.id,
+                    cardioTypeName = type.name,
+                    mode = mode,
+                    startTime = now(),
+                    endTime = null,
+                    durationSeconds = null,
+                    distanceKm = null,
+                    avgSpeedKmh = null,
+                    maxSpeedKmh = null,
+                    caloriesBurned = null,
+                    hasGps = type.hasGps,
+                    route = emptyList(),
+                    completed = false,
+                )
+                val created = repository.createSession(session)
+                return ActiveSessionStartResult.Started(created.id)
+            }
+            active.cardioTypeId == cardioTypeId -> {
+                return ActiveSessionStartResult.Resumed(active.id)
+            }
+            else -> {
+                return ActiveSessionStartResult.Conflict(active.id)
+            }
+        }
     }
 
     suspend fun completeSession(

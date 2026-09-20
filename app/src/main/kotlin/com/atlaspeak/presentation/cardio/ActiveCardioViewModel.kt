@@ -10,6 +10,8 @@ import com.atlaspeak.domain.model.cardio.CardioSession
 import com.atlaspeak.domain.model.cardio.LocationPoint
 import com.atlaspeak.domain.repository.CardioRepository
 import com.atlaspeak.domain.usecase.cardio.CardioUseCase
+import com.atlaspeak.domain.usecase.cardio.ResumeCardioSessionUseCase
+import com.atlaspeak.domain.usecase.workout.ActiveSessionStartResult
 import com.atlaspeak.presentation.navigation.AppRoute
 import com.atlaspeak.service.CardioForegroundService
 import com.atlaspeak.service.CardioTrackerRegistry
@@ -28,6 +30,7 @@ import kotlinx.coroutines.launch
 class ActiveCardioViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val cardioUseCase: CardioUseCase,
+    private val resumeCardioSessionUseCase: ResumeCardioSessionUseCase,
     private val cardioRepository: CardioRepository,
     @ApplicationContext private val context: Context,
 ) : ViewModel() {
@@ -149,19 +152,87 @@ class ActiveCardioViewModel @Inject constructor(
         }
     }
 
-    private fun startCardio() {
+    /**
+     * Continua con la sesion de cardio activa ignorando el tipo solicitado.
+     * Usado por el boton "Continuar entrenamiento" del dialogo de conflicto.
+     */
+    fun resumeActiveSession() {
         viewModelScope.launch {
-            val sessionId = cardioUseCase.startSession(cardioTypeId, mode)
-            if (sessionId == null) {
-                mutableState.update { it.copy(isLoading = false, message = ActiveCardioMessage.SessionMissing) }
+            val sessionId = resumeCardioSessionUseCase() ?: run {
+                startCardio()
                 return@launch
             }
-            mutableState.update {
-                it.copy(
-                    isLoading = false,
-                    session = cardioRepository.session(sessionId),
-                )
+            loadSession(sessionId)
+        }
+    }
+
+    /**
+     * Borra la sesion de cardio activa y arranca una nueva para el tipo solicitado.
+     */
+    fun discardActiveSessionAndStartNew() {
+        if (mutableState.value.discardInProgress) return
+        mutableState.update { it.copy(discardInProgress = true) }
+        viewModelScope.launch {
+            val activeId = cardioRepository.findActiveSession()?.id
+            if (activeId != null) {
+                cardioRepository.deleteSession(activeId)
+                // El servicio tracker de la sesion anterior esta en primer plano;
+                // hay que pararlo para no dejar una notificacion zombi.
+                runCatching {
+                    context.stopService(CardioForegroundService.stopIntent(context))
+                }
             }
+            // Esperamos a que la nueva sesion se haya cargado para que el boton siga
+            // deshabilitado durante todo el ciclo y no se pueda re-disparar en una carrera.
+            startCardio().join()
+            mutableState.update { it.copy(discardInProgress = false) }
+        }
+    }
+
+    /** Cierra el dialogo de conflicto sin tocar nada. */
+    fun dismissActiveSessionConflict() {
+        mutableState.update { it.copy(conflict = null) }
+    }
+
+    private fun startCardio(): Job {
+        return viewModelScope.launch {
+            when (val result = cardioUseCase.startSession(cardioTypeId, mode)) {
+                is ActiveSessionStartResult.Started, is ActiveSessionStartResult.Resumed -> {
+                    loadSession(result.sessionId)
+                }
+                is ActiveSessionStartResult.Conflict -> {
+                    val active = cardioRepository.session(result.sessionId)
+                    mutableState.update {
+                        it.copy(
+                            isLoading = false,
+                            conflict = active?.let { session ->
+                                ActiveCardioConflictUi(
+                                    activeSessionId = session.id,
+                                    activeCardioTypeName = session.cardioTypeName,
+                                )
+                            },
+                        )
+                    }
+                }
+                ActiveSessionStartResult.NotFound -> {
+                    mutableState.update {
+                        it.copy(isLoading = false, message = ActiveCardioMessage.SessionMissing)
+                    }
+                }
+            }
+        }
+    }
+
+    private suspend fun loadSession(sessionId: String) {
+        val session = cardioRepository.session(sessionId)
+        val elapsedSeconds = session?.let { (System.currentTimeMillis() - it.startTime) / 1000L } ?: 0L
+        mutableState.update {
+            it.copy(
+                isLoading = false,
+                conflict = null,
+                session = session,
+                elapsedSeconds = elapsedSeconds.coerceAtLeast(0L),
+            )
         }
     }
 
@@ -214,6 +285,8 @@ data class ActiveCardioUiState(
     val completionInProgress: Boolean = false,
     val completedSessionId: String? = null,
     val cancelled: Boolean = false,
+    val conflict: ActiveCardioConflictUi? = null,
+    val discardInProgress: Boolean = false,
     val message: ActiveCardioMessage? = null,
 ) {
     val requiresManualMetrics: Boolean = session?.hasGps != true || route.isEmpty()
@@ -236,6 +309,11 @@ data class ActiveCardioUiState(
         ?.targetDurationSeconds
         ?.let { (it - elapsedSeconds).coerceAtLeast(0) }
 }
+
+data class ActiveCardioConflictUi(
+    val activeSessionId: String,
+    val activeCardioTypeName: String,
+)
 
 enum class ActiveCardioMessage {
     SessionMissing,

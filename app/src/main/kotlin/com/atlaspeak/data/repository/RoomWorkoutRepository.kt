@@ -39,6 +39,11 @@ class RoomWorkoutRepository @Inject constructor(
         }
     }
 
+    override suspend fun findActiveSession(): WorkoutSession? {
+        val entity = database.workoutDao().getActiveStrengthSession() ?: return null
+        return entity.toDomain(database.workoutDao().getSets(entity.id))
+    }
+
     override suspend fun deleteSession(id: String) {
         database.workoutDao().deleteSession(id)
     }
