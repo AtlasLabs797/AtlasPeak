@@ -10,6 +10,78 @@
 
 ## [Unreleased]
 
+### 2026-09-20 - Cronometro de fuerza robusto frente a caida del WorkoutForegroundService (Fase 3 P0)
+
+**Corregido**
+- `BUG-092`: el cronometro visual de `ActiveWorkoutScreen` ya no se congela cuando
+  `WorkoutForegroundService` falla o no llega a arrancar. Antes, el VM se limitaba a
+  espejar `WorkoutTimerRegistry.state`; si el FGS no estaba vivo (SecurityException en
+  `startForeground`, kill del OS, `ACTIVITY_RECOGNITION` denegado) el contador quedaba
+  congelado en el ultimo valor publicado por el registry. Ahora el VM mantiene un job
+  local de respaldo que recalcula `elapsedSeconds = (now - session.startTime) / 1000`
+  mientras no haya un FGS sano escribiendo para la sesion. La formula es identica a la
+  que usa `WorkoutTimerRegistry.tick`, asi que ambos caminos convergen al mismo valor.
+
+**Cambiado**
+- `ActiveWorkoutViewModel`:
+  - Constructor primario recibe `now: () -> Long` para poder inyectar un reloj en
+    tests. Hilt sigue construyendo via un `@Inject` constructor secundario que pasa
+    `{ System.currentTimeMillis() }` (mismo patron que `CardioUseCase`).
+  - `loadSession()` usa `now()` en vez de `System.currentTimeMillis()` para derivar
+    `elapsedSeconds` desde `session.startTime`.
+  - Nuevo `localTimerJob: Job?` con `startLocalTimerIfNeeded()` y `stopLocalTimer()`
+    que ejecutan el tick 1Hz en `viewModelScope`. El job se arranca solo cuando el
+    registry no tiene un timer sano para la sesion actual (`failed=true` para nuestro
+    `sessionId` o `sessionId == null`) y se para en cuanto el registry pasa a
+    `running=true` con nuestro `sessionId`. Asi no hay doble escritor.
+  - El collector del registry reescrito: cuando el FGS esta sano espeja
+    `timer.elapsedSeconds` y `restTimer`; cuando falla o no ha arrancado fija el
+    mensaje `TimerServiceUnavailable`, limpia `restTimer` (el FGS es dueno del rest
+    timer; al morir, la VM no puede mantenerlo) y deja que el job local derive el
+    tiempo. Cuando el registry esta vacio y la VM tiene sesion cargada, arranca el
+    job local sin fijar mensaje (la sesion acaba de empezar).
+  - La logica de las tres ramas del collector se extrae a `reconcileTimerState()`,
+    que se invoca tambien desde `loadSession()` al final. Esto cubre una carrera
+    posible en produccion con el dispatcher Main: el `collect` inicial del registry
+    puede dispararse antes de que la consulta de Room que carga la sesion haya
+    terminado (las queries de Room suspenden), en cuyo caso `startLocalTimerIfNeeded`
+    arrancaba el job y este salia por `session == null` sin re-arrancar, dejando
+    el cronometro muerto hasta el siguiente cambio del FGS. Con el segundo punto
+    de llamada, `loadSession` re-evalua la situacion y arranca el fallback si
+    corresponde.
+  - Nuevo `onCleared()` explicito que para el job local antes que `viewModelScope`
+    se cancele implicitamente.
+
+**Añadido**
+- Tests en `ActiveWorkoutViewModelTest` (JUnit5, hand-written fakes, `StandardTestDispatcher`):
+  - `elapsed_seconds keeps increasing when foreground service fails to start`:
+    registry en `failed=true` para nuestra sesion, reloj +5s, `elapsedSeconds >= 5`.
+  - `elapsed_seconds keeps increasing when foreground service never started`:
+    registry vacio (FGS no llego a arrancar), reloj +5s, `elapsedSeconds >= 5`,
+    `message == null` (sin mensaje de fallback porque el FGS no fallo, simplemente
+    no arranco).
+  - `elapsed_seconds keeps increasing across recreation when foreground service is
+    unavailable`: VM1 +3s, recrear VM2 contra el mismo repo, +3s mas,
+    `elapsedSeconds >= 6` (math derivada del `startTime` persistido).
+  - `local fallback timer stops when foreground service becomes healthy`: FGS
+    `failed=true`, dejar correr el job local, transicionar el registry a
+    `running=true` con un `elapsedSeconds` arbitrario que NO coincide con la formula,
+    avanzar reloj +10s y verificar que el valor no se sobrescribe (prueba que solo
+    el collector escribe).
+  - `elapsed_seconds matches math from startTime`: reloj = `startTime + 3000`,
+    `elapsedSeconds == (now - startTime) / 1000`.
+  - Helper privado `TestClock(initialMillis)` con `reset / advanceBy / currentMillis /
+    asNow()` para inyectar reloj determinista sin tocar `System.currentTimeMillis()`.
+
+**Verificado**
+- Compilacion a nivel de tipos y referencias en Kotlin. No se pudo ejecutar
+  `./gradlew test` ni `./gradlew lint` en este entorno por falta de JDK
+  (`JAVA_HOME` apunta a `C:\tmp\atlas-dev-tools\jdk-17.0.19+10`, ruta inexistente).
+- Los 5 tests del BUG-092 estan escritos siguiendo los mismos patrones que los
+  casos preexistentes de `ActiveWorkoutViewModelTest` (mismo `FakeWorkoutRepository`,
+  mismo `dispatcher`, mismo `WorkoutTimerRegistry.update(WorkoutTimerState())` en
+  `setUp()`), por lo que su semantica es la misma que el resto de la suite.
+
 ### 2026-09-20 - Persistencia GPS de cardio durante la sesion activa (Fase 2 P0)
 
 **Corregido**

@@ -24,6 +24,84 @@
 
 ## Entradas
 
+### BUG-092 - Cronometro visual de fuerza se congela si WorkoutForegroundService falla o no llega a arrancar
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-09-20
+- **Fase:** V-01.10 (P0 - Bloqueante del plan de mejora, Fase 3)
+- **Severidad:** Alta
+- **Sintoma:** durante una sesion activa de fuerza, si el `WorkoutForegroundService`
+  no podia arrancar (SecurityException al llamar a `ContextCompat.startForegroundService`,
+  `startForeground` lanzaba SecurityException por falta de `FOREGROUND_SERVICE_HEALTH`
+  o por la politica runtime de Android 14+, el servicio era matado por el OS, o el
+  permiso `ACTIVITY_RECOGNITION` era denegado por el usuario), `WorkoutTimerRegistry`
+  quedaba en `failed=true` o vacio. La UI mostraba el mensaje `TimerServiceUnavailable`
+  (introducido en BUG-042) pero el contador `elapsedSeconds` se quedaba congelado en el
+  ultimo valor emitido por el FGS: el usuario veia el tiempo parado aunque la sesion
+  siguiera avanzando en Room.
+- **Causa raiz:** el `WorkoutTimerRegistry` era la unica fuente de verdad del tiempo
+  visible. El VM tenia un collector que espejaba `timer.elapsedSeconds` al estado, pero
+  ese valor solo se actualizaba cuando el FGS llamaba a `WorkoutTimerRegistry.tick(...)`
+  una vez por segundo. Si el FGS nunca arrancaba o moria, nadie empujaba nuevos valores
+  al estado. La formula matematica (`elapsed = (System.currentTimeMillis() -
+  session.startTime) / 1000`) solo se aplicaba una vez en `loadSession` (hidratacion)
+  y otra vez en cada tick del FGS, no en cada composicion. El diseno confundia "el FGS
+  existe" con "el tiempo existe".
+- **Solucion:** `ActiveWorkoutViewModel` ahora mantiene un reloj local de respaldo
+  mientras el registry no este escribiendo tiempo para la sesion actual. Concretamente:
+  - Constructor primario recibe un `now: () -> Long` inyectable. El `@Inject`
+    secundario (Hilt) pasa `{ System.currentTimeMillis() }`; los tests inyectan un
+    reloj controlado (`TestClock`).
+  - `loadSession` deriva `elapsedSeconds` desde `now() - session.startTime` (antes
+    usaba `System.currentTimeMillis()` directo, no testeable).
+  - Nuevo `localTimerJob: Job?` y `startLocalTimerIfNeeded()` / `stopLocalTimer()` que
+    ejecutan `while (isActive) { state.elapsedSeconds = (now() - session.startTime) / 1000; delay(1000) }`
+    en `viewModelScope`. La formula es identica a la del FGS, asi que ambos caminos
+    producen el mismo valor modulo el momento del tick.
+  - El collector del registry decide cuando arrancar/parar el job local, a traves
+    de `reconcileTimerState()`:
+    - `timer.failed && timer.sessionId == sessionId`: arranca fallback, fija
+      `message = TimerServiceUnavailable`, limpia `restTimer` (el FGS es dueno del
+      rest timer; al morir, el VM no puede mantenerlo).
+    - `timer.sessionId == sessionId && timer.running`: FGS sano -> para fallback,
+      espeja `timer.elapsedSeconds` y `restTimer` del registry.
+    - `timer.sessionId == null`: FGS no ha arrancado o ya cerro -> arranca fallback
+      mientras la VM tenga sesion cargada, limpia `restTimer`.
+    - Cualquier otro caso (registry de otra sesion): no toca nada, evita pisar el
+      estado.
+  - `reconcileTimerState()` se invoca tambien desde `loadSession()` tras cargar la
+    sesion en el estado. Esto cubre una carrera posible en produccion con el
+    dispatcher Main: el `WorkoutTimerRegistry.state.collect` puede emitir su valor
+    inicial antes de que `loadSession` haya terminado (las queries de Room hacen
+    suspension), en cuyo caso `startLocalTimerIfNeeded` arranca el job local pero
+    sale inmediatamente por `session == null`, y al no haber un re-trigger el
+    cronometro queda muerto hasta el siguiente cambio del FGS. Sin este segundo
+    punto de llamada el fallback fallaria en escenarios donde el FGS nunca
+    arranca (permiso denegado, kill del OS, `startForegroundService` que lanza
+    SecurityException sin tocar el registry).
+  - `onCleared()` llama a `stopLocalTimer()` ademas del `viewModelScope.cancel()`
+  implicito al destruirse el VM, para que el job no quede zombi en escenarios
+  raros de doble `onCleared`.
+- **Prevencion:**
+  - `ActiveWorkoutViewModelTest` añade 5 casos (`elapsed_seconds keeps increasing
+    when foreground service fails to start`, `elapsed_seconds keeps increasing when
+    foreground service never started`, `elapsed_seconds keeps increasing across
+    recreation when foreground service is unavailable`, `local fallback timer stops
+    when foreground service becomes healthy`, `elapsed_seconds matches math from
+    startTime`) que ejercitan el camino sin FGS y la transicion FGS-failed ->
+    FGS-healthy. Cubren tambien que el fallback local se para cuando el registry
+    pasa a `running=true`, evitando doble escritor.
+  - El patron se inspira en `ActiveCardioViewModel.startLocalTimerIfNeeded()` que ya
+    hacia esto desde BUG-090; se ha replicado para fuerza con la diferencia de que
+    el fallback arranca tambien cuando el registry esta vacio (no solo cuando
+    `failed=true`), porque `startForegroundService` puede lanzar SecurityException
+    sin tocar el registry y eso era otra ventana de tiempo congelado.
+- **Limitacion conocida (documentada en CHANGELOG):** el job local y el FGS usan
+  `System.currentTimeMillis()` directamente (la formula `(now - startTime) / 1000`
+  es la misma en ambos). Si el reloj del sistema cambia hacia atras durante la
+  sesion (cambio manual de hora, NTP agresivo), `elapsedSeconds` puede dar saltos.
+  Es la misma limitacion que ya tenia el FGS; aceptada como deuda.
+- **Fecha resolucion:** 2026-09-20
+
 ### BUG-091 - Ruta GPS de cardio se pierde si Android mata el proceso durante la sesion
 - **Estado:** Resuelto
 - **Fecha deteccion:** 2026-09-20

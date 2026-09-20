@@ -17,10 +17,12 @@ import com.atlaspeak.domain.usecase.workout.ResumeWorkoutSessionUseCase
 import com.atlaspeak.domain.usecase.workout.StartWorkoutSessionUseCase
 import com.atlaspeak.presentation.navigation.AppRoute
 import com.atlaspeak.service.WorkoutTimerRegistry
+import com.atlaspeak.service.WorkoutTimerState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.jupiter.api.AfterEach
@@ -47,12 +49,16 @@ class ActiveWorkoutViewModelTest {
         workoutRepository = workoutRepository,
         now = { 1_700_000_000_000L },
     )
+    // BUG-092: reloj inyectable para poder avanzar el tiempo de forma determinista
+    // en los tests del fallback local del cronometro.
+    private val fixedClock = TestClock(initialMillis = 1_700_000_000_000L)
 
     @BeforeEach
     fun setUp() {
         Dispatchers.setMain(dispatcher)
         routineRepository.routines = listOf(upperRoutine(), lowerRoutine())
-        WorkoutTimerRegistry.update(com.atlaspeak.service.WorkoutTimerState())
+        WorkoutTimerRegistry.update(WorkoutTimerState())
+        fixedClock.reset()
     }
 
     @AfterEach
@@ -186,13 +192,206 @@ class ActiveWorkoutViewModelTest {
         assertEquals(0, workoutRepository.sessions.size)
     }
 
+    @Test
+    fun `elapsed_seconds keeps increasing when foreground service fails to start`() = runTest(dispatcher) {
+        val viewModel = newViewModelAndStart()
+        val sessionId = viewModel.session?.id
+        assertNotNull(sessionId)
+
+        // BUG-092: WorkoutForegroundService rechazo startForeground (SecurityException,
+        // OS kill, permiso ACTIVITY_RECOGNITION denegado...). El registry queda en
+        // failed=true para nuestra sesion; la VM debe seguir derivando elapsedSeconds
+        // desde session.startTime sin depender del FGS.
+        WorkoutTimerRegistry.update(
+            WorkoutTimerState(
+                sessionId = sessionId,
+                startedAt = fixedClock.currentMillis(),
+                running = false,
+                failed = true,
+            ),
+        )
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(ActiveWorkoutMessage.TimerServiceUnavailable, viewModel.state.value.message)
+
+        fixedClock.advanceBy(5_000L)
+        advanceLocalTimer(5_000L)
+
+        val state = viewModel.state.value
+        assertTrue(
+            state.elapsedSeconds >= 5L,
+            "expected elapsedSeconds >= 5, was ${state.elapsedSeconds}",
+        )
+    }
+
+    @Test
+    fun `elapsed_seconds keeps increasing when foreground service never started`() = runTest(dispatcher) {
+        val viewModel = newViewModelAndStart()
+        assertNotNull(viewModel.session?.id)
+        // Registry queda como en el setUp (estado inicial vacio): el FGS no ha arrancado
+        // o su startForegroundService lanzo SecurityException antes de tocar el registry.
+        assertEquals(WorkoutTimerState(), WorkoutTimerRegistry.state.value)
+
+        fixedClock.advanceBy(5_000L)
+        advanceLocalTimer(5_000L)
+
+        val state = viewModel.state.value
+        assertTrue(
+            state.elapsedSeconds >= 5L,
+            "expected elapsedSeconds >= 5, was ${state.elapsedSeconds}",
+        )
+        // Sin FGS nunca arrancado no se debe estar mostrando el mensaje de fallback.
+        assertNull(state.message)
+    }
+
+    @Test
+    fun `elapsed_seconds keeps increasing across recreation when foreground service is unavailable`() = runTest(dispatcher) {
+        val firstVm = newViewModel()
+        dispatcher.scheduler.advanceUntilIdle()
+        val firstSessionId = firstVm.state.value.session?.id
+        assertNotNull(firstSessionId)
+        val startTime = firstVm.state.value.session!!.startTime
+
+        // Simulamos 3 segundos avanzando el reloj y el job local antes de recrear la VM.
+        fixedClock.advanceBy(3_000L)
+        advanceLocalTimer(3_000L)
+        val firstElapsed = firstVm.state.value.elapsedSeconds
+        assertTrue(firstElapsed >= 3L, "first VM elapsed was $firstElapsed")
+
+        // Recreamos la VM (mismo repository, misma sesion persistida, sin FGS).
+        val secondVm = newViewModel()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        fixedClock.advanceBy(3_000L)
+        advanceLocalTimer(3_000L)
+
+        val secondState = secondVm.state.value
+        assertEquals(firstSessionId, secondState.session?.id)
+        assertEquals(startTime, secondState.session?.startTime)
+        // El total debe sumar al menos 6s derivados del startTime.
+        assertTrue(
+            secondState.elapsedSeconds >= 6L,
+            "expected second VM elapsedSeconds >= 6, was ${secondState.elapsedSeconds}",
+        )
+    }
+
+    @Test
+    fun `local fallback timer stops when foreground service becomes healthy`() = runTest(dispatcher) {
+        val viewModel = newViewModelAndStart()
+        val sessionId = viewModel.session?.id
+        assertNotNull(sessionId)
+        val startTime = viewModel.session!!.startTime
+
+        // FGS muerto: el collector arranca el job local.
+        WorkoutTimerRegistry.update(
+            WorkoutTimerState(
+                sessionId = sessionId,
+                startedAt = startTime,
+                running = false,
+                failed = true,
+            ),
+        )
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(ActiveWorkoutMessage.TimerServiceUnavailable, viewModel.state.value.message)
+
+        // Damos tiempo al job local para que haga un par de ticks.
+        fixedClock.advanceBy(2_000L)
+        advanceLocalTimer(2_000L)
+        val elapsedWhileFallback = viewModel.state.value.elapsedSeconds
+        assertTrue(elapsedWhileFallback >= 2L, "fallback elapsed was $elapsedWhileFallback")
+
+        // El FGS se recupera: el registry pasa a running=true publicando un elapsedSeconds
+        // arbitrario que NO coincide con lo que diria la formula local tras mas ticks.
+        // Asi, si el job local siguiera vivo, sobreescribiria este valor al avanzar el reloj.
+        val frozenRegistryElapsed = 99L
+        WorkoutTimerRegistry.update(
+            WorkoutTimerState(
+                sessionId = sessionId,
+                startedAt = startTime,
+                elapsedSeconds = frozenRegistryElapsed,
+                running = true,
+            ),
+        )
+        dispatcher.scheduler.advanceUntilIdle()
+        dispatcher.scheduler.runCurrent()
+
+        // Tras la transicion a healthy: el mensaje desaparece y elapsedSeconds refleja
+        // el valor del registry (espejado por el collector), no la formula local.
+        val recoveredState = viewModel.state.value
+        assertNull(recoveredState.message)
+        assertEquals(frozenRegistryElapsed, recoveredState.elapsedSeconds)
+
+        // Si el job local sigue vivo, al avanzar reloj + scheduler recalcularia elapsed
+        // y pisaria el valor del registry. Verificamos que NO ocurre: solo el collector
+        // es escritor activo.
+        fixedClock.advanceBy(10_000L)
+        advanceLocalTimer(10_000L)
+        assertEquals(
+            frozenRegistryElapsed,
+            viewModel.state.value.elapsedSeconds,
+            "local fallback must not overwrite elapsedSeconds from registry",
+        )
+    }
+
+    @Test
+    fun `elapsed_seconds matches math from startTime`() = runTest(dispatcher) {
+        val viewModel = newViewModelAndStart()
+        val session = viewModel.session
+        assertNotNull(session)
+        val startTime = session!!.startTime
+
+        // Forzamos una relacion conocida: reloj = startTime + 3000ms.
+        fixedClock.reset(startTime + 3_000L)
+        advanceLocalTimer(2_500L)
+
+        val state = viewModel.state.value
+        val expected = (fixedClock.currentMillis() - startTime) / 1000L
+        assertEquals(expected, state.elapsedSeconds)
+        // El matematico nunca es negativo ni absurdo.
+        assertTrue(state.elapsedSeconds >= 0L)
+    }
+
+    /**
+     * Avanza el scheduler lo justo para que el job local del cronometro haga un tick
+     * completo, leyendo la nueva hora del reloj inyectable. Se usa en los tests del
+     * BUG-092 para validar que `elapsedSeconds` se deriva de `now()`.
+     */
+    private fun advanceLocalTimer(virtualMillis: Long) {
+        // Cada tick del job local consume 1000ms virtuales de `delay`. Sumamos uno extra
+        // para absorber el tick inmediato que ocurre al despertarse.
+        dispatcher.scheduler.advanceTimeBy(virtualMillis + 1_100L)
+        dispatcher.scheduler.runCurrent()
+    }
+
+    /**
+     * Reloj mutable para los tests del BUG-092. Permite avanzar el tiempo de forma
+     * determinista mientras el job local del cronometro hace sus ticks.
+     */
+    private class TestClock(initialMillis: Long) {
+        private var current: Long = initialMillis
+
+        fun reset(newMillis: Long = initialMillis) {
+            current = newMillis
+        }
+
+        fun advanceBy(deltaMillis: Long) {
+            current += deltaMillis
+        }
+
+        fun currentMillis(): Long = current
+
+        fun asNow(): () -> Long = { current }
+    }
+
     private fun newViewModelAndStart(routineId: String = "routine_upper"): ActiveWorkoutUiState {
         val viewModel = newViewModel(routineId)
         dispatcher.scheduler.advanceUntilIdle()
         return viewModel.state.value
     }
 
-    private fun newViewModel(routineId: String = "routine_upper"): ActiveWorkoutViewModel {
+    private fun newViewModel(
+        routineId: String = "routine_upper",
+        now: () -> Long = fixedClock.asNow(),
+    ): ActiveWorkoutViewModel {
         return ActiveWorkoutViewModel(
             savedStateHandle = handleFor(routineId),
             startWorkoutSessionUseCase = startWorkoutSessionUseCase,
@@ -203,6 +402,7 @@ class ActiveWorkoutViewModelTest {
             workoutSettingsRepository = workoutSettingsRepository,
             exerciseRepository = exerciseRepository,
             context = NoopContext,
+            now = now,
         )
     }
 
