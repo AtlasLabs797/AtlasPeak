@@ -24,6 +24,48 @@
 
 ## Entradas
 
+### BUG-096 - Backup automatico fallaba en silencio durante semanas
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-09-20
+- **Fase:** V-01.10 (P1 - Alta del plan de mejora, Fase 7)
+- **Severidad:** Media
+- **Sintoma:** `BackupWorkerRunner` trataba `DriveAccessTokenResult.MissingAuthorization`
+  como ejecucion exitosa del Worker (asi evitaba retry infinito). El usuario podia
+  perder autorizacion de Drive o quedarse sin contrasena de backup sin enterarse
+  durante semanas: la UI seguia mostrando "ultimo backup: hace 3 dias" sin
+  advertencia de que el siguiente intento ya estaba fallando en silencio.
+- **Causa raiz:** el runner colapsaba dos conceptos: (1) la decision de si el
+  Worker debe reintentar (de WorkManager) y (2) el estado funcional del backup
+  (de cara al usuario). La primera se conservaba en `BackupWorkerRunResult`; la
+  segunda no existia como modelo separado.
+- **Solucion:**
+    - Nuevo modelo de dominio `BackupHealthStatus { lastSuccessfulBackupAt,
+      lastAttemptAt, lastError, requiresDriveAuthorization }`.
+    - `BackupHealthStore` (SharedPreferences plano, no contiene secretos): persiste
+      y consulta el estado funcional.
+    - `BackupSnapshotStore` gana los metodos `backupHealth() / recordBackupSuccess /
+      recordBackupFailure / clearDriveAuthorizationRequired /
+      markDriveAuthorizationRequired`. `RoomBackupSnapshotStore` delega al
+      `BackupHealthStore`.
+    - `BackupWorkerRunner.run()` ahora: en `MissingAuthorization` marca
+      `requiresDriveAuthorization=true` y devuelve `Success` (sin retry
+      permanente); en exito registra `lastSuccessfulBackupAt`; en fallo registra
+      `lastError` y `lastAttemptAt`. La conversion de `BackupFailureReason` a
+      `BackupFailure` se mantiene en el runner.
+    - `BackupRepository` / `BackupUseCase` exponen `health()` y
+      `clearDriveAuthorizationRequired()`. `BackupRestoreViewModel` los proyecta
+      al UiState y anade `reconnectDrive()` para el boton "Reconectar Drive".
+- **Prevencion:** `BackupWorkerRunnerTest` mantiene los tests existentes (no-op en
+  los nuevos metodos del fake store); cualquier nuevo test que verifique el flujo
+  funcional puede usar un fake con captura.
+- **Limitacion conocida:** la marca `requiresDriveAuthorization` solo se limpia
+  cuando el usuario pulsa "Reconectar Drive" o cuando un intento posterior tiene
+  exito. No hay un polling automatico para detectar que Drive se reconecto en
+  background; queda fuera de alcance de Fase 7.
+- **Fecha resolucion:** 2026-09-20
+
+---
+
 ### BUG-095 - Sincronizacion de Health Connect invisible en Home
 - **Estado:** Resuelto
 - **Fecha deteccion:** 2026-09-20

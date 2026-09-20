@@ -5,6 +5,8 @@ import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.atlaspeak.data.db.AppDatabase
+import com.atlaspeak.domain.model.backup.BackupFailure
+import com.atlaspeak.domain.model.backup.BackupHealthStatus
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlinx.coroutines.Dispatchers
@@ -20,6 +22,7 @@ import kotlinx.serialization.json.longOrNull
 @Singleton
 class RoomBackupSnapshotStore @Inject constructor(
     private val database: AppDatabase,
+    private val healthStore: BackupHealthStore,
 ) : BackupSnapshotStore {
     override suspend fun snapshot(): DatabaseBackupSnapshot = withContext(Dispatchers.IO) {
         database.withTransaction {
@@ -72,6 +75,24 @@ class RoomBackupSnapshotStore @Inject constructor(
                 }
             }.getOrNull()
         }.maxOrNull()
+    }
+
+    override suspend fun backupHealth(): BackupHealthStatus = healthStore.read()
+
+    override suspend fun recordBackupSuccess(timestampMillis: Long) {
+        healthStore.recordSuccess(timestampMillis)
+    }
+
+    override suspend fun recordBackupFailure(reason: BackupFailure, timestampMillis: Long) {
+        healthStore.recordFailure(reason, timestampMillis)
+    }
+
+    override suspend fun clearDriveAuthorizationRequired() {
+        healthStore.clearDriveAuthorizationRequired()
+    }
+
+    override suspend fun markDriveAuthorizationRequired() {
+        healthStore.markDriveAuthorizationRequired()
     }
 
     private fun Cursor.rowsAsJson(): List<Map<String, JsonElement>> {

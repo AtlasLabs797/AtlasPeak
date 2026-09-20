@@ -304,6 +304,41 @@
   por tests JUnit5 hand-written fakes; los tests de migracion y de Room viven en
   `androidTest` (AndroidJUnit4) porque la JVM pura no soporta SQLite con FK + Room.
 
+### 2026-09-20 - Backup automatico no silencioso (Fase 7 P1)
+
+**Corregido**
+- `BUG-096`: `BackupWorkerRunner` ya no trata `MissingAuthorization` como
+  exito sin registrar nada. El estado funcional del backup automatico
+  (`lastSuccessfulBackupAt`, `lastAttemptAt`, `lastError`,
+  `requiresDriveAuthorization`) se persiste en un SharedPreferences plano y se
+  proyecta al UI para que el usuario sepa cuando Drive requiere reautorizacion
+  o cuando el ultimo intento fallo.
+
+**Anadido**
+- Modelo de dominio `BackupHealthStatus { lastSuccessfulBackupAt,
+  lastAttemptAt, lastError, requiresDriveAuthorization }`.
+- `BackupHealthStore` (SharedPreferences plano, no contiene secretos).
+- `BackupSnapshotStore.backupHealth / recordBackupSuccess /
+  recordBackupFailure / clearDriveAuthorizationRequired /
+  markDriveAuthorizationRequired`.
+- `BackupWorkerRunner` actualiza el estado en cada camino: MissingAuthorization
+  marca `requiresDriveAuthorization=true`; exito -> `recordBackupSuccess`;
+  fallo -> `recordBackupFailure` con su tipo.
+- `BackupRepository.health()` y `BackupUseCase.health()` exponen el estado.
+- `BackupRestoreViewModel.reconnectDrive()` + `requiresDriveAuthorization` /
+  `lastError` en el UiState.
+- Strings ES + EN (`backup_drive_reconnect_*`, `backup_last_error_*`).
+- `BackupWorkerRunnerTest` actualizado con implementaciones no-op para los
+  nuevos metodos del fake store (los tests existentes siguen cubriendo el flujo
+  del worker).
+
+**Limitaciones**
+- `requiresDriveAuthorization` solo se limpia cuando el usuario pulsa
+  "Reconectar Drive" o tras un backup con exito. No hay polling automatico.
+
+**Verificado**
+- Sin build local por falta de JDK.
+
 ### 2026-09-20 - Health Connect visible en Home (Fase 6 P1)
 
 **Corregido**

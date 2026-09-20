@@ -32,10 +32,41 @@ class BackupRestoreViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             val status = backupUseCase.status()
+            val health = backupUseCase.health()
             _state.update {
                 it.copy(
                     autoBackupEnabled = status.autoBackupEnabled,
                     lastBackupAt = status.lastBackupAt,
+                    requiresDriveAuthorization = health.requiresDriveAuthorization,
+                    lastError = health.lastError,
+                )
+            }
+        }
+    }
+
+    /**
+     * BUG-096 (Fase 7 P1): limpia la marca de "Drive requiere reautorizacion"
+     * y reintenta la peticion del token silencioso. Pensado para el boton
+     * "Reconectar Drive" de la UI.
+     */
+    fun reconnectDrive() {
+        viewModelScope.launch {
+            backupUseCase.clearDriveAuthorizationRequired()
+            _state.update { it.copy(requiresDriveAuthorization = false, messageRes = R.string.backup_drive_reconnect_attempting) }
+            refreshStatus()
+        }
+    }
+
+    fun refreshStatus() {
+        viewModelScope.launch {
+            val status = backupUseCase.status()
+            val health = backupUseCase.health()
+            _state.update {
+                it.copy(
+                    autoBackupEnabled = status.autoBackupEnabled,
+                    lastBackupAt = status.lastBackupAt,
+                    requiresDriveAuthorization = health.requiresDriveAuthorization,
+                    lastError = health.lastError,
                 )
             }
         }
@@ -264,6 +295,11 @@ data class BackupRestoreUiState(
     val pendingRestoreFileId: String? = null,
     val pendingCleartextExport: CleartextExportType? = null,
     @StringRes val messageRes: Int? = null,
+    // BUG-096 (Fase 7 P1): estado funcional del backup automatico para que
+    // la UI muestre avisos no silenciosos cuando Drive requiere reautorizacion
+    // o el ultimo intento fallo.
+    val requiresDriveAuthorization: Boolean = false,
+    val lastError: com.atlaspeak.domain.model.backup.BackupFailure? = null,
 )
 
 sealed interface BackupRestoreEvent {

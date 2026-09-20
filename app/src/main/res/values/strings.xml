@@ -402,6 +402,15 @@
     <string name="backup_last_never">nunca</string>
     <string name="backup_drive_title">Google Drive</string>
     <string name="backup_drive_body">Usa el scope drive.appdata. Google solo recibe el archivo cifrado.</string>
+    <string name="backup_drive_reconnect_title">Backup automático detenido</string>
+    <string name="backup_drive_reconnect_body">Vuelve a conectar Google Drive para reanudar las copias automáticas.</string>
+    <string name="backup_drive_reconnect_action">Reconectar Drive</string>
+    <string name="backup_drive_reconnect_attempting">Reintentando conexión con Drive…</string>
+    <string name="backup_last_error_title">El último intento de backup falló</string>
+    <string name="backup_last_error_network">Sin conexión de red.</string>
+    <string name="backup_last_error_crypto">Error al cifrar el backup.</string>
+    <string name="backup_last_error_invalid">Backup inválido o corrupto.</string>
+    <string name="backup_last_error_unknown">Error desconocido.</string>
     <string name="backup_drive_create">Crear en Drive</string>
     <string name="backup_drive_refresh">Listar</string>
     <string name="backup_drive_empty">No hay copias en Drive.</string>

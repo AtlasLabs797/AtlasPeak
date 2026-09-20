@@ -391,6 +391,15 @@
     <string name="backup_last_never">never</string>
     <string name="backup_drive_title">Google Drive</string>
     <string name="backup_drive_body">Uses the drive.appdata scope. Google only receives the encrypted file.</string>
+    <string name="backup_drive_reconnect_title">Auto-backup stopped</string>
+    <string name="backup_drive_reconnect_body">Reconnect Google Drive to resume automatic backups.</string>
+    <string name="backup_drive_reconnect_action">Reconnect Drive</string>
+    <string name="backup_drive_reconnect_attempting">Reconnecting to Drive…</string>
+    <string name="backup_last_error_title">The last backup attempt failed</string>
+    <string name="backup_last_error_network">No network connection.</string>
+    <string name="backup_last_error_crypto">Failed to encrypt the backup.</string>
+    <string name="backup_last_error_invalid">Invalid or corrupt backup.</string>
+    <string name="backup_last_error_unknown">Unknown error.</string>
     <string name="backup_drive_create">Create in Drive</string>
     <string name="backup_drive_refresh">List</string>
     <string name="backup_drive_empty">No Drive backups yet.</string>

@@ -29,6 +29,13 @@ interface BackupSnapshotStore {
     suspend fun autoBackupEnabled(): Boolean
     suspend fun setAutoBackupEnabled(enabled: Boolean)
     suspend fun latestDataChangedAt(): Long?
+    // BUG-096 (Fase 7 P1): estado funcional del backup automatico para que la
+    // UI pueda mostrar avisos no silenciosos.
+    suspend fun backupHealth(): BackupHealthStatus
+    suspend fun recordBackupSuccess(timestampMillis: Long)
+    suspend fun recordBackupFailure(reason: BackupFailure, timestampMillis: Long)
+    suspend fun clearDriveAuthorizationRequired()
+    suspend fun markDriveAuthorizationRequired()
 }
 
 interface DriveBackupService {
