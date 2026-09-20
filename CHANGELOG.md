@@ -304,6 +304,28 @@
   por tests JUnit5 hand-written fakes; los tests de migracion y de Room viven en
   `androidTest` (AndroidJUnit4) porque la JVM pura no soporta SQLite con FK + Room.
 
+### 2026-09-20 - Health Connect visible en Home (Fase 6 P1)
+
+**Corregido**
+- `BUG-095`: `HomeViewModel.refresh(syncBefore = true)` ya no descarta el resultado
+  de `SyncHealthConnectUseCase`. El estado de sincronizacion se proyecta a
+  `HomeUiState.healthConnectSync` para que la UI muestre al usuario si los datos
+  estan al dia, faltan permisos, requieren actualizar HC o fallaron.
+
+**Anadido**
+- Tipo sellado `HomeHealthConnectSync { Idle | Syncing | Success(ts) |
+  PartialSuccess(ts) | MissingPermissions | UpdateRequired | Unavailable |
+  Failed(ts) }` con mapeo desde `HealthConnectSyncResult`.
+- Banner `HealthConnectStatusBanner` en HomeScreen (icono + texto + accion
+  "Conceder permisos" + boton cerrar), solo aparece cuando el estado no es Idle.
+- `dismissHealthConnectSyncStatus()` en el VM para ocultar avisos no accionables.
+- Strings ES + EN (`home_health_connect_*`).
+- `HomeViewModelTest`: 7 tests que cubren los seis caminos del resultado sellado,
+  el dismiss y la excepcion de runtime.
+
+**Verificado**
+- Sin build local por falta de JDK.
+
 ### 2026-09-20 - Finalizacion de cardio correcta + pause/resume (Fase 5 P1)
 
 **Corregido**

@@ -24,6 +24,42 @@
 
 ## Entradas
 
+### BUG-095 - Sincronizacion de Health Connect invisible en Home
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-09-20
+- **Fase:** V-01.10 (P1 - Alta del plan de mejora, Fase 6)
+- **Severidad:** Media
+- **Sintoma:** al abrir Home se llamaba `syncHealthConnectUseCase()` y se descartaba el
+  resultado dentro de un `runCatching {}`. La UI podia mostrar datos locales antiguos
+  (pasos, calorias, sueno) sin avisar al usuario de que la sincronizacion con Health
+  Connect fallo, o de que faltan permisos, o de que hay que actualizar la app de HC.
+- **Causa raiz:** `HomeViewModel.refresh(syncBefore = true)` ejecutaba el caso de uso
+  fire-and-forget. `HealthConnectSyncResult` ofrece `successful`, `partiallySuccessful`,
+  `missingPermissions`, `failed`, `availability` (UpdateRequired / Unavailable / Available)
+  pero nada en la UI los consumia.
+- **Solucion:**
+    - Nuevo tipo sellado `HomeHealthConnectSync { Idle | Syncing | Success(ts) |
+      PartialSuccess(ts) | MissingPermissions | UpdateRequired | Unavailable |
+      Failed(ts) }` proyectado desde `HealthConnectSyncResult`.
+    - `HomeUiState.healthConnectSync` lleva el estado visible.
+    - `HomeViewModel.refresh(syncBefore = true)` muestra `Syncing` mientras corre y
+      mapea el resultado al estado final. `runCatching` se conserva para que un
+      fallo de runtime se traduzca en `Failed` en vez de crashear el VM.
+    - `dismissHealthConnectSyncStatus()` permite al usuario descartar el aviso cuando
+      no es accionable.
+    - Banner discreto `HealthConnectStatusBanner` en HomeScreen con icono + accion
+      ("Conceder permisos") y boton de cerrar.
+- **Prevencion:** `HomeViewModelTest` cubre los seis caminos principales (Success,
+  MissingPermissions, UpdateRequired, Unavailable, PartialSuccess, Failed por
+  excepcion, dismiss a Idle).
+- **Limitacion conocida:** `formatRelativeAgo` usa `System.currentTimeMillis()` (no
+  inyectable) porque la UI no tiene acceso al reloj inyectable del VM. El valor se
+  recalcula en cada recomposicion, asi que el usuario ve la edad actualizada al volver
+  a la pantalla, no en tiempo real.
+- **Fecha resolucion:** 2026-09-20
+
+---
+
 ### BUG-094 - Cardio sin pause/resume y boton Finalizar siempre habilitado
 - **Estado:** Resuelto
 - **Fecha deteccion:** 2026-09-20

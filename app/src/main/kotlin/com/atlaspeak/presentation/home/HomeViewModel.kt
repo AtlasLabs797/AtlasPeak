@@ -8,6 +8,8 @@ import com.atlaspeak.domain.model.dashboard.DashboardFilters
 import com.atlaspeak.domain.model.dashboard.DashboardPeriod
 import com.atlaspeak.domain.model.dashboard.DashboardSnapshot
 import com.atlaspeak.domain.model.dashboard.DashboardWidget
+import com.atlaspeak.domain.model.healthconnect.HealthConnectAvailability
+import com.atlaspeak.domain.model.healthconnect.HealthConnectSyncResult
 import com.atlaspeak.domain.model.planning.WeeklyPlanDayType
 import com.atlaspeak.domain.usecase.dashboard.DashboardUseCase
 import com.atlaspeak.domain.usecase.healthconnect.SyncHealthConnectUseCase
@@ -31,6 +33,7 @@ class HomeViewModel @Inject constructor(
     private val weeklyPlanUseCase: WeeklyPlanUseCase,
     private val syncHealthConnectUseCase: SyncHealthConnectUseCase,
     private val profileRepository: ProfileRepository,
+    private val now: () -> Long = { System.currentTimeMillis() },
 ) : ViewModel() {
     private val mutableState = MutableStateFlow(HomeUiState())
     private var refreshJob: Job? = null
@@ -49,10 +52,20 @@ class HomeViewModel @Inject constructor(
         refreshJob?.cancel()
         refreshJob = viewModelScope.launch {
             val filters = mutableState.value.filters
-            mutableState.update { it.copy(isLoading = it.snapshot == null, errorMessageRes = null) }
+            mutableState.update {
+                it.copy(
+                    isLoading = it.snapshot == null,
+                    errorMessageRes = null,
+                    healthConnectSync = if (syncBefore) HomeHealthConnectSync.Syncing else it.healthConnectSync,
+                )
+            }
             try {
                 if (syncBefore) {
-                    runCatching { syncHealthConnectUseCase() }
+                    val syncResult = runCatching { syncHealthConnectUseCase() }.getOrNull()
+                    val mapped = syncResult.toHomeSyncStatus(now())
+                    mutableState.update {
+                        if (it.filters == filters) it.copy(healthConnectSync = mapped) else it
+                    }
                 }
                 val snapshot = dashboardUseCase.snapshot(filters)
                 val todayWorkouts = todayWorkouts()
@@ -82,6 +95,10 @@ class HomeViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    fun dismissHealthConnectSyncStatus() {
+        mutableState.update { it.copy(healthConnectSync = HomeHealthConnectSync.Idle) }
     }
 
     private suspend fun todayWorkouts(): List<TodayWorkoutUiState> {
@@ -142,8 +159,46 @@ data class HomeUiState(
     val todayWorkouts: List<TodayWorkoutUiState> = emptyList(),
     val greetingName: String? = null,
     @StringRes val errorMessageRes: Int? = null,
+    /**
+     * BUG-095 (Fase 6 P1): estado de sincronizacion de Health Connect para que
+     * la UI pueda mostrar al usuario si los datos estan al dia, faltan
+     * permisos, o el sistema rechazo la sincronizacion. Antes el resultado de
+     * `syncHealthConnectUseCase()` se descartaba en `runCatching {}` y el
+     * usuario podia ver metricas antiguas sin saber que la sincronizacion
+     * fallo.
+     */
+    val healthConnectSync: HomeHealthConnectSync = HomeHealthConnectSync.Idle,
 ) {
     val todayWorkout: TodayWorkoutUiState? = todayWorkouts.firstOrNull()
+}
+
+/**
+ * Estado de sincronizacion de Health Connect proyectado al Home. BUG-095.
+ * Mapea el `HealthConnectSyncResult` del caso de uso a algo que la UI sabe
+ * pintar: exito parcial, faltan permisos, requiere actualizacion, fallo.
+ */
+sealed class HomeHealthConnectSync {
+    data object Idle : HomeHealthConnectSync()
+    data object Syncing : HomeHealthConnectSync()
+    data class Success(val timestampMillis: Long) : HomeHealthConnectSync()
+    data class PartialSuccess(val timestampMillis: Long) : HomeHealthConnectSync()
+    data object MissingPermissions : HomeHealthConnectSync()
+    data object UpdateRequired : HomeHealthConnectSync()
+    data object Unavailable : HomeHealthConnectSync()
+    data class Failed(val timestampMillis: Long) : HomeHealthConnectSync()
+}
+
+private fun HealthConnectSyncResult?.toHomeSyncStatus(now: Long): HomeHealthConnectSync {
+    if (this == null) return HomeHealthConnectSync.Failed(now)
+    return when {
+        availability == HealthConnectAvailability.Unavailable -> HomeHealthConnectSync.Unavailable
+        availability == HealthConnectAvailability.UpdateRequired -> HomeHealthConnectSync.UpdateRequired
+        missingPermissions -> HomeHealthConnectSync.MissingPermissions
+        successful -> HomeHealthConnectSync.Success(now)
+        partiallySuccessful -> HomeHealthConnectSync.PartialSuccess(now)
+        failed -> HomeHealthConnectSync.Failed(now)
+        else -> HomeHealthConnectSync.Idle
+    }
 }
 
 data class TodayWorkoutUiState(
