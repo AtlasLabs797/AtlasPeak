@@ -31,17 +31,17 @@
   Ahora `preflightFgsType(hasGps, hasFineLocation, hasActivityRecognition)` decide
   en funcion de los permisos reales del dispositivo que tipo de FGS es legal:
   `Location` (GPS + permiso), `Health` (no GPS + `ACTIVITY_RECOGNITION`) o `None`
-  (ninguno legal). Cuando devuelve `None`, el FGS salta `startForeground` y deja
-  que `timerJob` y `persistJob` corran en foreground mientras la app este visible:
-  el cronometro sigue, pero el sistema puede parar el proceso en background
-  (documentado como limitacion conocida).
+  (ninguno legal). Cuando el ViewModel obtiene `None`, no inicia ningun foreground
+  service y mantiene el cronometro local. Si los permisos cambian entre el preflight
+  del ViewModel y el del servicio y este ultimo obtiene `None`, el servicio marca
+  el tracker como fallido y se detiene inmediatamente.
 
 **Cambiado**
 - `CardioForegroundService`:
   - Nuevo helper `preflightFgsType(hasGps, hasFineLocation, hasActivityRecognition)` en el
     `companion object`: sin estado, sin dependencias de Android, facil de testear.
-  - `startTracking` lo invoca y, si devuelve `None`, NO llama a `startForeground`;
-    sigue con `timerJob` y `persistJob` para que el cronometro local funcione.
+  - `startTracking` lo invoca como defensa frente a carreras de permisos. Si devuelve
+    `None`, no deja jobs vivos: publica `failed=true`, llama a `stopSelf()` y retorna.
   - `startForegroundCompat(notification, fgsMode)` toma un `CardioFgsMode` en vez de
     un booleano. Mantiene `require(fgsMode != None)` como red de seguridad para que un
     caller incorrecto falle ruidosamente en vez de reclamar un tipo arbitrario.
@@ -63,9 +63,11 @@
       session.hasGps, hasFineLocation = locationAllowed, hasActivityRecognition = ...)`
       consultando `ContextCompat.checkSelfPermission` para `ACTIVITY_RECOGNITION`.
     - Publica `fgsMode` en el estado antes de la llamada. Si el usuario denego
-      localizacion y el tipo es GPS, fija el mensaje `LocationPermissionDenied`
-      (comportamiento previo preservado).
-    - El try alrededor de `startForegroundService` ahora tiene `catch (_: SecurityException)`
+      localizacion y el tipo es GPS, fija el mensaje `LocationPermissionDenied`.
+    - Si `requestedFgsMode == None`, no llama a `startForegroundService` y arranca
+      directamente el temporizador local.
+    - El try alrededor de `startForegroundService` para `Location`/`Health` tiene
+      `catch (_: SecurityException)`
       explicito seguido del `catch (_: RuntimeException)` existente (mismo cuerpo). Si
       cualquiera de los dos dispara, baja `fgsMode` a `None`, fija el mensaje
       `TrackerUnavailable` y arranca el cronometro local.
@@ -109,13 +111,10 @@
   (mismo patron que `ActiveWorkoutViewModelTest`).
 
 **Limitaciones conocidas**
-- El VM computa `fgsMode` con su propia copia del preflight y lo publica antes de
-  llamar a `startForegroundService`. El FGS vuelve a calcular el preflight en
-  `startTracking` y puede divergir en una ventana de carrera (p. ej., el usuario
-  revoca el permiso entre el check del VM y el check del FGS). En ese caso el modo
-  del VM refleja su intencion; el modo efectivo del FGS seria None si la
-  disponibilidad de permiso cambia. Ambos caminos convergen a `tracker.running=true`
-  o a `failed=true` y el collector del VM baja a `None` automaticamente. No se
+- El VM computa `fgsMode` antes de iniciar el servicio y el FGS vuelve a calcularlo,
+  por lo que existe una ventana de carrera si cambian los permisos entre ambos checks.
+  Si el servicio obtiene `None`, publica `failed=true` y se detiene inmediatamente;
+  el collector del VM baja a `None` y mantiene el temporizador local. No se
   expone el fgsMode del FGS en el registry: aceptado como deuda para una fase
   posterior si se necesita precision bit-exact entre el modo pedido y el modo
   realmente reclamado.

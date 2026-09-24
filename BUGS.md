@@ -387,17 +387,19 @@
     - `domain/model/cardio/CardioModels.kt`: nuevo enum `CardioFgsMode { Location, Health,
       None }`.
     - `CardioForegroundService.startTracking` calcula `fgsMode = preflightFgsType(...)`. Si
-      es `None`, salta `startForeground` y deja correr `timerJob` + `persistJob` sin
-      notificacion persistente. Si es `Location` o `Health`, reclama el tipo correspondiente.
+      es `None` por una carrera de permisos, marca el tracker como fallido y detiene el
+      servicio inmediatamente, sin dejar jobs ejecutandose fuera de foreground. Si es
+      `Location` o `Health`, reclama el tipo correspondiente.
       El catch de `startForeground` ahora tiene un `catch (_: SecurityException)` explicito
       seguido de un `catch (_: RuntimeException)` (mismo cuerpo) para claridad del lector:
       SecurityException es subclase de RuntimeException, pero queremos que la intencion sea
       obvia. Nuevo `hasActivityRecognitionPermission()` (Android 10+ runtime grant via
       `ContextCompat.checkSelfPermission`).
     - `ActiveCardioViewModel.startTrackingService` calcula `requestedFgsMode` con
-      `preflightFgsType` antes de llamar a `startForegroundService`. Si la llamada lanza
-      `SecurityException` (explicit catch) o `RuntimeException` (fallback), baja el modo a
-      `None` y arranca el cronometro local. El collector del registry, cuando detecta
+      `preflightFgsType` antes de llamar a `startForegroundService`. Si ya es `None`, no
+      crea ningun foreground service y arranca directamente el cronometro local. Si la llamada
+      para `Location`/`Health` lanza `SecurityException` o `RuntimeException`, baja el
+      modo a `None` y usa el mismo fallback local. El collector del registry, cuando detecta
       `tracker.failed && sessionId == ours`, baja `fgsMode` a `None` para reflejar el modo
       efectivo. Ademas, ahora recibe un reloj inyectable `now: () -> Long` (mismo patron que
       `ActiveWorkoutViewModel` post-BUG-092) para que los tests del fallback local sean
@@ -413,8 +415,8 @@
         intent enviado al sistema.
       - `startTrackingService with location denied sets fgsMode to None with
         LocationPermissionDenied`: cardio GPS, `locationAllowed = false` -> `fgsMode =
-        None`, mensaje `LocationPermissionDenied`, formulario manual visible. El intent
-        llega al sistema; el FGS re-evalua el preflight y tambien devuelve None.
+        None`, mensaje `LocationPermissionDenied`, formulario manual visible. No se envia
+        intent de servicio porque el preflight ya determina que no existe un FGS legal.
       - `startTrackingService for non-GPS cardio with ACTIVITY_RECOGNITION sets fgsMode to
         Health`: cardio manual + AllowingContext -> `fgsMode = Health`.
       - `startTrackingService for non-GPS cardio without ACTIVITY_RECOGNITION sets fgsMode
@@ -432,12 +434,10 @@
     - `TestClock(initialMillis)` con `reset / advanceBy / currentMillis / asNow()` para
       inyectar reloj determinista.
 - **Limitacion conocida (documentada en CHANGELOG):** el VM computa `fgsMode` con su propia
-  copia del preflight y lo publica antes de llamar a `startForegroundService`. El FGS vuelve a
-  calcular el preflight en `startTracking` y puede divergir en una ventana de carrera (p. ej.,
-  el usuario revoca el permiso entre el check del VM y el check del FGS). En ese caso el modo
-  que refleja el VM refleja su intencion; el modo efectivo del FGS seria None si la
-  disponibilidad de permiso cambia. Ambos caminos convergen a `tracker.running=true` /
-  `failed=false` o a `failed=true` y el collector del VM baja a `None` automaticamente. No se
+  copia del preflight antes de iniciar el servicio. El FGS vuelve a calcularlo y puede divergir
+  en una ventana de carrera (p. ej., si se revoca un permiso entre ambos checks). Si el FGS
+  obtiene `None`, marca `failed=true`, se detiene inmediatamente y el collector del VM baja
+  a `None` y mantiene el cronometro local. No se
   expone el fgsMode del FGS en el registry: aceptado como deuda para una fase posterior si se
   necesita precision bit-exact entre el modo pedido y el modo realmente reclamado.
 - **Limitacion conocida (documentada en CHANGELOG):** la nota visible en la UI para
