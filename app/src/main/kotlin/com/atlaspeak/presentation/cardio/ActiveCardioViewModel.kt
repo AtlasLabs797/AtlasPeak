@@ -134,6 +134,17 @@ class ActiveCardioViewModel(
                 },
             )
         }
+
+        // Si el preflight ya sabe que no hay un tipo de FGS legal, no se debe
+        // llamar a startForegroundService(): Android exige promocionar ese
+        // servicio con startForeground() en pocos segundos. En modo None el
+        // cronometro queda en el ViewModel y evitamos crear un servicio que el
+        // sistema terminaria por no entrar en foreground.
+        if (requestedFgsMode == CardioFgsMode.None) {
+            startLocalTimerIfNeeded()
+            return
+        }
+
         try {
             ContextCompat.startForegroundService(
                 context,

@@ -148,6 +148,27 @@ class CardioForegroundService : LifecycleService() {
         // registro antes de arrancar el FGS (process recreation). El FGS solo
         // se responsabiliza de los campos de cronometro/notificacion.
         val current = CardioTrackerRegistry.state.value
+
+        // El ViewModel evita iniciar el servicio cuando el preflight devuelve
+        // None. Repetimos la defensa aqui porque los permisos pueden cambiar
+        // entre ambos checks. Si ocurre esa carrera, detenemos inmediatamente
+        // el servicio iniciado con startForegroundService() y dejamos una
+        // senal de fallo para que el ViewModel use su temporizador local.
+        if (fgsMode == CardioFgsMode.None) {
+            CardioTrackerRegistry.update(
+                current.copy(
+                    sessionId = sessionId,
+                    startedAt = startedAt,
+                    elapsedSeconds = ((System.currentTimeMillis() - startedAt) / 1000).coerceAtLeast(0),
+                    targetDurationSeconds = targetDurationSeconds,
+                    running = false,
+                    failed = true,
+                ),
+            )
+            stopSelf()
+            return
+        }
+
         CardioTrackerRegistry.update(
             current.copy(
                 sessionId = sessionId,
@@ -155,29 +176,23 @@ class CardioForegroundService : LifecycleService() {
                 elapsedSeconds = ((System.currentTimeMillis() - startedAt) / 1000).coerceAtLeast(0),
                 targetDurationSeconds = targetDurationSeconds,
                 running = true,
+                failed = false,
             ),
         )
-        // BUG-093: solo reclamamos un foreground cuando preflight confirma que
-        // hay un tipo legal. Si devuelve None, saltamos startForeground y
-        // dejamos que timerJob/persistJob corran en foreground mientras la app
-        // este visible: la sesion sigue activa localmente aunque sin
-        // notificacion persistente.
-        if (fgsMode != CardioFgsMode.None) {
-            try {
-                startForegroundCompat(buildNotification(CardioTrackerRegistry.state.value), fgsMode)
-            } catch (_: SecurityException) {
-                // BUG-093: SecurityException explicito (subclase de
-                // RuntimeException, pero mas claro para el lector). Android 14+
-                // puede lanzar esto si la politica de tipos FGS no se cumple
-                // pese a que preflight pensaba que si.
-                CardioTrackerRegistry.update(CardioTrackerRegistry.state.value.copy(running = false, failed = true))
-                stopSelf()
-                return
-            } catch (_: RuntimeException) {
-                CardioTrackerRegistry.update(CardioTrackerRegistry.state.value.copy(running = false, failed = true))
-                stopSelf()
-                return
-            }
+        try {
+            startForegroundCompat(buildNotification(CardioTrackerRegistry.state.value), fgsMode)
+        } catch (_: SecurityException) {
+            // BUG-093: SecurityException explicito (subclase de
+            // RuntimeException, pero mas claro para el lector). Android 14+
+            // puede lanzar esto si la politica de tipos FGS no se cumple
+            // pese a que preflight pensaba que si.
+            CardioTrackerRegistry.update(CardioTrackerRegistry.state.value.copy(running = false, failed = true))
+            stopSelf()
+            return
+        } catch (_: RuntimeException) {
+            CardioTrackerRegistry.update(CardioTrackerRegistry.state.value.copy(running = false, failed = true))
+            stopSelf()
+            return
         }
         timerJob?.cancel()
         timerJob = lifecycleScope.launch {

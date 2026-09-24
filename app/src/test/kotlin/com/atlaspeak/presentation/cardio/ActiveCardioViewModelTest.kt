@@ -234,7 +234,7 @@ class ActiveCardioViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
 
         viewModel.startTrackingService(locationAllowed = false)
-        dispatcher.scheduler.advanceUntilIdle()
+        dispatcher.scheduler.runCurrent()
 
         val state = viewModel.state.value
         // hasGps=true sin permiso de localizacion -> no hay FGS legal: preflight
@@ -242,10 +242,10 @@ class ActiveCardioViewModelTest {
         // en Android 14+; reclamar HEALTH sin uso real de salud, idem).
         assertEquals(CardioFgsMode.None, state.fgsMode)
         assertEquals(ActiveCardioMessage.LocationPermissionDenied, state.message)
-        // Aun asi el VM llama a startForegroundService: el FGS, en su propio
-        // preflight (recalculado con permisos reales del dispositivo), tambien
-        // obtendra None y se saltara startForeground.
-        assertEquals(1, context.startedIntents.size)
+        // No se inicia un foreground service si el preflight ya devuelve None:
+        // hacerlo obligaria al servicio a llamar startForeground() y Android lo
+        // terminaria si intentase permanecer en modo local.
+        assertEquals(0, context.startedIntents.size)
         // La UI tendra que permitir introducir distancia manualmente.
         assertTrue(state.shouldShowManualMetrics)
     }
@@ -273,16 +273,16 @@ class ActiveCardioViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
 
         viewModel.startTrackingService(locationAllowed = true)
-        dispatcher.scheduler.advanceUntilIdle()
+        dispatcher.scheduler.runCurrent()
 
         val state = viewModel.state.value
         // !hasGps && !ACTIVITY_RECOGNITION -> None (no podemos reclamar FGS_HEALTH
         // sin uso real de salud; reclamar LOCATION sin GPS no aplica).
         assertEquals(CardioFgsMode.None, state.fgsMode)
         assertNull(state.message)
-        // El intent llega al sistema; el FGS hara su propio preflight y
-        // tambien obtendra None, saltandose startForeground.
-        assertEquals(1, context.startedIntents.size)
+        // Sin un tipo de FGS legal, el ViewModel mantiene el cronometro local
+        // y no crea un servicio que no podria promocionarse a foreground.
+        assertEquals(0, context.startedIntents.size)
         // Cardio manual sin GPS: la UI muestra el formulario de metricas
         // manuales para que el usuario introduzca distancia/velocidad.
         assertTrue(state.shouldShowManualMetrics)
@@ -294,7 +294,7 @@ class ActiveCardioViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
 
         viewModel.startTrackingService(locationAllowed = true)
-        dispatcher.scheduler.advanceUntilIdle()
+        dispatcher.scheduler.runCurrent()
 
         val state = viewModel.state.value
         // BUG-093: SecurityException del startForegroundService (politica
@@ -315,7 +315,7 @@ class ActiveCardioViewModelTest {
         assertTrue(initialElapsed >= 0L)
 
         viewModel.startTrackingService(locationAllowed = true)
-        dispatcher.scheduler.advanceUntilIdle()
+        dispatcher.scheduler.runCurrent()
 
         // Confirmamos que hemos entrado en el camino del fallback local.
         assertEquals(CardioFgsMode.None, viewModel.state.value.fgsMode)
