@@ -125,7 +125,7 @@ class BackupRestoreViewModelTest {
             return export()
         }
 
-        override suspend fun health(): BackupHealthStatus = BackupHealthStatus()
+        override suspend fun health(): BackupHealthStatus = BackupHealthStatus(lastSuccessfulBackupAt = null, lastAttemptAt = null, lastError = null, requiresDriveAuthorization = false)
         override suspend fun clearDriveAuthorizationRequired() = Unit
 
         private fun export(): SharedBackupExport = SharedBackupExport(
