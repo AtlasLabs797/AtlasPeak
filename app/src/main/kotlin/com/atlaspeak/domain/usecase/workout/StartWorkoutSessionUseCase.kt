@@ -38,19 +38,12 @@ class StartWorkoutSessionUseCase(
 
     suspend operator fun invoke(routineId: String, weeklyPlanSessionId: String? = null): ActiveSessionStartResult {
         val routine = routineRepository.routine(routineId) ?: return ActiveSessionStartResult.NotFound
-        val active = workoutRepository.findActiveSession()
-        when {
-            active == null -> {
-                val session = routine.toWorkoutSession(startedAt = now(), weeklyPlanSessionId = weeklyPlanSessionId)
-                val created = workoutRepository.createSession(session)
-                return ActiveSessionStartResult.Started(created.id)
-            }
-            active.routineId == routineId -> {
-                return ActiveSessionStartResult.Resumed(active.id)
-            }
-            else -> {
-                return ActiveSessionStartResult.Conflict(active.id)
-            }
+        val candidate = routine.toWorkoutSession(startedAt = now(), weeklyPlanSessionId = weeklyPlanSessionId)
+        val activeOrCreated = workoutRepository.findActiveOrCreateSession(candidate)
+        return when {
+            activeOrCreated.id == candidate.id -> ActiveSessionStartResult.Started(candidate.id)
+            activeOrCreated.routineId == routineId -> ActiveSessionStartResult.Resumed(activeOrCreated.id)
+            else -> ActiveSessionStartResult.Conflict(activeOrCreated.id)
         }
     }
 
