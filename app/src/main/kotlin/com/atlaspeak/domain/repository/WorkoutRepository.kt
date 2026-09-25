@@ -8,6 +8,9 @@ interface WorkoutRepository {
     suspend fun session(id: String): WorkoutSession?
     suspend fun sessions(): List<WorkoutSession>
     suspend fun findActiveSession(): WorkoutSession?
+    suspend fun findActiveOrCreateSession(session: WorkoutSession): WorkoutSession {
+        return findActiveSession() ?: createSession(session)
+    }
     suspend fun deleteSession(id: String)
     suspend fun upsertSet(set: WorkoutSet)
     suspend fun deleteSet(id: String)
