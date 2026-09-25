@@ -35,6 +35,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -43,6 +44,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.health.connect.client.PermissionController
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -74,6 +76,11 @@ fun HomeRoute(
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state = viewModel.state.collectAsStateWithLifecycle().value
+    val healthConnectPermissionLauncher = rememberLauncherForActivityResult(
+        PermissionController.createRequestPermissionResultContract(),
+    ) {
+        viewModel.refresh(syncBefore = true)
+    }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         viewModel.refresh()
     }
@@ -83,7 +90,9 @@ fun HomeRoute(
         onRetry = { viewModel.refresh() },
         onStartRoutine = onStartRoutine,
         onStartCardio = onStartCardio,
-        onOpenHealthConnectPermissions = { /* abrir rationale screen - fuera de Fase 6 */ },
+        onOpenHealthConnectPermissions = {
+            healthConnectPermissionLauncher.launch(viewModel.requiredHealthConnectPermissions())
+        },
         onDismissHealthConnect = viewModel::dismissHealthConnectSyncStatus,
     )
 }
@@ -138,6 +147,9 @@ fun HomeScreen(
                     todayWorkouts = state.todayWorkouts,
                     filters = state.filters,
                     errorMessageRes = state.errorMessageRes,
+                    healthConnectSync = healthConnectSync,
+                    onOpenHealthConnectPermissions = onOpenHealthConnectPermissions,
+                    onDismissHealthConnect = onDismissHealthConnect,
                     onPeriodSelected = onPeriodSelected,
                     onRetry = onRetry,
                     onStartRoutine = onStartRoutine,
@@ -155,6 +167,9 @@ private fun DashboardContent(
     todayWorkouts: List<TodayWorkoutUiState>,
     filters: DashboardFilters,
     @StringRes errorMessageRes: Int?,
+    healthConnectSync: HomeHealthConnectSync,
+    onOpenHealthConnectPermissions: () -> Unit,
+    onDismissHealthConnect: () -> Unit,
     onPeriodSelected: (DashboardWidget, DashboardPeriod) -> Unit,
     onRetry: () -> Unit,
     onStartRoutine: (String) -> Unit,
@@ -175,10 +190,10 @@ private fun DashboardContent(
         item {
             HomeHeader(greetingName = greetingName)
         }
-        if (state.healthConnectSync !is HomeHealthConnectSync.Idle) {
+        if (healthConnectSync !is HomeHealthConnectSync.Idle) {
             item {
                 HealthConnectStatusBanner(
-                    status = state.healthConnectSync,
+                    status = healthConnectSync,
                     onOpenPermissions = onOpenHealthConnectPermissions,
                     onDismiss = onDismissHealthConnect,
                 )
