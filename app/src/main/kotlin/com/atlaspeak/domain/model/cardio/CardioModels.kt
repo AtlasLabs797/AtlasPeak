@@ -95,12 +95,21 @@ data class CardioSession(
  * negativo (se hace coerce a 0 para tolerar pequenas carreras de reloj o una
  * ordenacion invertida entre start/pause).
  */
-fun effectiveElapsedSeconds(session: CardioSession, now: Long): Long {
-    val pendingPauseMs = if (session.pausedAtMillis != null) {
-        (now - session.pausedAtMillis).coerceAtLeast(0L)
-    } else {
-        0L
-    }
-    val totalPausedMs = session.totalPausedDurationMillis + pendingPauseMs
-    return ((now - session.startTime - totalPausedMs) / 1000L).coerceAtLeast(0L)
+fun effectiveElapsedSeconds(session: CardioSession, now: Long): Long =
+    effectiveElapsedSeconds(
+        startTime = session.startTime,
+        totalPausedDurationMillis = session.totalPausedDurationMillis,
+        pausedAtMillis = session.pausedAtMillis,
+        now = now,
+    )
+
+fun effectiveElapsedSeconds(
+    startTime: Long,
+    totalPausedDurationMillis: Long,
+    pausedAtMillis: Long?,
+    now: Long,
+): Long {
+    val pendingPauseMs = pausedAtMillis?.let { (now - it).coerceAtLeast(0L) } ?: 0L
+    val totalPausedMs = totalPausedDurationMillis + pendingPauseMs
+    return ((now - startTime - totalPausedMs) / 1000L).coerceAtLeast(0L)
 }
