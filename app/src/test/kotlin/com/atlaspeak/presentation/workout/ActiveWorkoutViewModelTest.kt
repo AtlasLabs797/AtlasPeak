@@ -195,7 +195,7 @@ class ActiveWorkoutViewModelTest {
     @Test
     fun `elapsed_seconds keeps increasing when foreground service fails to start`() = runTest(dispatcher) {
         val viewModel = newStartedViewModel()
-        val sessionId = viewModel.session?.id
+        val sessionId = viewModel.state.value.session?.id
         assertNotNull(sessionId)
 
         // BUG-092: WorkoutForegroundService rechazo startForeground (SecurityException,
@@ -226,7 +226,7 @@ class ActiveWorkoutViewModelTest {
     @Test
     fun `elapsed_seconds keeps increasing when foreground service never started`() = runTest(dispatcher) {
         val viewModel = newStartedViewModel()
-        assertNotNull(viewModel.session?.id)
+        assertNotNull(viewModel.state.value.session?.id)
         // Registry queda como en el setUp (estado inicial vacio): el FGS no ha arrancado
         // o su startForegroundService lanzo SecurityException antes de tocar el registry.
         assertEquals(WorkoutTimerState(), WorkoutTimerRegistry.state.value)
@@ -277,9 +277,9 @@ class ActiveWorkoutViewModelTest {
     @Test
     fun `local fallback timer stops when foreground service becomes healthy`() = runTest(dispatcher) {
         val viewModel = newStartedViewModel()
-        val sessionId = viewModel.session?.id
+        val sessionId = viewModel.state.value.session?.id
         assertNotNull(sessionId)
-        val startTime = viewModel.session!!.startTime
+        val startTime = viewModel.state.value.session!!.startTime
 
         // FGS muerto: el collector arranca el job local.
         WorkoutTimerRegistry.update(
@@ -335,7 +335,7 @@ class ActiveWorkoutViewModelTest {
     @Test
     fun `elapsed_seconds matches math from startTime`() = runTest(dispatcher) {
         val viewModel = newStartedViewModel()
-        val session = viewModel.session
+        val session = viewModel.state.value.session
         assertNotNull(session)
         val startTime = session!!.startTime
 
