@@ -17,6 +17,7 @@ import com.atlaspeak.data.location.LocationTracker
 import com.atlaspeak.domain.model.cardio.CardioFgsMode
 import com.atlaspeak.domain.model.cardio.CardioMode
 import com.atlaspeak.domain.model.cardio.LocationPoint
+import com.atlaspeak.domain.model.cardio.effectiveElapsedSeconds
 import com.atlaspeak.domain.usecase.cardio.CardioUseCase
 import com.atlaspeak.domain.usecase.cardio.CardioUseCase.Companion.distanceKm
 import com.atlaspeak.domain.usecase.cardio.CardioUseCase.Companion.maxSegmentSpeedKmh
@@ -27,8 +28,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -37,6 +36,9 @@ data class CardioTrackerState(
     val startedAt: Long? = null,
     val elapsedSeconds: Long = 0L,
     val targetDurationSeconds: Int? = null,
+    val pausedAtMillis: Long? = null,
+    val totalPausedDurationMillis: Long = 0L,
+    val locationTracking: Boolean = false,
     val distanceKm: Double = 0.0,
     val currentSpeedKmh: Double? = null,
     val avgSpeedKmh: Double? = null,
@@ -59,7 +61,12 @@ object CardioTrackerRegistry {
         mutableState.update { current ->
             val startedAt = current.startedAt ?: return@update current
             current.copy(
-                elapsedSeconds = ((now - startedAt) / 1000).coerceAtLeast(0),
+                elapsedSeconds = effectiveElapsedSeconds(
+                    startTime = startedAt,
+                    totalPausedDurationMillis = current.totalPausedDurationMillis,
+                    pausedAtMillis = current.pausedAtMillis,
+                    now = now,
+                ),
                 currentSpeedKmh = current.currentSpeedKmh.takeIf {
                     current.route.lastOrNull()?.let { point -> now - point.timestamp <= CURRENT_SPEED_MAX_AGE_MS } == true
                 },
@@ -96,7 +103,6 @@ class CardioForegroundService : LifecycleService() {
 
     private var timerJob: Job? = null
     private var locationJob: Job? = null
-    private var persistJob: Job? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         super.onStartCommand(intent, flags, startId)
@@ -147,7 +153,9 @@ class CardioForegroundService : LifecycleService() {
         // BUG-091: preservamos ruta/distancia/etc. si el VM ya rehidrato el
         // registro antes de arrancar el FGS (process recreation). El FGS solo
         // se responsabiliza de los campos de cronometro/notificacion.
-        val current = CardioTrackerRegistry.state.value
+        val snapshot = CardioTrackerRegistry.state.value
+        val current = snapshot.takeIf { it.sessionId == sessionId }
+            ?: CardioTrackerState(sessionId = sessionId, startedAt = startedAt)
 
         // El ViewModel evita iniciar el servicio cuando el preflight devuelve
         // None. Repetimos la defensa aqui porque los permisos pueden cambiar
@@ -159,8 +167,14 @@ class CardioForegroundService : LifecycleService() {
                 current.copy(
                     sessionId = sessionId,
                     startedAt = startedAt,
-                    elapsedSeconds = ((System.currentTimeMillis() - startedAt) / 1000).coerceAtLeast(0),
+                    elapsedSeconds = effectiveElapsedSeconds(
+                        startTime = startedAt,
+                        totalPausedDurationMillis = current.totalPausedDurationMillis,
+                        pausedAtMillis = current.pausedAtMillis,
+                        now = System.currentTimeMillis(),
+                    ),
                     targetDurationSeconds = targetDurationSeconds,
+                    locationTracking = false,
                     running = false,
                     failed = true,
                 ),
@@ -173,9 +187,15 @@ class CardioForegroundService : LifecycleService() {
             current.copy(
                 sessionId = sessionId,
                 startedAt = startedAt,
-                elapsedSeconds = ((System.currentTimeMillis() - startedAt) / 1000).coerceAtLeast(0),
+                elapsedSeconds = effectiveElapsedSeconds(
+                        startTime = startedAt,
+                        totalPausedDurationMillis = current.totalPausedDurationMillis,
+                        pausedAtMillis = current.pausedAtMillis,
+                        now = System.currentTimeMillis(),
+                    ),
                 targetDurationSeconds = targetDurationSeconds,
-                running = true,
+                locationTracking = locationTracking,
+                running = current.pausedAtMillis == null,
                 failed = false,
             ),
         )
@@ -194,6 +214,13 @@ class CardioForegroundService : LifecycleService() {
             stopSelf()
             return
         }
+        if (current.pausedAtMillis == null) {
+            startTimerJob()
+            if (locationTracking) startLocationJob(sessionId)
+        }
+    }
+
+    private fun startTimerJob() {
         timerJob?.cancel()
         timerJob = lifecycleScope.launch {
             while (true) {
@@ -205,42 +232,24 @@ class CardioForegroundService : LifecycleService() {
                 delay(1000)
             }
         }
-        // BUG-091 / Fase 2 P0: persistimos cada punto aceptado a Room para que
-        // la ruta sobreviva a la muerte del proceso. Solo persistimos los puntos
-        // nuevos desde que este job arranco (la ruta preexistente en el registro
-        // ya viene de Room via VM.restoreRoute).
-        persistJob?.cancel()
-        persistJob = lifecycleScope.launch {
-            var lastSeenSize = CardioTrackerRegistry.state.value.route.size
-            CardioTrackerRegistry.state
-                .map { it.route }
-                .distinctUntilChanged()
-                .collect { route ->
-                    if (route.size > lastSeenSize) {
-                        val previousPoint = if (lastSeenSize == 0) {
-                            null
-                        } else {
-                            route.getOrNull(lastSeenSize - 1)
-                        }
-                        route.drop(lastSeenSize).forEachIndexed { index, point ->
-                            cardioUseCase.appendRoutePoint(
-                                sessionId = sessionId,
-                                point = point,
-                                accuracyMeters = null,
-                                previousAcceptedPoint = if (index == 0) previousPoint else route[lastSeenSize + index - 1],
-                            )
-                        }
-                    }
-                    lastSeenSize = route.size
-                }
-        }
-        if (locationTracking) {
-            locationJob?.cancel()
-            locationJob = lifecycleScope.launch {
-                LocationTracker(this@CardioForegroundService).locations().collect { location ->
-                    CardioTrackerRegistry.addPoint(
-                        LocationPoint(location.latitude, location.longitude, location.time),
-                    )
+    }
+
+    private fun startLocationJob(sessionId: String) {
+        locationJob?.cancel()
+        locationJob = lifecycleScope.launch {
+            var lastAcceptedPoint = CardioTrackerRegistry.state.value.route.lastOrNull()
+            LocationTracker(this@CardioForegroundService).locations().collect { location ->
+                val candidate = LocationPoint(location.latitude, location.longitude, location.time)
+                val persisted = cardioUseCase.appendRoutePoint(
+                    sessionId = sessionId,
+                    point = candidate,
+                    accuracyMeters = location.accuracy,
+                    previousAcceptedPoint = lastAcceptedPoint,
+                )
+                if (persisted != null) {
+                    val accepted = persisted.toLocationPoint()
+                    lastAcceptedPoint = accepted
+                    CardioTrackerRegistry.addPoint(accepted)
                 }
             }
         }
@@ -269,10 +278,8 @@ class CardioForegroundService : LifecycleService() {
     private fun stopTracking(clearState: Boolean) {
         timerJob?.cancel()
         locationJob?.cancel()
-        persistJob?.cancel()
         timerJob = null
         locationJob = null
-        persistJob = null
         if (clearState) {
             CardioTrackerRegistry.update(CardioTrackerState())
         }
@@ -290,10 +297,8 @@ class CardioForegroundService : LifecycleService() {
     private fun pauseTracking() {
         timerJob?.cancel()
         locationJob?.cancel()
-        persistJob?.cancel()
         timerJob = null
         locationJob = null
-        persistJob = null
         CardioTrackerRegistry.update(CardioTrackerRegistry.state.value.copy(running = false))
     }
 
@@ -305,57 +310,11 @@ class CardioForegroundService : LifecycleService() {
      */
     private fun resumeTracking() {
         val current = CardioTrackerRegistry.state.value
-        if (current.sessionId == null || current.running) return
+        val sessionId = current.sessionId ?: return
+        if (current.running) return
         CardioTrackerRegistry.update(current.copy(running = true))
-        timerJob?.cancel()
-        timerJob = lifecycleScope.launch {
-            while (true) {
-                CardioTrackerRegistry.tick(System.currentTimeMillis())
-                getSystemService(NotificationManager::class.java).notify(
-                    NOTIFICATION_ID,
-                    buildNotification(CardioTrackerRegistry.state.value),
-                )
-                delay(1000)
-            }
-        }
-        persistJob?.cancel()
-        persistJob = lifecycleScope.launch {
-            var lastSeenSize = current.route.size
-            CardioTrackerRegistry.state
-                .map { it.route }
-                .distinctUntilChanged()
-                .collect { route ->
-                    if (route.size > lastSeenSize) {
-                        val previousPoint = if (lastSeenSize == 0) {
-                            null
-                        } else {
-                            route.getOrNull(lastSeenSize - 1)
-                        }
-                        route.drop(lastSeenSize).forEachIndexed { index, point ->
-                            cardioUseCase.appendRoutePoint(
-                                sessionId = current.sessionId ?: return@collect,
-                                point = point,
-                                accuracyMeters = null,
-                                previousAcceptedPoint = if (index == 0) previousPoint else route[lastSeenSize + index - 1],
-                            )
-                        }
-                    }
-                    lastSeenSize = route.size
-                }
-        }
-        if (current.route.isNotEmpty()) {
-            // Solo reanuda captura GPS si la sesion la tenia. No tenemos aqui
-            // `hasGps` de forma fiable, asi que usamos la heuristica: si ya
-            // habia ruta antes de pausar, asume GPS.
-            locationJob?.cancel()
-            locationJob = lifecycleScope.launch {
-                LocationTracker(this@CardioForegroundService).locations().collect { location ->
-                    CardioTrackerRegistry.addPoint(
-                        LocationPoint(location.latitude, location.longitude, location.time),
-                    )
-                }
-            }
-        }
+        startTimerJob()
+        if (current.locationTracking) startLocationJob(sessionId)
     }
 
     private fun hasFineLocationPermission(): Boolean {
