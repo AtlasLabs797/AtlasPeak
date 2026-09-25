@@ -506,42 +506,9 @@ data class ActiveCardioUiState(
         null
     }
 
-    /**
-     * Pace en minutos por kilometro. BUG-102 (Fase 13 P3). Solo se muestra
-     * cuando hay velocidad real (distance > 0 y elapsed > 0); un ritmo de
-     * infinito se evita para no dividir entre cero.
-     */
-    val paceMinPerKm: Double? = averageSpeedKmh?.takeIf { it > 0.0 }?.let { 60.0 / it }
-
-    /**
-     * Estado explicito del GPS. BUG-102. La UI ya no muestra `0.0 km/h`
-     * como si fuera una medicion real cuando todavia no hay fix:
-     * - Searching: esperando primer fix o sin puntos aceptados.
-     * - Weak: ultimo fix tiene accuracy pobre.
-     * - Active: hay fix reciente y route.size >= 2.
-     * - Denied: el usuario rechazo el permiso.
-     * - Unavailable: el dispositivo no provee location.
-     */
-    val gpsState: GpsState = when {
-        message == ActiveCardioMessage.LocationPermissionDenied -> GpsState.Denied
-        session?.hasGps != true -> GpsState.NotApplicable
-        route.isEmpty() -> GpsState.Searching
-        route.size == 1 -> GpsState.Searching
-        else -> GpsState.Active
-    }
-
     val remainingSeconds: Long? = (mode as? CardioMode.Countdown)
         ?.targetDurationSeconds
         ?.let { (it - elapsedSeconds).coerceAtLeast(0) }
-}
-
-enum class GpsState {
-    NotApplicable,
-    Searching,
-    Active,
-    Weak,
-    Denied,
-    Unavailable,
 }
 
 data class ActiveCardioConflictUi(

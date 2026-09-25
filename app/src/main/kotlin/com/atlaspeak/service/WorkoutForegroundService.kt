@@ -15,6 +15,7 @@ import android.os.VibratorManager
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
+import com.atlaspeak.MainActivity
 import com.atlaspeak.R
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -298,6 +299,7 @@ class WorkoutForegroundService : LifecycleService() {
             .setCategory(NotificationCompat.CATEGORY_WORKOUT)
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
+            .setContentIntent(contentIntent())
         when {
             restTimer?.alerting == true -> {
                 builder
@@ -327,6 +329,13 @@ class WorkoutForegroundService : LifecycleService() {
             }
         }
         return builder.build()
+    }
+
+    private fun contentIntent(): PendingIntent {
+        val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        val intent = Intent(this, MainActivity::class.java)
+            .setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        return PendingIntent.getActivity(this, REQUEST_CONTENT, intent, flags)
     }
 
     private fun servicePendingIntent(action: String, requestCode: Int): PendingIntent {
@@ -375,6 +384,7 @@ class WorkoutForegroundService : LifecycleService() {
         private const val EXTRA_REST_SOUND_ENABLED = "rest_sound_enabled"
         private const val EXTRA_REST_VIBRATION_ENABLED = "rest_vibration_enabled"
         private const val REQUEST_CLEAR_REST = 1202
+        private const val REQUEST_CONTENT = 1203
         private const val REST_TONE_VOLUME = 80
         private const val REST_TONE_DURATION_MS = 420
         private const val REST_TONE_INTERVAL_MS = 1_000L

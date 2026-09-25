@@ -349,6 +349,55 @@ class ActiveWorkoutViewModelTest {
     }
 
     @Test
+    fun `completing a set without commit persists the typed draft weight and reps`() = runVmTest {
+        val viewModel = newStartedViewModel()
+        val session = viewModel.state.value.session!!
+        val set = session.exercises.first().sets.first()
+
+        // Usuario escribe en los campos pero nunca pierde el foco (toca la Surface del check).
+        viewModel.onWeightTextChanged(set, "95")
+        viewModel.onRepsTextChanged(set, "6")
+        viewModel.onSetCompleted(set, completed = true, restSeconds = 0)
+        dispatcher.scheduler.runCurrent()
+
+        val persisted = workoutRepository.session(session.id)!!.exercises.first().sets.first()
+        assertEquals(95.0, persisted.weightKg)
+        assertEquals(6, persisted.actualReps)
+        assertTrue(persisted.completed)
+        // El draft ya se consumio, no debe seguir pendiente en el estado.
+        assertFalse(viewModel.state.value.inputDrafts.containsKey(set.id))
+    }
+
+    @Test
+    fun `PR detection uses the drafted weight instead of the stale persisted weight`() = runVmTest {
+        val viewModel = newStartedViewModel()
+        val session = viewModel.state.value.session!!
+        val exercise = session.exercises.first()
+        val set = exercise.sets.first()
+
+        // Un set previo ya completado deja un maximo historico de 80kg para el ejercicio.
+        val previousSet = set.copy(
+            id = "previous_set",
+            weightKg = 80.0,
+            completed = true,
+            completedAt = 1_000L,
+        )
+        workoutRepository.upsertSet(previousSet)
+
+        // El set actual persistido en Room todavia tiene el peso viejo (85kg, no es PR);
+        // el usuario escribio 100kg pero no perdio el foco.
+        val staleSet = set.copy(weightKg = 85.0)
+        workoutRepository.upsertSet(staleSet)
+        viewModel.onWeightTextChanged(staleSet, "100")
+        viewModel.onSetCompleted(staleSet, completed = true, restSeconds = 0)
+        dispatcher.scheduler.runCurrent()
+
+        val persisted = workoutRepository.session(session.id)!!.exercises.first().sets.first { it.id == set.id }
+        assertEquals(100.0, persisted.weightKg)
+        assertTrue(persisted.isPersonalRecord, "expected PR from drafted weight 100kg > previous max 80kg")
+    }
+
+    @Test
     fun `elapsed_seconds matches math from startTime`() = runVmTest {
         val viewModel = newStartedViewModel()
         val session = viewModel.state.value.session
@@ -482,9 +531,32 @@ class ActiveWorkoutViewModelTest {
         override suspend fun deleteSession(id: String) {
             sessions = sessions.filterNot { it.id == id }
         }
-        override suspend fun upsertSet(set: WorkoutSet) = Unit
+        override suspend fun upsertSet(set: WorkoutSet) {
+            sessions = sessions.map { session ->
+                if (session.id != set.sessionId) return@map session
+                session.copy(
+                    exercises = session.exercises.map { exercise ->
+                        if (exercise.exerciseId != set.exerciseId) return@map exercise
+                        val hasSet = exercise.sets.any { it.id == set.id }
+                        exercise.copy(
+                            sets = if (hasSet) {
+                                exercise.sets.map { if (it.id == set.id) set else it }
+                            } else {
+                                exercise.sets + set
+                            },
+                        )
+                    },
+                )
+            }
+        }
         override suspend fun deleteSet(id: String) = Unit
-        override suspend fun maxCompletedWeightBefore(exerciseId: String, before: Long): Double? = null
+        override suspend fun maxCompletedWeightBefore(exerciseId: String, before: Long): Double? =
+            sessions.flatMap { it.exercises }
+                .filter { it.exerciseId == exerciseId }
+                .flatMap { it.sets }
+                .filter { it.completed && it.weightKg != null && (it.completedAt ?: Long.MAX_VALUE) < before }
+                .mapNotNull { it.weightKg }
+                .maxOrNull()
         override suspend fun updateSessionCompletion(sessionId: String, endTime: Long, durationSeconds: Int, totalVolumeKg: Double) = Unit
     }
 

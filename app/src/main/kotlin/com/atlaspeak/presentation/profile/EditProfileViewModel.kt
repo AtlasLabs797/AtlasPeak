@@ -79,7 +79,7 @@ class EditProfileViewModel @Inject constructor(
             return
         }
         viewModelScope.launch {
-            mutableState.update { it.copy(isSubmitting = true) }
+            mutableState.update { it.copy(isSubmitting = true, saveFailed = false) }
             try {
                 profileRepository.saveProfile(
                     UserProfile(
@@ -98,8 +98,6 @@ class EditProfileViewModel @Inject constructor(
             }
         }
     }
-
-    fun consumeSaveError() = mutableState.update { it.copy(saveFailed = false) }
 
     private fun formatHeight(value: Double): String {
         return if (value % 1.0 == 0.0) value.toInt().toString() else value.toString()

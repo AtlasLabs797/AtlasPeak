@@ -242,9 +242,7 @@ data class HomeUiState(
      * y el id para que la UI pueda navegar directamente.
      */
     val activeSessionShortcut: ActiveSessionShortcut? = null,
-) {
-    val todayWorkout: TodayWorkoutUiState? = todayWorkouts.firstOrNull()
-}
+)
 
 sealed class ActiveSessionShortcut {
     data class Strength(val sessionId: String, val routineName: String) : ActiveSessionShortcut()

@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -12,6 +13,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
+import com.atlaspeak.MainActivity
 import com.atlaspeak.R
 import com.atlaspeak.data.location.LocationTracker
 import com.atlaspeak.domain.model.cardio.CardioFgsMode
@@ -338,7 +340,15 @@ class CardioForegroundService : LifecycleService() {
             .setCategory(NotificationCompat.CATEGORY_WORKOUT)
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
+            .setContentIntent(contentIntent())
             .build()
+    }
+
+    private fun contentIntent(): PendingIntent {
+        val flags = PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        val intent = Intent(this, MainActivity::class.java)
+            .setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        return PendingIntent.getActivity(this, REQUEST_CONTENT, intent, flags)
     }
 
     private fun ensureNotificationChannel() {
@@ -373,6 +383,7 @@ class CardioForegroundService : LifecycleService() {
         private const val EXTRA_STARTED_AT = "started_at"
         private const val EXTRA_HAS_GPS = "has_gps"
         private const val EXTRA_TARGET_DURATION_SECONDS = "target_duration_seconds"
+        private const val REQUEST_CONTENT = 1302
 
         fun startIntent(context: Context, sessionId: String, startedAt: Long, hasGps: Boolean, mode: CardioMode): Intent {
             return Intent(context, CardioForegroundService::class.java)

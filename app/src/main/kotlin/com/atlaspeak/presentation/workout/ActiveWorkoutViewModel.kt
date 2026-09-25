@@ -212,23 +212,40 @@ class ActiveWorkoutViewModel(
 
     fun onSetCompleted(set: WorkoutSet, completed: Boolean, restSeconds: Int) {
         viewModelScope.launch {
+            // BUG: tocar la Surface de check no mueve el foco, asi que el draft escrito en
+            // los campos de peso/reps nunca llega a onSetInputCommitted; sin este merge se
+            // completaba el set con los valores persistidos antiguos (PR y volumen erroneos).
+            val draft = mutableState.value.inputDrafts[set.id]
+            val draftedSet = if (draft != null) {
+                // Misma semantica que onSetInputCommitted: el draft es el texto completo del campo.
+                set.copy(
+                    actualReps = draft.repsText.ifBlank { null }?.toIntOrNull(),
+                    weightKg = draft.weightText.ifBlank { null }?.toDoubleOrNull(),
+                )
+            } else {
+                set
+            }
             val completedAt = if (completed) System.currentTimeMillis() else null
-            val previousMax = if (completed && set.weightKg != null && completedAt != null) {
-                workoutRepository.maxCompletedWeightBefore(set.exerciseId, completedAt)
+            val previousMax = if (completed && draftedSet.weightKg != null && completedAt != null) {
+                workoutRepository.maxCompletedWeightBefore(draftedSet.exerciseId, completedAt)
             } else {
                 null
             }
-            val updated = set.copy(
+            val updated = draftedSet.copy(
                 completed = completed,
-                actualReps = if (completed) set.actualReps ?: set.plannedReps else set.actualReps,
+                actualReps = if (completed) draftedSet.actualReps ?: draftedSet.plannedReps else draftedSet.actualReps,
                 completedAt = completedAt,
                 isPersonalRecord = if (completed) {
-                    set.isPersonalRecord || set.weightKg?.let { weight -> weight > (previousMax ?: 0.0) } == true
+                    draftedSet.isPersonalRecord ||
+                        draftedSet.weightKg?.let { weight -> weight > (previousMax ?: 0.0) } == true
                 } else {
                     false
                 },
             )
             workoutRepository.upsertSet(updated)
+            if (draft != null) {
+                mutableState.update { it.copy(inputDrafts = it.inputDrafts - set.id) }
+            }
             reloadSession()
             if (completed) {
                 val session = mutableState.value.session
@@ -238,22 +255,6 @@ class ActiveWorkoutViewModel(
                     startRestTimer(restSeconds)
                 }
             }
-        }
-    }
-
-    fun onActualRepsChanged(set: WorkoutSet, value: String) {
-        val reps = value.filter { it.isDigit() }.take(3).toIntOrNull()
-        viewModelScope.launch {
-            workoutRepository.upsertSet(set.copy(actualReps = reps))
-            reloadSession()
-        }
-    }
-
-    fun onWeightChanged(set: WorkoutSet, value: String) {
-        val weight = value.decimalInput().toDoubleOrNull()
-        viewModelScope.launch {
-            workoutRepository.upsertSet(set.copy(weightKg = weight))
-            reloadSession()
         }
     }
 

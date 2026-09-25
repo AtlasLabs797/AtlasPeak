@@ -84,7 +84,9 @@ fun AtlasPeakNavHost(
                     onStartRoutine = { routineId, weeklyPlanSessionId ->
                         navController.navigate(
                             AppRoute.ActiveWorkout.createRoute(routineId, weeklyPlanSessionId),
-                        )
+                        ) {
+                            launchSingleTop = true
+                        }
                     },
                     onStartCardio = { cardioTypeId, targetSeconds, weeklyPlanSessionId ->
                         navController.navigate(
@@ -93,17 +95,23 @@ fun AtlasPeakNavHost(
                                 CardioMode.Countdown(targetSeconds),
                                 weeklyPlanSessionId,
                             ),
-                        )
+                        ) {
+                            launchSingleTop = true
+                        }
                     },
                 )
             }
             composable(AppRoute.Train.route) {
                 TrainRoute(
                     onStartRoutine = { routineId ->
-                        navController.navigate(AppRoute.ActiveWorkout.createRoute(routineId))
+                        navController.navigate(AppRoute.ActiveWorkout.createRoute(routineId)) {
+                            launchSingleTop = true
+                        }
                     },
                     onStartCardio = { cardioTypeId, mode ->
-                        navController.navigate(AppRoute.ActiveCardio.createRoute(cardioTypeId, mode))
+                        navController.navigate(AppRoute.ActiveCardio.createRoute(cardioTypeId, mode)) {
+                            launchSingleTop = true
+                        }
                     },
                 )
             }
@@ -121,7 +129,12 @@ fun AtlasPeakNavHost(
                 ActiveWorkoutRoute(
                     onWorkoutCompleted = { sessionId ->
                         navController.navigate(AppRoute.WorkoutComplete.createRoute(sessionId)) {
-                            popUpTo(AppRoute.Train.route)
+                            // La sesion activa puede haberse arrancado desde Home (Train no
+                            // esta en el back stack ahi), asi que popUpTo(Train) no saca nada
+                            // y "atras" desde Completado vuelve a ActiveWorkout, que redirige
+                            // otra vez a Completado (trampa). Sacamos la propia pantalla
+                            // activa en su lugar: "atras" cae en quien la arranco.
+                            popUpTo(AppRoute.ActiveWorkout.route) { inclusive = true }
                         }
                     },
                     onWorkoutDiscarded = {
@@ -161,7 +174,9 @@ fun AtlasPeakNavHost(
                 ActiveCardioRoute(
                     onCardioCompleted = { sessionId ->
                         navController.navigate(AppRoute.CardioComplete.createRoute(sessionId)) {
-                            popUpTo(AppRoute.Train.route)
+                            // Mismo caso que en ActiveWorkout: el cardio puede haber arrancado
+                            // desde Home, asi que sacamos la pantalla activa, no Train.
+                            popUpTo(AppRoute.ActiveCardio.route) { inclusive = true }
                         }
                     },
                     onCardioCancelled = {
@@ -193,10 +208,18 @@ fun AtlasPeakNavHost(
             }
             composable(AppRoute.Profile.route) {
                 ProfileRoute(
-                    onEditProfile = { navController.navigate(AppRoute.EditProfile.route) },
-                    onWeeklyPlan = { navController.navigate(AppRoute.WeeklyPlan.route) },
-                    onSettings = { navController.navigate(AppRoute.Settings.route) },
-                    onBackupRestore = { navController.navigate(AppRoute.BackupRestore.route) },
+                    onEditProfile = {
+                        navController.navigate(AppRoute.EditProfile.route) { launchSingleTop = true }
+                    },
+                    onWeeklyPlan = {
+                        navController.navigate(AppRoute.WeeklyPlan.route) { launchSingleTop = true }
+                    },
+                    onSettings = {
+                        navController.navigate(AppRoute.Settings.route) { launchSingleTop = true }
+                    },
+                    onBackupRestore = {
+                        navController.navigate(AppRoute.BackupRestore.route) { launchSingleTop = true }
+                    },
                 )
             }
             composable(AppRoute.EditProfile.route) {

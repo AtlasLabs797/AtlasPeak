@@ -45,8 +45,6 @@ fun AtlasPeakApp() {
     val showBottomBar = shouldShowBottomBar(currentRoute)
     val selectedBottomRoute = selectedBottomTabRoute(currentRoute)
 
-    SecureScreenEffect(currentRoute)
-
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
