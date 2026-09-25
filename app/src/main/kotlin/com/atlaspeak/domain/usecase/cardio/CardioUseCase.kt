@@ -63,42 +63,30 @@ class CardioUseCase(
     ): ActiveSessionStartResult {
         val type = repository.cardioTypes().firstOrNull { it.id == cardioTypeId }
             ?: return ActiveSessionStartResult.NotFound
-        val active = repository.findActiveSession()
-        when {
-            active == null -> {
-                val session = CardioSession(
-                    id = UUID.randomUUID().toString(),
-                    cardioTypeId = type.id,
-                    cardioTypeName = type.name,
-                    mode = mode,
-                    startTime = now(),
-                    endTime = null,
-                    durationSeconds = null,
-                    distanceKm = null,
-                    avgSpeedKmh = null,
-                    maxSpeedKmh = null,
-                    caloriesBurned = null,
-                    hasGps = type.hasGps,
-                    route = emptyList(),
-                    completed = false,
-                    // BUG-094 (Fase 5 P1): toda sesion nueva arranca sin
-                    // pausa acumulada. El VM es quien mueve ambos campos.
-                    pausedAtMillis = null,
-                    totalPausedDurationMillis = 0L,
-                    // BUG-097 (Fase 8 P1): propagamos la entrada del plan
-                    // semanal (si existe) para que la regla "completar"
-                    // apunte a esa entrada concreta.
-                    weeklyPlanSessionId = weeklyPlanSessionId,
-                )
-                val created = repository.createSession(session)
-                return ActiveSessionStartResult.Started(created.id)
-            }
-            active.cardioTypeId == cardioTypeId -> {
-                return ActiveSessionStartResult.Resumed(active.id)
-            }
-            else -> {
-                return ActiveSessionStartResult.Conflict(active.id)
-            }
+        val candidate = CardioSession(
+            id = UUID.randomUUID().toString(),
+            cardioTypeId = type.id,
+            cardioTypeName = type.name,
+            mode = mode,
+            startTime = now(),
+            endTime = null,
+            durationSeconds = null,
+            distanceKm = null,
+            avgSpeedKmh = null,
+            maxSpeedKmh = null,
+            caloriesBurned = null,
+            hasGps = type.hasGps,
+            route = emptyList(),
+            completed = false,
+            pausedAtMillis = null,
+            totalPausedDurationMillis = 0L,
+            weeklyPlanSessionId = weeklyPlanSessionId,
+        )
+        val activeOrCreated = repository.findActiveOrCreateSession(candidate)
+        return when {
+            activeOrCreated.id == candidate.id -> ActiveSessionStartResult.Started(candidate.id)
+            activeOrCreated.cardioTypeId == cardioTypeId -> ActiveSessionStartResult.Resumed(activeOrCreated.id)
+            else -> ActiveSessionStartResult.Conflict(activeOrCreated.id)
         }
     }
 
