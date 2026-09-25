@@ -24,6 +24,61 @@
 
 ## Entradas
 
+### BUG-108 - Aviso de backup automatico detenido visible con el backup automatico desactivado
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-09-25
+- **Fase:** V-01.10 (revision automatica del PR #16)
+- **Severidad:** Baja
+- **Sintoma:** tras un fallo de autorizacion de Drive, si el usuario apagaba el backup automatico, la pantalla de backup seguia mostrando "Auto-backup detenido / reconecta Drive".
+- **Causa raiz:** `BackupRestoreScreen` pintaba el aviso solo a partir de los flags persistidos (`requiresDriveAuthorization`, `lastError`), sin mirar `autoBackupEnabled`.
+- **Solucion:** `BackupRestoreScreen.kt`: ambos avisos se condicionan a `state.autoBackupEnabled`.
+- **Prevencion:** sin test de UI (no hay suite Compose para esta pantalla); la condicion vive junto al flag que la controla.
+- **Fecha resolucion:** 2026-09-25
+
+### BUG-107 - Home nunca mostraba sincronizacion parcial de Health Connect
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-09-25
+- **Fase:** V-01.10 (revision automatica del PR #16)
+- **Severidad:** Media
+- **Sintoma:** un sync con capacidades completadas y omitidas se mostraba como "faltan permisos" en vez de "sincronizacion parcial".
+- **Causa raiz:** `HealthConnectManager.sync()` marca `missingPermissions` siempre que hay capacidades omitidas, que es tambien condicion de `partiallySuccessful`; `toHomeSyncStatus()` evaluaba `missingPermissions` antes, dejando `PartialSuccess` inalcanzable. El test existente dejaba `missingPermissions = false`, un estado que produccion no genera.
+- **Solucion:** `HomeViewModel.kt`: `partiallySuccessful` se evalua antes que `missingPermissions`.
+- **Prevencion:** `HomeViewModelTest.partial success maps to PartialSuccess` reproduce el invariante real (`missingPermissions = true`).
+- **Fecha resolucion:** 2026-09-25
+
+### BUG-106 - Banner de Health Connect clavado en "Sincronizando" al abrir Home
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-09-25
+- **Fase:** V-01.10 (revision automatica del PR #16)
+- **Severidad:** Media
+- **Sintoma:** al abrir Home el banner mostraba "Sincronizando" indefinidamente y el sync inicial no llegaba a ejecutarse.
+- **Causa raiz:** `init` lanzaba `refresh(syncBefore = true)` y el `ON_RESUME` de `HomeRoute` llamaba `refresh()` justo despues; ambos compartian `refreshJob`, asi que el segundo cancelaba el sync y no reconciliaba el estado.
+- **Solucion:** `HomeViewModel.kt`: el sync corre en su propio `syncJob`; al terminar relanza `refresh()` para que el dashboard refleje lo importado. Un `refresh()` sin sync ya no cancela un sync en curso.
+- **Prevencion:** `HomeViewModelTest.resume refresh right after init does not cancel the initial sync`.
+- **Fecha resolucion:** 2026-09-25
+
+### BUG-105 - Pausar/reanudar cardio sin FGS arrancaba un servicio ordinario y congelaba el cronometro
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-09-25
+- **Fase:** V-01.10 (revision automatica del PR #16)
+- **Severidad:** Alta
+- **Sintoma:** en cardio manual sin `ACTIVITY_RECOGNITION` (sin FGS legal), tras pausar y reanudar el cronometro se detenia al poco tiempo.
+- **Causa raiz:** `pauseCardio()`/`resumeCardio()` llamaban siempre a `startService()`. Sin FGS previo, `ACTION_RESUME` arrancaba un servicio en segundo plano que marcaba el registry como `running` (el ViewModel paraba su timer local) y, al ser matado por Android, el registry se limpiaba.
+- **Solucion:** `ActiveCardioViewModel.kt`: los intents de pausa/reanudacion solo se envian si `fgsMode != CardioFgsMode.None`; en modo local solo actua el timer local.
+- **Prevencion:** tests `pause and resume in local-only mode never call startService on the FGS` y `pause and resume forward the intent to the FGS when it is running`.
+- **Fecha resolucion:** 2026-09-25
+
+### BUG-104 - Sesion de cardio GPS sin fix imposible de finalizar
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-09-25
+- **Fase:** V-01.10 (revision automatica del PR #16)
+- **Severidad:** Alta
+- **Sintoma:** en una sesion GPS que aun no habia recibido ningun punto aceptado, el boton Finalizar quedaba deshabilitado y no aparecian los campos manuales; solo se podia descartar.
+- **Causa raiz:** `requiresManualMetrics` era true con la ruta vacia, pero `shouldShowManualMetrics` solo se activaba con un mensaje de error, que solo fija `completeCardio()`, inalcanzable con el boton deshabilitado.
+- **Solucion:** `ActiveCardioViewModel.kt` (`ActiveCardioUiState.shouldShowManualMetrics`): el formulario manual se muestra mientras la ruta GPS este vacia.
+- **Prevencion:** test `manual metrics form shows and completion is possible when GPS has no fix yet`.
+- **Fecha resolucion:** 2026-09-25
+
 ### BUG-103 - Home no ofrecia quick action para continuar sesion activa
 - **Estado:** Resuelto
 - **Fecha deteccion:** 2026-09-20

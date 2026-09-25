@@ -222,11 +222,16 @@ fun BackupRestoreScreen(
                     }
                 }
             }
-            if (state.requiresDriveAuthorization) {
+            // BUG-108: los flags `requiresDriveAuthorization`/`lastError` son
+            // estado persistido del ultimo intento de backup automatico. Si
+            // el usuario apaga el backup automatico, esos avisos ("Auto-backup
+            // detenido / reconecta Drive") ya no aplican y no deben seguir
+            // mostrandose.
+            if (state.autoBackupEnabled && state.requiresDriveAuthorization) {
                 item {
                     DriveAuthorizationWarning(onReconnectDrive = onReconnectDrive)
                 }
-            } else if (state.lastError != null) {
+            } else if (state.autoBackupEnabled && state.lastError != null) {
                 item {
                     LastBackupErrorWarning(error = state.lastError)
                 }

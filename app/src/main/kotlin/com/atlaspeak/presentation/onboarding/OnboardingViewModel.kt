@@ -9,6 +9,7 @@ import com.atlaspeak.domain.model.profile.Goal
 import com.atlaspeak.domain.repository.OnboardingRepository
 import com.atlaspeak.domain.repository.ProfileRepository
 import com.atlaspeak.domain.usecase.planning.NotificationSettingsUseCase
+import com.atlaspeak.domain.usecase.profile.ProfileValidation
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -36,6 +37,21 @@ class OnboardingViewModel @Inject constructor(
         if (snapshot.isSubmitting) return
         when (snapshot.currentStep) {
             OnboardingStep.Done -> finish(snapshot)
+            OnboardingStep.Profile -> {
+                // BUG-099 (Fase 10 P2): antes este paso no validaba rangos y
+                // `toProfile()` persistia cualquier valor numerico (ej. edad
+                // 999). Reutilizamos `ProfileValidation` para bloquear el
+                // avance con valores fuera de rango, igual que en
+                // EditProfileViewModel.
+                val ageInvalid = snapshot.age.isNotBlank() && !ProfileValidation.ageIsValid(snapshot.age)
+                val heightInvalid = snapshot.heightCm.isNotBlank() &&
+                    !ProfileValidation.heightIsValid(snapshot.heightCm.replace(',', '.'))
+                if (ageInvalid || heightInvalid) {
+                    mutableState.update { it.copy(ageInvalid = ageInvalid, heightInvalid = heightInvalid) }
+                    return
+                }
+                nextStep()
+            }
             else -> nextStep()
         }
     }
@@ -49,11 +65,16 @@ class OnboardingViewModel @Inject constructor(
     }
 
     fun onAgeChanged(value: String) {
-        mutableState.update { it.copy(age = value.filter(Char::isDigit)) }
+        mutableState.update { it.copy(age = value.filter(Char::isDigit), ageInvalid = false) }
     }
 
     fun onHeightChanged(value: String) {
-        mutableState.update { it.copy(heightCm = value.filter { it.isDigit() || it == '.' || it == ',' }) }
+        mutableState.update {
+            it.copy(
+                heightCm = value.filter { char -> char.isDigit() || char == '.' || char == ',' },
+                heightInvalid = false,
+            )
+        }
     }
 
     fun onGenderChanged(value: String) {
@@ -123,8 +144,12 @@ class OnboardingViewModel @Inject constructor(
 
     private fun OnboardingUiState.toProfile(): UserProfile? {
         val name = displayName.trim().ifBlank { null }
-        val parsedAge = age.toIntOrNull()
-        val parsedHeight = heightCm.replace(',', '.').toDoubleOrNull()
+        // BUG-099: valores fuera de rango (o no numericos) nunca deben
+        // persistirse, sin importar como se llegue aqui.
+        val parsedAge = age.takeIf { ProfileValidation.ageIsValid(it) }?.toIntOrNull()
+        val parsedHeight = heightCm.replace(',', '.')
+            .takeIf { ProfileValidation.heightIsValid(it) }
+            ?.toDoubleOrNull()
         val parsedGender = Gender.fromStorageValue(gender.trim().ifBlank { null })
         val parsedGoal = Goal.fromStorageValue(goalType.trim().ifBlank { null })
         if (name == null && parsedAge == null && parsedHeight == null && parsedGender == null && parsedGoal == null) {
@@ -150,6 +175,8 @@ data class OnboardingUiState(
     val goalType: String = "",
     val completed: Boolean = false,
     val message: OnboardingMessage? = null,
+    val ageInvalid: Boolean = false,
+    val heightInvalid: Boolean = false,
 )
 
 enum class OnboardingMessage {

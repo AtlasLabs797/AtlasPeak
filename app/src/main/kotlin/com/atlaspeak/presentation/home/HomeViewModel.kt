@@ -59,6 +59,7 @@ class HomeViewModel(
     )
     private val mutableState = MutableStateFlow(HomeUiState())
     private var refreshJob: Job? = null
+    private var syncJob: Job? = null
     val state: StateFlow<HomeUiState> = mutableState.asStateFlow()
 
     init {
@@ -97,7 +98,29 @@ class HomeViewModel(
         refresh()
     }
 
+    /**
+     * BUG-106: el sync de Health Connect corre en su propio Job
+     * (`syncJob`), independiente del Job que refresca snapshot/today
+     * workouts (`refreshJob`). Antes ambos compartian `refreshJob`, asi que
+     * el ON_RESUME de `HomeRoute` (que llama `refresh()` sin `syncBefore`)
+     * cancelaba el sync inicial disparado en `init { refresh(syncBefore =
+     * true) }` antes de que terminara, dejando el banner clavado en
+     * "Syncing" para siempre (el refresh de reemplazo no vuelve a tocar
+     * `healthConnectSync` porque `syncBefore` es false). Al separar los Jobs,
+     * un refresh sin sync ya no cancela un sync en curso.
+     */
     fun refresh(syncBefore: Boolean = false) {
+        if (syncBefore) {
+            syncJob?.cancel()
+            syncJob = viewModelScope.launch {
+                mutableState.update { it.copy(healthConnectSync = HomeHealthConnectSync.Syncing) }
+                val syncResult = runCatching { syncHealthConnectUseCase() }.getOrNull()
+                val mapped = syncResult.toHomeSyncStatus(now())
+                mutableState.update { it.copy(healthConnectSync = mapped) }
+                // Recargamos el dashboard para reflejar lo importado por el sync.
+                refresh()
+            }
+        }
         refreshJob?.cancel()
         refreshJob = viewModelScope.launch {
             val filters = mutableState.value.filters
@@ -105,17 +128,9 @@ class HomeViewModel(
                 it.copy(
                     isLoading = it.snapshot == null,
                     errorMessageRes = null,
-                    healthConnectSync = if (syncBefore) HomeHealthConnectSync.Syncing else it.healthConnectSync,
                 )
             }
             try {
-                if (syncBefore) {
-                    val syncResult = runCatching { syncHealthConnectUseCase() }.getOrNull()
-                    val mapped = syncResult.toHomeSyncStatus(now())
-                    mutableState.update {
-                        if (it.filters == filters) it.copy(healthConnectSync = mapped) else it
-                    }
-                }
                 val snapshot = dashboardUseCase.snapshot(filters)
                 val todayWorkouts = todayWorkouts()
                 val greetingName = profileRepository.getProfile()?.displayName
@@ -254,11 +269,18 @@ sealed class HomeHealthConnectSync {
 
 private fun HealthConnectSyncResult?.toHomeSyncStatus(now: Long): HomeHealthConnectSync {
     if (this == null) return HomeHealthConnectSync.Failed(now)
+    // BUG-107: `missingPermissions` se marca true en cuanto hay alguna capacidad
+    // omitida (`skippedCapabilities.isNotEmpty()`), y ese es tambien uno de
+    // los requisitos de `partiallySuccessful`. Si se evalua
+    // `missingPermissions` antes, un resultado parcial (algunas capacidades
+    // completadas y otras omitidas) siempre cae en MissingPermissions y
+    // PartialSuccess queda inalcanzable. `partiallySuccessful` debe
+    // evaluarse primero.
     return when {
         availability == HealthConnectAvailability.Unavailable -> HomeHealthConnectSync.Unavailable
         availability == HealthConnectAvailability.UpdateRequired -> HomeHealthConnectSync.UpdateRequired
-        missingPermissions -> HomeHealthConnectSync.MissingPermissions
         partiallySuccessful -> HomeHealthConnectSync.PartialSuccess(now)
+        missingPermissions -> HomeHealthConnectSync.MissingPermissions
         successful -> HomeHealthConnectSync.Success(now)
         failed -> HomeHealthConnectSync.Failed(now)
         else -> HomeHealthConnectSync.Idle

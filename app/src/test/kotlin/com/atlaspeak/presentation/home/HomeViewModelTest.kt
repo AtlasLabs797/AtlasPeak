@@ -115,8 +115,15 @@ class HomeViewModelTest {
 
     @Test
     fun `partial success maps to PartialSuccess`() = runTest(dispatcher) {
+        // BUG-107: HealthConnectManager.sync() en produccion siempre marca
+        // `missingPermissions = skippedCapabilities.isNotEmpty()`, asi que un
+        // resultado parcial real SIEMPRE trae `missingPermissions = true`.
+        // El test original dejaba `missingPermissions` en su default (false),
+        // lo que ocultaba el bug donde `toHomeSyncStatus` evaluaba
+        // `missingPermissions` antes que `partiallySuccessful`.
         nextSyncResult = HealthConnectSyncResult(
             availability = HealthConnectAvailability.Available,
+            missingPermissions = true,
             importedRecords = 1,
             exportedRecords = 0,
             failed = false,
@@ -125,7 +132,31 @@ class HomeViewModelTest {
         )
         val viewModel = newViewModel()
         advanceUntilIdle()
-        assertTrue(viewModel.state.value.healthConnectSync is HomeHealthConnectSync.PartialSuccess)
+        assertTrue(
+            viewModel.state.value.healthConnectSync is HomeHealthConnectSync.PartialSuccess,
+            "status was ${viewModel.state.value.healthConnectSync}",
+        )
+    }
+
+    @Test
+    fun `resume refresh right after init does not cancel the initial sync`() = runTest(dispatcher) {
+        // BUG-106: HomeRoute dispara refresh(syncBefore = true) en init y, casi
+        // al mismo tiempo, ON_RESUME llama refresh() (sin sync). Antes ambos
+        // compartian el mismo Job, asi que el segundo cancelaba el sync
+        // inicial y el banner se quedaba clavado en "Syncing". Aqui se
+        // simula esa secuencia sin avanzar el dispatcher entre medio.
+        nextSyncResult = HealthConnectSyncResult(
+            availability = HealthConnectAvailability.Available,
+            importedRecords = 3,
+            exportedRecords = 1,
+        )
+        val viewModel = newViewModel()
+        viewModel.refresh()
+        advanceUntilIdle()
+        assertTrue(
+            viewModel.state.value.healthConnectSync is HomeHealthConnectSync.Success,
+            "status was ${viewModel.state.value.healthConnectSync}",
+        )
     }
 
     @Test

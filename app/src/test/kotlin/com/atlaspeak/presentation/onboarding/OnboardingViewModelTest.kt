@@ -68,6 +68,38 @@ class OnboardingViewModelTest {
     }
 
     @Test
+    fun `primary action on Profile step blocks advance with out-of-range age`() = runTest {
+        // BUG-099 (Fase 10 P2): antes el paso Profile no validaba rangos y
+        // dejaba pasar cualquier valor numerico. Ahora `primaryAction()`
+        // reutiliza `ProfileValidation` para bloquear el avance.
+        val viewModel = newViewModel()
+        viewModel.goToStep(OnboardingStep.Profile)
+        viewModel.onAgeChanged("999")
+
+        viewModel.primaryAction()
+
+        assertEquals(OnboardingStep.Profile, viewModel.state.value.currentStep)
+        assertTrue(viewModel.state.value.ageInvalid)
+    }
+
+    @Test
+    fun `out-of-range age is never persisted even if the profile step is skipped`() = runTest {
+        // Defensa adicional en `toProfile()`: si se llega a `finish()` con un
+        // valor fuera de rango (por ejemplo saltando el paso via goToStep),
+        // no debe persistirse.
+        val viewModel = newViewModel()
+        viewModel.onAgeChanged("999")
+        viewModel.onHeightChanged("180")
+        viewModel.goToStep(OnboardingStep.Done)
+
+        viewModel.primaryAction()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(null, profileRepository.profile?.age)
+        assertEquals(180.0, profileRepository.profile?.heightCm)
+    }
+
+    @Test
     fun `finish does not complete when persistence fails`() = runTest {
         onboardingRepository.failSetCompleted = true
         val viewModel = newViewModel()

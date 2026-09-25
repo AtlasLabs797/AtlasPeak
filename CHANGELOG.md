@@ -10,6 +10,31 @@
 
 ## [Unreleased]
 
+### 2026-09-25 - Correcciones de la revision del PR #16 y CI
+
+**Corregido**
+- CI: `ActiveWorkoutViewModelTest` no compilaba (`viewModel.session` en vez de
+  `viewModel.state.value.session`).
+- `RoomCardioRepository`: el mapper Room→dominio perdia `weeklyPlanSessionId`, y cualquier
+  pausa o finalizacion lo reescribia a `NULL`.
+- `BUG-104`: sesion de cardio GPS sin fix ya se puede finalizar con metricas manuales.
+- `BUG-105`: pausar/reanudar cardio sin FGS ya no arranca un servicio ordinario.
+- `BUG-106`: el sync inicial de Health Connect ya no se cancela con el `ON_RESUME` de Home.
+- `BUG-107`: Home muestra `PartialSuccess` en sincronizaciones parciales reales.
+- `BUG-108`: los avisos de backup automatico se ocultan si el backup automatico esta desactivado.
+- `ProfileValidation` se usa en onboarding (bloquea el avance y no persiste edad/altura fuera
+  de rango) y en `EditProfileViewModel`; `BodyCompositionValidation` es ahora la unica fuente
+  de rangos para `BodyCompositionDraft` y `BodyCompositionUseCase` (la UI ya no acepta
+  valores que el guardado rechazaba: edad corporal >120, masa muscular/agua >250, osea >20).
+
+**Verificado**
+- Revisados contra el codigo actual los hilos ya resueltos: upgrader de backups (tabla
+  `cardio_route_points` y columnas nuevas), schemas 7-9 exportados, test de migracion 7→8,
+  buscar-o-crear sesion activa en una transaccion, propagacion de `weeklyPlanSessionId`,
+  tiempo en pausa del FGS, persistencia de GPS antes de finalizar, recarga del plan semanal,
+  permisos de Health Connect y aviso de reautorizacion de Drive.
+- No se pudo compilar localmente (entorno sin Android SDK); la verificacion es el CI del PR.
+
 ### 2026-09-20 - CardioForegroundService robusto frente a politica estricta de tipos de FGS en Android 14+/15+ (Fase 4 P0)
 
 **Corregido**

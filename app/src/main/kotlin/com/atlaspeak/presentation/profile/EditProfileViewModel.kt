@@ -6,6 +6,7 @@ import com.atlaspeak.domain.model.profile.Gender
 import com.atlaspeak.domain.model.profile.Goal
 import com.atlaspeak.domain.model.profile.UserProfile
 import com.atlaspeak.domain.repository.ProfileRepository
+import com.atlaspeak.domain.usecase.profile.ProfileValidation
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import kotlinx.coroutines.CancellationException
@@ -47,12 +48,16 @@ class EditProfileViewModel @Inject constructor(
     fun onDisplayNameChanged(value: String) = mutableState.update { it.copy(displayName = value) }
 
     fun onAgeChanged(value: String) = mutableState.update {
-        it.copy(age = value.filter(Char::isDigit).take(MAX_AGE_LENGTH), ageInvalid = false)
+        it.copy(
+            age = value.filter(Char::isDigit).take(ProfileValidation.MAX_AGE_LENGTH),
+            ageInvalid = false,
+        )
     }
 
     fun onHeightChanged(value: String) = mutableState.update {
         it.copy(
-            heightCm = value.filter { char -> char.isDigit() || char == '.' || char == ',' }.take(MAX_HEIGHT_LENGTH),
+            heightCm = value.filter { char -> char.isDigit() || char == '.' || char == ',' }
+                .take(ProfileValidation.MAX_HEIGHT_LENGTH),
             heightInvalid = false,
         )
     }
@@ -66,9 +71,9 @@ class EditProfileViewModel @Inject constructor(
         if (snapshot.isSubmitting) return
         val parsedAge = snapshot.age.trim().ifBlank { null }?.toIntOrNull()
         val parsedHeight = snapshot.heightCm.trim().ifBlank { null }?.replace(',', '.')?.toDoubleOrNull()
-        val ageInvalid = snapshot.age.isNotBlank() && (parsedAge == null || parsedAge !in AGE_RANGE)
+        val ageInvalid = snapshot.age.isNotBlank() && !ProfileValidation.ageIsValid(snapshot.age.trim())
         val heightInvalid = snapshot.heightCm.isNotBlank() &&
-            (parsedHeight == null || parsedHeight !in MIN_HEIGHT_CM..MAX_HEIGHT_CM)
+            !ProfileValidation.heightIsValid(snapshot.heightCm.trim().replace(',', '.'))
         if (ageInvalid || heightInvalid) {
             mutableState.update { it.copy(ageInvalid = ageInvalid, heightInvalid = heightInvalid) }
             return
@@ -98,14 +103,6 @@ class EditProfileViewModel @Inject constructor(
 
     private fun formatHeight(value: Double): String {
         return if (value % 1.0 == 0.0) value.toInt().toString() else value.toString()
-    }
-
-    private companion object {
-        val AGE_RANGE = 10..120
-        const val MIN_HEIGHT_CM = 80.0
-        const val MAX_HEIGHT_CM = 250.0
-        const val MAX_AGE_LENGTH = 3
-        const val MAX_HEIGHT_LENGTH = 6
     }
 }
 

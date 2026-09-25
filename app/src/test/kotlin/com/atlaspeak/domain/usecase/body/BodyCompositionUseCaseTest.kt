@@ -29,6 +29,17 @@ class BodyCompositionUseCaseTest {
     }
 
     @Test
+    fun `record routes limits through the shared BodyCompositionValidation`() = runTest {
+        // BUG-099 (Fase 10 P2): isValid() usaba literales propios (boneMass
+        // hasta 20, bodyAge hasta 120) separados de BodyCompositionDraft en
+        // la UI. Ahora ambos comparten BodyCompositionValidation.
+        assertFalse(useCase.record(BodyCompositionInput(measuredAt = now, boneMassKg = 25.0)))
+        assertTrue(useCase.record(BodyCompositionInput(measuredAt = now, boneMassKg = 20.0)))
+        assertFalse(useCase.record(BodyCompositionInput(measuredAt = now, bodyAge = 125)))
+        assertTrue(useCase.record(BodyCompositionInput(measuredAt = now, bodyAge = 120)))
+    }
+
+    @Test
     fun `record saves sanitized manual entry`() = runTest {
         val saved = useCase.record(
             BodyCompositionInput(
