@@ -194,7 +194,7 @@ class ActiveWorkoutViewModelTest {
 
     @Test
     fun `elapsed_seconds keeps increasing when foreground service fails to start`() = runTest(dispatcher) {
-        val viewModel = newViewModelAndStart()
+        val viewModel = newStartedViewModel()
         val sessionId = viewModel.session?.id
         assertNotNull(sessionId)
 
@@ -225,7 +225,7 @@ class ActiveWorkoutViewModelTest {
 
     @Test
     fun `elapsed_seconds keeps increasing when foreground service never started`() = runTest(dispatcher) {
-        val viewModel = newViewModelAndStart()
+        val viewModel = newStartedViewModel()
         assertNotNull(viewModel.session?.id)
         // Registry queda como en el setUp (estado inicial vacio): el FGS no ha arrancado
         // o su startForegroundService lanzo SecurityException antes de tocar el registry.
@@ -276,7 +276,7 @@ class ActiveWorkoutViewModelTest {
 
     @Test
     fun `local fallback timer stops when foreground service becomes healthy`() = runTest(dispatcher) {
-        val viewModel = newViewModelAndStart()
+        val viewModel = newStartedViewModel()
         val sessionId = viewModel.session?.id
         assertNotNull(sessionId)
         val startTime = viewModel.session!!.startTime
@@ -334,7 +334,7 @@ class ActiveWorkoutViewModelTest {
 
     @Test
     fun `elapsed_seconds matches math from startTime`() = runTest(dispatcher) {
-        val viewModel = newViewModelAndStart()
+        val viewModel = newStartedViewModel()
         val session = viewModel.session
         assertNotNull(session)
         val startTime = session!!.startTime
@@ -366,7 +366,7 @@ class ActiveWorkoutViewModelTest {
      * Reloj mutable para los tests del BUG-092. Permite avanzar el tiempo de forma
      * determinista mientras el job local del cronometro hace sus ticks.
      */
-    private class TestClock(initialMillis: Long) {
+    private class TestClock(private val initialMillis: Long) {
         private var current: Long = initialMillis
 
         fun reset(newMillis: Long = initialMillis) {
@@ -386,6 +386,12 @@ class ActiveWorkoutViewModelTest {
         val viewModel = newViewModel(routineId)
         dispatcher.scheduler.advanceUntilIdle()
         return viewModel.state.value
+    }
+
+    private fun newStartedViewModel(routineId: String = "routine_upper"): ActiveWorkoutViewModel {
+        val viewModel = newViewModel(routineId)
+        dispatcher.scheduler.advanceUntilIdle()
+        return viewModel
     }
 
     private fun newViewModel(
