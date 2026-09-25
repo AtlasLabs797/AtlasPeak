@@ -608,7 +608,7 @@ class ActiveCardioViewModelTest {
      * Reloj mutable para los tests del BUG-093. Permite avanzar el tiempo de
      * forma determinista mientras el job local del cronometro hace sus ticks.
      */
-    private class TestClock(initialMillis: Long) {
+    private class TestClock(private val initialMillis: Long) {
         private var current: Long = initialMillis
 
         fun reset(newMillis: Long = initialMillis) {
