@@ -27,9 +27,11 @@ import com.atlaspeak.presentation.home.HomeRoute
 import com.atlaspeak.presentation.onboarding.OnboardingRoute
 import com.atlaspeak.presentation.planning.NotificationSettingsRoute
 import com.atlaspeak.presentation.planning.WeeklyPlanRoute
+import com.atlaspeak.presentation.privacy.PrivacyPolicyRoute
 import com.atlaspeak.presentation.profile.EditProfileRoute
 import com.atlaspeak.presentation.profile.ProfileRoute
 import com.atlaspeak.presentation.progress.ProgressRoute
+import com.atlaspeak.presentation.recovery.RecoveryRoute
 import com.atlaspeak.presentation.screen.PlaceholderScreen
 import com.atlaspeak.presentation.workout.ActiveWorkoutRoute
 import com.atlaspeak.presentation.workout.TrainRoute
@@ -61,9 +63,21 @@ fun AtlasPeakNavHost(
                         popUpTo(AppRoute.Launch.route) { inclusive = true }
                         launchSingleTop = true
                     }
+                    LaunchState.Recovery -> navController.navigate(AppRoute.Recovery.route) {
+                        popUpTo(AppRoute.Launch.route) { inclusive = true }
+                    }
                 }
             }
             PlaceholderScreen(titleRes = R.string.state_loading)
+        }
+        composable(AppRoute.Recovery.route) {
+            RecoveryRoute(
+                onResetCompleted = {
+                    navController.navigate(AppRoute.Onboarding.route) {
+                        popUpTo(AppRoute.Recovery.route) { inclusive = true }
+                    }
+                },
+            )
         }
         composable(AppRoute.Onboarding.route) {
             OnboardingRoute(
@@ -220,6 +234,16 @@ fun AtlasPeakNavHost(
                     onBackupRestore = {
                         navController.navigate(AppRoute.BackupRestore.route) { launchSingleTop = true }
                     },
+                    onPrivacyPolicy = {
+                        navController.navigate(AppRoute.PrivacyPolicy.route) { launchSingleTop = true }
+                    },
+                    onDataDeleted = {
+                        // Tras borrar todo, onboarding de cero y sin nada debajo en el back stack.
+                        navController.navigate(AppRoute.Onboarding.route) {
+                            popUpTo(navController.graph.id) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    },
                 )
             }
             composable(AppRoute.EditProfile.route) {
@@ -233,6 +257,9 @@ fun AtlasPeakNavHost(
             }
             composable(AppRoute.BackupRestore.route) {
                 BackupRestoreRoute(onBack = { navController.popBackStack() })
+            }
+            composable(AppRoute.PrivacyPolicy.route) {
+                PrivacyPolicyRoute(onBack = { navController.popBackStack() })
             }
         }
     }

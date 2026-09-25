@@ -445,7 +445,5 @@ abstract class AppDatabase : RoomDatabase() {
         )
 
         val TABLES = TABLE_ORDER.toSet()
-
-        val V1_TABLES = TABLES
     }
 }

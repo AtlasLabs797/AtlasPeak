@@ -60,20 +60,29 @@ class RoomCardioRepository @Inject constructor(
     override suspend fun session(id: String): CardioSession? {
         val cardio = database.cardioDao().getCardioSession(id) ?: return null
         val workout = database.workoutDao().getSession(cardio.sessionId) ?: return null
-        return cardio.toDomain(workout)
+        return cardio.toDomain(workout, database.cardioDao().getCardioType(cardio.cardioTypeId))
     }
 
     override suspend fun sessions(): List<CardioSession> {
-        return database.cardioDao().getCardioSessions().mapNotNull { cardio ->
-            val workout = database.workoutDao().getSession(cardio.sessionId) ?: return@mapNotNull null
-            cardio.toDomain(workout)
+        // Perf N+1 (auditoria): antes se hacia una query getSession() (workout_sessions) y otra
+        // getCardioType() por sesion de cardio. Se agrupan en dos queries totales (sesiones por
+        // id, tipos de cardio) y se combinan en memoria, preservando el orden de
+        // getCardioSessions().
+        val cardioSessions = database.cardioDao().getCardioSessions()
+        val workoutById = database.workoutDao()
+            .getSessionsByIds(cardioSessions.map { it.sessionId })
+            .associateBy { it.id }
+        val typeById = database.cardioDao().getCardioTypes(includeArchived = true).associateBy { it.id }
+        return cardioSessions.mapNotNull { cardio ->
+            val workout = workoutById[cardio.sessionId] ?: return@mapNotNull null
+            cardio.toDomain(workout, typeById[cardio.cardioTypeId])
         }
     }
 
     override suspend fun findActiveSession(): CardioSession? {
         val cardio = database.cardioDao().getActiveCardioSession() ?: return null
         val workout = database.workoutDao().getSession(cardio.sessionId) ?: return null
-        return cardio.toDomain(workout)
+        return cardio.toDomain(workout, database.cardioDao().getCardioType(cardio.cardioTypeId))
     }
 
     override suspend fun findActiveOrCreateSession(session: CardioSession): CardioSession {
@@ -81,7 +90,7 @@ class RoomCardioRepository @Inject constructor(
             val active = database.cardioDao().getActiveCardioSession()
             if (active != null) {
                 val workout = requireNotNull(database.workoutDao().getSession(active.sessionId))
-                active.toDomain(workout)
+                active.toDomain(workout, database.cardioDao().getCardioType(active.cardioTypeId))
             } else {
                 database.workoutDao().upsertSession(session.toWorkoutSessionEntity())
                 database.cardioDao().upsertCardioSession(session.toEntity())
@@ -156,8 +165,7 @@ class RoomCardioRepository @Inject constructor(
         iconName = iconName,
     )
 
-    private suspend fun CardioSessionEntity.toDomain(workout: WorkoutSessionEntity): CardioSession {
-        val type = database.cardioDao().getCardioType(cardioTypeId)
+    private fun CardioSessionEntity.toDomain(workout: WorkoutSessionEntity, type: CardioTypeEntity?): CardioSession {
         return CardioSession(
             id = id,
             cardioTypeId = cardioTypeId,

@@ -58,6 +58,17 @@ class LocalBackupExportManager @Inject constructor(
         file.toSharedFile("application/zip")
     }
 
+    /**
+     * P2: limpia exports JSON/CSV/.enc caducados (TTL/limite de la funcion
+     * privada de siempre) sin crear ningun archivo nuevo. Pensada para
+     * llamarse desde el arranque de la app, no solo la proxima vez que se
+     * exporte (que podia tardar horas o dias en llegar).
+     */
+    suspend fun cleanupExpiredExports() = withContext(Dispatchers.IO) {
+        val directory = File(context.filesDir, EXPORT_DIRECTORY)
+        if (directory.exists()) cleanupExports(directory)
+    }
+
     private fun exportFile(fileName: String): File {
         val directory = File(context.filesDir, EXPORT_DIRECTORY).apply { mkdirs() }
         cleanupExports(directory)

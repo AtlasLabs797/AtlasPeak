@@ -34,9 +34,13 @@ class RoomWorkoutRepository @Inject constructor(
     }
 
     override suspend fun sessions(): List<WorkoutSession> {
-        return database.workoutDao().getStrengthSessions().map { entity ->
-            entity.toDomain(database.workoutDao().getSets(entity.id))
-        }
+        // Perf N+1 (auditoria): antes se hacia una query getSets() por sesion (TrainViewModel y
+        // ProgressUseCase la llaman con todo el historial). Con SQLCipher el coste de N queries
+        // cifradas crece con el numero de sesiones; una sola query trae todos los sets y se
+        // agrupan en memoria, preservando el orden de getStrengthSessions().
+        val sessions = database.workoutDao().getStrengthSessions()
+        val setsBySessionId = database.workoutDao().getSetsForStrengthSessions().groupBy { it.sessionId }
+        return sessions.map { entity -> entity.toDomain(setsBySessionId[entity.id].orEmpty()) }
     }
 
     override suspend fun findActiveSession(): WorkoutSession? {

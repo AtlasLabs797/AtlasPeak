@@ -8,7 +8,7 @@ import com.atlaspeak.domain.model.backup.BackupFailure
 internal class BackupWorkerRunner(
     private val snapshotStore: BackupSnapshotStore,
     private val backupJsonCodec: BackupJsonCodec,
-    private val createBackup: suspend (String, CharArray) -> BackupOperationResult,
+    private val createBackup: suspend (String, CharArray, DatabaseBackupSnapshot) -> BackupOperationResult,
     private val silentAccessToken: suspend () -> DriveAccessTokenResult,
     private val autoBackupPassword: suspend () -> CharArray?,
     private val lastSnapshotHash: suspend () -> String?,
@@ -35,7 +35,11 @@ internal class BackupWorkerRunner(
             return BackupWorkerRunResult.Success
         }
         return try {
-            val currentHash = currentSnapshotHash()
+            // Perf: una sola captura de la base de datos por ejecucion,
+            // reutilizada para el hash de cambios y para la subida (antes se
+            // serializaba la DB dos veces: aqui y dentro de createBackup).
+            val snapshot = snapshotStore.snapshot()
+            val currentHash = snapshot.stableHash()
             if (lastSnapshotHash() == currentHash) {
                 // Sin cambios desde el ultimo backup: lo damos por bueno y
                 // actualizamos `lastAttemptAt` sin tocar `lastError`.
@@ -43,7 +47,7 @@ internal class BackupWorkerRunner(
                 return BackupWorkerRunResult.Success
             }
 
-            when (val result = createBackup(token, password)) {
+            when (val result = createBackup(token, password, snapshot)) {
                 is BackupOperationResult.Success -> {
                     saveLastSnapshotHash(currentHash)
                     snapshotStore.recordBackupSuccess(now())
@@ -51,6 +55,12 @@ internal class BackupWorkerRunner(
                 }
                 is BackupOperationResult.Failed -> {
                     snapshotStore.recordBackupFailure(result.reason.toDomain(), now())
+                    if (result.reason == BackupFailureReason.NotAuthorized) {
+                        // P1: un 401/403 durante la subida tambien significa
+                        // que Drive necesita reautorizacion, igual que
+                        // MissingAuthorization al pedir el token en silencio.
+                        snapshotStore.markDriveAuthorizationRequired()
+                    }
                     if (result.reason.shouldRetry()) {
                         BackupWorkerRunResult.Retry
                     } else {

@@ -31,7 +31,8 @@ class RoomBackupSnapshotStore @Inject constructor(
                 schemaVersion = BackupJsonCodec.CURRENT_SCHEMA_VERSION,
                 exportedAt = System.currentTimeMillis(),
                 tables = AppDatabase.TABLE_ORDER.associateWith { table ->
-                    db.query("SELECT * FROM $table").use { cursor -> cursor.rowsAsJson() }
+                    val rows = db.query("SELECT * FROM $table").use { cursor -> cursor.rowsAsJson() }
+                    if (table == USERS_TABLE) rows.map { it.sanitizeLegacyLoginColumns() } else rows
                 },
             )
         }
@@ -39,15 +40,24 @@ class RoomBackupSnapshotStore @Inject constructor(
 
     override suspend fun restore(snapshot: DatabaseBackupSnapshot) = withContext(Dispatchers.IO) {
         require(snapshot.tables.keys == AppDatabase.TABLES) { "Backup table set does not match the app schema" }
+        // SEC-025 / SEC-036 (auditoria): un backup antiguo (antes del retiro del login local)
+        // puede traer google_id/email/password_hash/password_salt/last_login_at en `users`.
+        // Se sanean antes de validar/insertar para que restaurar un backup legado no
+        // reintroduzca esa PII; el set de columnas no cambia (siguen presentes, solo NULL).
+        val sanitizedSnapshot = snapshot.copy(
+            tables = snapshot.tables + (
+                USERS_TABLE to snapshot.tables.getValue(USERS_TABLE).map { it.sanitizeLegacyLoginColumns() }
+                ),
+        )
         database.runInTransaction {
             val db = database.openHelper.writableDatabase
             val tableColumns = AppDatabase.TABLE_ORDER.associateWith { table -> db.columnsFor(table) }
-            snapshot.validateAgainst(tableColumns)
+            sanitizedSnapshot.validateAgainst(tableColumns)
             AppDatabase.TABLE_ORDER.asReversed().forEach { table ->
                 db.execSQL("DELETE FROM $table")
             }
             AppDatabase.TABLE_ORDER.forEach { table ->
-                snapshot.tables.getValue(table).forEach { row ->
+                sanitizedSnapshot.tables.getValue(table).forEach { row ->
                     db.insert(table, SQLiteDatabase.CONFLICT_REPLACE, row.toContentValues())
                 }
             }
@@ -93,6 +103,11 @@ class RoomBackupSnapshotStore @Inject constructor(
 
     override suspend fun markDriveAuthorizationRequired() {
         healthStore.markDriveAuthorizationRequired()
+    }
+
+    /** SEC-025 / SEC-036: deja los campos de login legado en NULL, conservando el set de columnas. */
+    private fun Map<String, JsonElement>.sanitizeLegacyLoginColumns(): Map<String, JsonElement> {
+        return this + LEGACY_LOGIN_COLUMNS.filter { it in keys }.associateWith { JsonNull }
     }
 
     private fun Cursor.rowsAsJson(): List<Map<String, JsonElement>> {
@@ -218,6 +233,14 @@ class RoomBackupSnapshotStore @Inject constructor(
     }
 
     private companion object {
+        private const val USERS_TABLE = "users"
+        private val LEGACY_LOGIN_COLUMNS = listOf(
+            "google_id",
+            "email",
+            "password_hash",
+            "password_salt",
+            "last_login_at",
+        )
         private const val BASE64_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
         val TRACKED_CHANGE_COLUMNS = listOf(
             "user_profile" to "updated_at",

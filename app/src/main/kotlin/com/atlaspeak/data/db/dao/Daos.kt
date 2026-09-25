@@ -35,8 +35,20 @@ interface UserDao {
     @Query("SELECT * FROM users LIMIT 1")
     suspend fun getLocalUser(): UserEntity?
 
-    @Query("UPDATE users SET last_login_at = :lastLoginAt WHERE id = :id")
-    suspend fun updateLastLoginAt(id: String, lastLoginAt: Long)
+    // SEC-025 / SEC-036 (auditoria): PII del login retirado que instalaciones antiguas
+    // pueden conservar. La condicion WHERE hace el UPDATE un no-op cuando ya esta limpia.
+    @Query(
+        """
+        UPDATE users
+        SET google_id = NULL, email = NULL, password_hash = NULL, password_salt = NULL, last_login_at = NULL
+        WHERE google_id IS NOT NULL
+           OR email IS NOT NULL
+           OR password_hash IS NOT NULL
+           OR password_salt IS NOT NULL
+           OR last_login_at IS NOT NULL
+        """,
+    )
+    suspend fun sanitizeLegacyLoginColumns()
 }
 
 @Dao
@@ -128,14 +140,30 @@ interface WorkoutDao {
     @Query("SELECT * FROM workout_sessions WHERE id = :id")
     suspend fun getSession(id: String): WorkoutSessionEntity?
 
+    // Perf N+1 (auditoria): usada por RoomCardioRepository.sessions() para batear la busqueda
+    // de la workout_session asociada a cada cardio_session en una sola query.
+    @Query("SELECT * FROM workout_sessions WHERE id IN (:ids)")
+    suspend fun getSessionsByIds(ids: List<String>): List<WorkoutSessionEntity>
+
     @Query("SELECT * FROM workout_sessions WHERE id = :id AND type = 'STRENGTH'")
     suspend fun getStrengthSession(id: String): WorkoutSessionEntity?
 
-    @Query("SELECT * FROM workout_sessions ORDER BY start_time DESC")
-    suspend fun getSessions(): List<WorkoutSessionEntity>
-
     @Query("SELECT * FROM workout_sessions WHERE type = 'STRENGTH' ORDER BY start_time DESC")
     suspend fun getStrengthSessions(): List<WorkoutSessionEntity>
+
+    // Perf N+1 (auditoria): antes RoomWorkoutRepository.sessions() hacia una query getSets()
+    // por sesion. Con historial largo sobre SQLCipher eso es 1+N queries cifradas. Esta query
+    // trae todos los sets de todas las sesiones de fuerza de una vez; el repositorio los
+    // agrupa en memoria por session_id.
+    @Query(
+        """
+        SELECT workout_sets.* FROM workout_sets
+        INNER JOIN workout_sessions ON workout_sets.session_id = workout_sessions.id
+        WHERE workout_sessions.type = 'STRENGTH'
+        ORDER BY workout_sets.session_id, workout_sets.exercise_id, workout_sets.set_number
+        """,
+    )
+    suspend fun getSetsForStrengthSessions(): List<WorkoutSetEntity>
 
     @Query(
         """
@@ -279,9 +307,6 @@ interface SettingsDao {
     @Query("UPDATE app_settings SET theme = :theme WHERE id = 1")
     suspend fun updateTheme(theme: String)
 
-    @Query("UPDATE app_settings SET biometrics_enabled = :enabled WHERE id = 1")
-    suspend fun updateBiometricsEnabled(enabled: Boolean)
-
     @Query("UPDATE app_settings SET last_backup_at = :timestampMillis WHERE id = 1")
     suspend fun updateLastBackupAt(timestampMillis: Long)
 
@@ -372,30 +397,6 @@ interface WeeklyPlanDao {
 
     @Query(
         """
-        SELECT
-            weekly_plan.id AS id,
-            weekly_plan.day_of_week AS dayOfWeek,
-            weekly_plan.order_index AS orderIndex,
-            weekly_plan.type AS type,
-            weekly_plan.routine_id AS routineId,
-            routines.name AS routineName,
-            weekly_plan.cardio_type_id AS cardioTypeId,
-            cardio_types.name_es AS cardioTypeName,
-            weekly_plan.cardio_target_duration_sec AS cardioTargetDurationSec,
-            weekly_plan.is_rest_day AS isRestDay,
-            weekly_plan.notification_enabled AS notificationEnabled,
-            weekly_plan.notification_time AS notificationTime
-        FROM weekly_plan
-        LEFT JOIN routines ON routines.id = weekly_plan.routine_id
-        LEFT JOIN cardio_types ON cardio_types.id = weekly_plan.cardio_type_id
-        WHERE weekly_plan.day_of_week = :dayOfWeek
-        ORDER BY weekly_plan.order_index
-        """,
-    )
-    suspend fun getDay(dayOfWeek: Int): List<WeeklyPlanRow>
-
-    @Query(
-        """
         SELECT start_time
         FROM workout_sessions
         WHERE completed = 1
@@ -440,11 +441,11 @@ interface AuthSecurityDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertAuthSecurity(authSecurity: AuthSecurityEntity)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsertAuthSecurity(authSecurity: AuthSecurityEntity)
-
     @Query("SELECT * FROM auth_security WHERE id = 1")
     suspend fun getAuthSecurity(): AuthSecurityEntity?
+
+    @Query("UPDATE auth_security SET failed_attempts = 0, locked_until = NULL WHERE id = 1")
+    suspend fun resetAuthSecurity()
 }
 
 @Dao
@@ -533,9 +534,6 @@ interface HealthConnectDao {
     suspend fun upsertSleepStages(stages: List<HcSleepStageEntity>)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun upsertHeartRateSample(sample: HcHeartRateSampleEntity)
-
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertHeartRateSamples(samples: List<HcHeartRateSampleEntity>)
 
     @Query("SELECT COUNT(*) FROM hc_steps_records")
@@ -572,9 +570,6 @@ interface HealthConnectDao {
         """,
     )
     suspend fun deleteSleepSessionsInWindow(startInclusive: Long, endExclusive: Long)
-
-    @Query("DELETE FROM hc_sleep_stages WHERE sleep_session_id = :sleepSessionId")
-    suspend fun deleteSleepStagesForSession(sleepSessionId: String)
 
     @Query(
         """

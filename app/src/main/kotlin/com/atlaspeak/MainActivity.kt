@@ -30,7 +30,11 @@ class MainActivity : FragmentActivity() {
     private val themeViewModel: AppThemeViewModel by viewModels()
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        installSplashScreen()
+        // Tema flash en arranque en frio (auditoria): se mantiene el splash hasta que
+        // AppThemeViewModel tenga un valor de tema definitivo (real, o el fallback a System si
+        // la DB cifrada no abre), para que un usuario con Light/Dark forzado no vea un flash.
+        val splashScreen = installSplashScreen()
+        splashScreen.setKeepOnScreenCondition { !themeViewModel.isLoaded.value }
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         setContent {

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="recovery_title">The local database can\'t be opened</string>
+    <string name="recovery_body">This device\'s encrypted database can\'t be unlocked. This can happen if the system\'s secure storage (Keystore) got corrupted. You can clear the local data and start fresh; if you had a Google Drive backup, you can restore it from the app afterwards.</string>
+    <string name="recovery_reset_action">Clear local data and start fresh</string>
+    <string name="recovery_reset_failed">Couldn\'t clear the local data. Please try again.</string>
+    <string name="recovery_confirm_title">Clear all local data?</string>
+    <string name="recovery_confirm_body">The training data saved on this device will be deleted. This can\'t be undone.</string>
+    <string name="recovery_confirm_action">Clear local data</string>
+</resources>

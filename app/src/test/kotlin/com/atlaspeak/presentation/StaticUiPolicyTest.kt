@@ -57,8 +57,9 @@ class StaticUiPolicyTest {
     @Test
     fun `spanish and english string resources expose the same keys`() {
         val res = root.resolve("src/main/res")
-        val spanish = stringKeys(res.resolve("values/strings.xml"))
-        val english = stringKeys(res.resolve("values-en/strings.xml"))
+        // Todos los strings*.xml (strings.xml y los ficheros por feature, p. ej. strings_privacy.xml).
+        val spanish = stringKeysIn(res.resolve("values"))
+        val english = stringKeysIn(res.resolve("values-en"))
 
         assertTrue((spanish - english).isEmpty(), "Missing EN keys: ${(spanish - english).joinToString()}")
         assertTrue((english - spanish).isEmpty(), "Missing ES keys: ${(english - spanish).joinToString()}")
@@ -82,6 +83,14 @@ class StaticUiPolicyTest {
         Files.walk(presentationSource).asSequence()
             .filter { Files.isRegularFile(it) && it.name.endsWith(".kt") }
             .toList()
+
+    private fun stringKeysIn(directory: Path): Set<String> =
+        Files.list(directory).use { files ->
+            files.asSequence()
+                .filter { it.name.startsWith("strings") && it.name.endsWith(".xml") }
+                .flatMap { stringKeys(it) }
+                .toSet()
+        }
 
     private fun stringKeys(path: Path): Set<String> =
         stringName.findAll(path.toFile().readText())

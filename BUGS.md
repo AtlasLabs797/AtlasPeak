@@ -24,6 +24,83 @@
 
 ## Entradas
 
+### BUG-115 - La pantalla de recuperacion dejaba la base de datos sin sembrar
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-09-25
+- **Fase:** V-02.00 (auditoria pre-lanzamiento)
+- **Severidad:** Media
+- **Sintoma:** tras "Borrar datos locales" en Recovery, onboarding/Home quedaban sin ejercicios, rutinas ni ajustes por defecto hasta reiniciar la app.
+- **Causa raiz:** el seed del arranque se salta cuando la clave de la DB no esta disponible; el reset solo borraba DB y clave.
+- **Solucion:** `RecoveryViewModel.resetLocalData()` llama a `DatabaseSeeder.seed()` tras el borrado.
+- **Prevencion:** cualquier flujo que recree la DB debe re-sembrar (igual que `AppUserDataEraser`).
+- **Fecha resolucion:** 2026-09-25
+
+### BUG-114 - Carga N+1 del historial de fuerza y cardio
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-09-25
+- **Fase:** V-02.00 (auditoria pre-lanzamiento)
+- **Severidad:** Media
+- **Sintoma:** Entrenar y Progreso se ralentizan a medida que crece el historial.
+- **Causa raiz:** `RoomWorkoutRepository.sessions()` hacia una consulta de series por sesion; `RoomCardioRepository.sessions()` hacia dos consultas (sesion + tipo) por sesion.
+- **Solucion:** `WorkoutDao.getSetsForStrengthSessions()` y `getSessionsByIds()` + `getCardioTypes()` en lote, agrupando en memoria.
+- **Prevencion:** `RoomWorkoutRepositoryInstrumentedTest`, `RoomCardioRepositoryInstrumentedTest`; listas completas nunca con consultas por elemento.
+- **Fecha resolucion:** 2026-09-25
+
+### BUG-113 - Errores de Drive mal clasificados y backup subido marcado como fallido
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-09-25
+- **Fase:** V-02.00 (auditoria pre-lanzamiento)
+- **Severidad:** Media
+- **Sintoma:** un 401 de Drive no pedia reautorizar, un fallo de red salia como "desconocido", restaurar con contrasena erronea mostraba el mismo mensaje que un fallo de red, y si fallaba el borrado de backups antiguos tras una subida correcta se informaba de fallo.
+- **Causa raiz:** `DriveBackupManager.toBackupFailure` solo distinguia `AEADBadTagException` e `IllegalArgumentException`; `trimOldBackups` compartia el `runCatching` de la subida.
+- **Solucion:** 401/403 -> `NotAuthorized` (el worker marca reautorizacion), `IOException`/HTTP -> `Network`; trim best-effort; mensajes de restore por causa; `CancellationException` ya no se traga.
+- **Prevencion:** `DriveBackupManagerTest`, `BackupWorkerRunnerTest`, `BackupRestoreViewModelTest`.
+- **Fecha resolucion:** 2026-09-25
+
+### BUG-112 - Cierre de la app al fallar el Keystore en ajustes de backup y en el arranque
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-09-25
+- **Fase:** V-02.00 (auditoria pre-lanzamiento)
+- **Severidad:** Alta
+- **Sintoma:** activar/actualizar el backup automatico con el Keystore roto cerraba la app; un keyset de `EncryptedSharedPreferences` corrupto hacia que la app se cerrase en cada arranque sin salida.
+- **Causa raiz:** coroutines de `BackupRestoreViewModel` sin captura de errores; `DatabaseModule` leia la passphrase (I/O de Keystore) en el hilo principal al construir el singleton y cualquier fallo era fatal.
+- **Solucion:** try/catch con mensaje en el ViewModel; `LazyPassphraseOpenHelperFactory` difiere la passphrase a la primera apertura (fuera del hilo principal); `DatabasePassphraseProvider` migra a Keystore AES-GCM y lanza `DatabaseKeyUnavailableException`; `LaunchViewModel` enruta a la nueva pantalla `Recovery`.
+- **Prevencion:** `BackupRestoreViewModelTest`, `LaunchViewModelTest`; nunca I/O de Keystore en la construccion de singletons.
+- **Fecha resolucion:** 2026-09-25
+
+### BUG-111 - Tocar la notificacion de entreno/cardio no abria la app
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-09-25
+- **Fase:** V-02.00 (auditoria pre-lanzamiento)
+- **Severidad:** Media
+- **Sintoma:** la notificacion persistente de sesion activa no respondia al toque.
+- **Causa raiz:** `WorkoutForegroundService` y `CardioForegroundService` no ponian `setContentIntent`.
+- **Solucion:** `PendingIntent` inmutable a `MainActivity` (`SINGLE_TOP | CLEAR_TOP`).
+- **Prevencion:** cualquier notificacion nueva debe llevar content intent (patron de `AtlasPeakNotificationHelper`).
+- **Fecha resolucion:** 2026-09-25
+
+### BUG-110 - Completar una serie descartaba el peso/reps recien tecleados
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-09-25
+- **Fase:** V-02.00 (auditoria pre-lanzamiento)
+- **Severidad:** Alta
+- **Sintoma:** escribir peso/reps y pulsar el check sin salir del campo guardaba los valores antiguos; el PR y el volumen salian mal y, en la ultima serie, el entreno se cerraba con datos erroneos.
+- **Causa raiz:** los campos solo confirmaban al perder el foco y tocar la `Surface` del check no mueve el foco; `onSetCompleted` usaba el `set` persistido e ignoraba `inputDrafts`.
+- **Solucion:** `ActiveWorkoutViewModel.onSetCompleted` fusiona el borrador (misma semantica que `onSetInputCommitted`) antes de calcular PR y guardar.
+- **Prevencion:** dos tests en `ActiveWorkoutViewModelTest`.
+- **Fecha resolucion:** 2026-09-25
+
+### BUG-109 - Boton atras atrapado tras terminar una sesion iniciada desde Home
+- **Estado:** Resuelto
+- **Fecha deteccion:** 2026-09-25
+- **Fase:** V-02.00 (auditoria pre-lanzamiento)
+- **Severidad:** Alta
+- **Sintoma:** al terminar un entreno/cardio lanzado desde Home, "atras" en la pantalla de resumen volvia a abrir el resumen indefinidamente.
+- **Causa raiz:** la navegacion a Completado hacia `popUpTo(Train)`, que no existe en el back stack si se arranco desde Home; atras volvia a ActiveWorkout, cuyo `LaunchedEffect(completedSessionId)` re-navegaba.
+- **Solucion:** `popUpTo(ActiveWorkout/ActiveCardio) { inclusive = true }`; ademas `launchSingleTop` en rutas sensibles al doble toque.
+- **Prevencion:** test en `BottomNavigationPolicyTest`; verificar en dispositivo "Home -> entreno -> completar -> atras".
+- **Fecha resolucion:** 2026-09-25
+
 ### BUG-108 - Aviso de backup automatico detenido visible con el backup automatico desactivado
 - **Estado:** Resuelto
 - **Fecha deteccion:** 2026-09-25

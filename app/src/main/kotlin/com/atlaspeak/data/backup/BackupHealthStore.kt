@@ -65,6 +65,11 @@ class BackupHealthStore @Inject constructor(
         prefs.edit { putBoolean(KEY_REQUIRES_REAUTH, true) }
     }
 
+    /** Borrado total de datos del usuario: vacia el estado (no basta con borrar el fichero, Android cachea las prefs). */
+    suspend fun clear() = withContext(Dispatchers.IO) {
+        prefs.edit { clear() }
+    }
+
     private companion object {
         const val PREFS_NAME = "atlas_peak_backup_health"
         const val KEY_LAST_SUCCESS = "last_success_ms"

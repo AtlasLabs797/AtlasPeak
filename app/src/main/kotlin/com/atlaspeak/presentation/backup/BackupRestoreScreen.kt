@@ -139,6 +139,7 @@ fun BackupRestoreRoute(
         state = state,
         onBack = onBack,
         onPasswordChanged = viewModel::onPasswordChanged,
+        onConfirmPasswordChanged = viewModel::onConfirmPasswordChanged,
         onAutoBackupChanged = viewModel::setAutoBackupEnabled,
         onUpdateAutoBackupPassword = viewModel::updateAutoBackupPassword,
         onCreateLocalBackup = viewModel::createLocalEncryptedBackup,
@@ -160,6 +161,7 @@ fun BackupRestoreScreen(
     state: BackupRestoreUiState,
     onBack: () -> Unit,
     onPasswordChanged: (String) -> Unit,
+    onConfirmPasswordChanged: (String) -> Unit,
     onAutoBackupChanged: (Boolean) -> Unit,
     onUpdateAutoBackupPassword: () -> Unit,
     onCreateLocalBackup: () -> Unit,
@@ -239,9 +241,11 @@ fun BackupRestoreScreen(
             item {
                 PasswordCard(
                     password = state.password,
+                    confirmPassword = state.confirmPassword,
                     autoBackupEnabled = state.autoBackupEnabled,
                     lastBackupAt = state.lastBackupAt,
                     onPasswordChanged = onPasswordChanged,
+                    onConfirmPasswordChanged = onConfirmPasswordChanged,
                     onAutoBackupChanged = onAutoBackupChanged,
                     onUpdateAutoBackupPassword = onUpdateAutoBackupPassword,
                 )
@@ -367,9 +371,11 @@ private fun BackupHeader(onBack: () -> Unit) {
 @Composable
 private fun PasswordCard(
     password: String,
+    confirmPassword: String,
     autoBackupEnabled: Boolean,
     lastBackupAt: Long?,
     onPasswordChanged: (String) -> Unit,
+    onConfirmPasswordChanged: (String) -> Unit,
     onAutoBackupChanged: (Boolean) -> Unit,
     onUpdateAutoBackupPassword: () -> Unit,
 ) {
@@ -402,6 +408,14 @@ private fun PasswordCard(
                     onValueChange = onPasswordChanged,
                     modifier = Modifier.fillMaxWidth(),
                     label = stringResource(R.string.backup_password_label),
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardType = KeyboardType.Password,
+                )
+                AtlasTextField(
+                    value = confirmPassword,
+                    onValueChange = onConfirmPasswordChanged,
+                    modifier = Modifier.fillMaxWidth(),
+                    label = stringResource(R.string.backup_password_confirm_label),
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardType = KeyboardType.Password,
                 )

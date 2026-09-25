@@ -1,5 +1,7 @@
 package com.atlaspeak.presentation.navigation
 
+import com.atlaspeak.domain.usecase.security.DatabaseKeyCheckResult
+import com.atlaspeak.domain.usecase.security.DatabaseKeyChecker
 import com.atlaspeak.domain.repository.OnboardingRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -33,7 +35,7 @@ class LaunchViewModelTest {
     @Test
     fun `launch gate sends first run to onboarding and completed users to home`() = runTest {
         val repository = FakeOnboardingRepository(completed = false)
-        val viewModel = LaunchViewModel(repository)
+        val viewModel = LaunchViewModel(repository, FakeDatabaseKeyChecker())
         dispatcher.scheduler.advanceUntilIdle()
 
         assertEquals(LaunchState.Onboarding, viewModel.state.value)
@@ -49,7 +51,7 @@ class LaunchViewModelTest {
         val repository = FakeOnboardingRepository(completed = false).apply {
             onboardingCompletedFlow = flow { throw IllegalStateException("boom") }
         }
-        val viewModel = LaunchViewModel(repository)
+        val viewModel = LaunchViewModel(repository, FakeDatabaseKeyChecker())
         dispatcher.scheduler.advanceUntilIdle()
 
         assertEquals(LaunchState.Onboarding, viewModel.state.value)
@@ -60,11 +62,43 @@ class LaunchViewModelTest {
         val repository = FakeOnboardingRepository(completed = false).apply {
             onboardingCompletedFlow = emptyFlow()
         }
-        val viewModel = LaunchViewModel(repository)
+        val viewModel = LaunchViewModel(repository, FakeDatabaseKeyChecker())
 
         dispatcher.scheduler.advanceTimeBy(3_001)
 
         assertEquals(LaunchState.Onboarding, viewModel.state.value)
+    }
+
+    @Test
+    fun `launch gate routes to recovery when the database key is unavailable`() = runTest {
+        val repository = FakeOnboardingRepository(completed = true)
+        val viewModel = LaunchViewModel(
+            repository,
+            FakeDatabaseKeyChecker(result = DatabaseKeyCheckResult.KeyUnavailable),
+        )
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(LaunchState.Recovery, viewModel.state.value)
+    }
+
+    @Test
+    fun `launch gate never reads onboarding completion when the database key is unavailable`() = runTest {
+        val repository = FakeOnboardingRepository(completed = false).apply {
+            onboardingCompletedFlow = flow { throw AssertionError("must not be collected") }
+        }
+        val viewModel = LaunchViewModel(
+            repository,
+            FakeDatabaseKeyChecker(result = DatabaseKeyCheckResult.KeyUnavailable),
+        )
+        dispatcher.scheduler.advanceTimeBy(3_001)
+
+        assertEquals(LaunchState.Recovery, viewModel.state.value)
+    }
+
+    private class FakeDatabaseKeyChecker(
+        private val result: DatabaseKeyCheckResult = DatabaseKeyCheckResult.Ok,
+    ) : DatabaseKeyChecker {
+        override suspend fun check(): DatabaseKeyCheckResult = result
     }
 
     private class FakeOnboardingRepository(

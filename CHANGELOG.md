@@ -10,6 +10,57 @@
 
 ## [Unreleased]
 
+### 2026-09-25 - V-02.00: correcciones de la auditoria pre-lanzamiento (seguridad, flujos, rendimiento, codigo muerto)
+
+Trabajo repartido en 5 paquetes ejecutados por subagentes y revisados por el orquestador.
+
+**Seguridad**
+- `SEC-040`: politica de passphrase de backup (>= 8 caracteres, lista local de contrasenas
+  comunes, confirmacion) al crear backups o guardar la passphrase automatica. Descarga de Drive
+  limitada a 64 MiB. Exports en claro caducados se limpian al arrancar.
+- `SEC-041`: un release firmado aborta con secretos vacios o de plantilla.
+- `SEC-042`: SQLCipher 4.6.1 -> 4.11.0.
+- `SEC-043`: passphrase de la DB fuera de `EncryptedSharedPreferences` (Keystore AES-GCM,
+  migracion del valor legado) y pantalla `Recovery` si la clave no se puede leer.
+- `SEC-044`: politica de privacidad (`PRIVACY_POLICY.md` + pantalla en Perfil y en la
+  pantalla de permisos de Health Connect) y "Borrar todos mis datos".
+- `SEC-045`: se anulan en DB y backups los datos del login retirado (`users`).
+
+**Corregido**
+- `BUG-109`: boton atras atrapado tras completar una sesion iniciada desde Home.
+- `BUG-110`: completar una serie descartaba el peso/reps recien tecleados.
+- `BUG-111`: tocar la notificacion de entreno/cardio no abria la app.
+- `BUG-112`: cierres por fallos de Keystore (ajustes de backup y arranque).
+- `BUG-113`: errores de Drive mal clasificados; backup subido marcado como fallido.
+- `BUG-114`: carga N+1 del historial de fuerza y cardio.
+- `BUG-115`: Recovery no re-sembraba la DB (encontrado en la revision del orquestador).
+
+**Cambiado**
+- `targetSdk` 35 -> 36 (requisito de Google Play desde el 2026-08-31). Auditoria Android 16:
+  sin opt-out de edge-to-edge, sin `onBackPressed`, sin bloqueos de orientacion.
+- La DB ya no se abre en el hilo principal (`LazyPassphraseOpenHelperFactory`, `dagger.Lazy`
+  en `AtlasPeakApplication`); la splash espera al tema real (sin parpadeo de tema).
+- El backup automatico serializa la DB una sola vez por ejecucion.
+- `launchSingleTop` en sesiones activas y subpantallas de Perfil (doble toque).
+- CI: push en `V-*`, `workflow_dispatch`, `assembleRelease` sin firmar (R8), timeout y
+  `concurrency`. El test de paridad ES/EN cubre todos los `strings*.xml`.
+
+**Eliminado (codigo muerto)**
+- `SecureScreenEffect`, `SensitiveRoutePolicy` (+ test), `AtlasSlider`, `SectionHeader`,
+  `AtlasBrushes.spotlight/accentBorder`, 6 constantes de `Motion.kt`,
+  `ActiveWorkoutViewModel.onActualRepsChanged/onWeightChanged`, `paceMinPerKm`, `gpsState`,
+  `HomeUiState.todayWorkout`, `EditProfileViewModel.consumeSaveError`, metodos de DAO sin uso,
+  `AppDatabase.V1_TABLES`, `EncryptionManager.encryptAesGcm/decryptAesGcm`.
+
+**Verificado / pendiente**
+- No se pudo compilar ni ejecutar tests en el entorno (sin Android SDK; Google Maven bloqueado
+  por la politica de red). La verificacion de compilacion, tests unitarios y lint es el CI.
+- Requiere prueba en dispositivo: apertura de la DB con SQLCipher 4.11 y migracion de la clave
+  desde una instalacion existente, pantalla Recovery, "Home -> entreno -> completar -> atras",
+  borrado total de datos y splash.
+- Pendiente del usuario: rellenar `[FECHA_EFECTIVA]`, `[RESPONSABLE]`, `[CONTACTO]` en la
+  politica y publicarla en una URL para Play Console.
+
 ### 2026-09-25 - Correcciones de la revision del PR #16 y CI
 
 **Corregido**

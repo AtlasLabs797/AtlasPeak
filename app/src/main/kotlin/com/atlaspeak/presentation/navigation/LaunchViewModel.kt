@@ -2,6 +2,8 @@ package com.atlaspeak.presentation.navigation
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.atlaspeak.domain.usecase.security.DatabaseKeyCheckResult
+import com.atlaspeak.domain.usecase.security.DatabaseKeyChecker
 import com.atlaspeak.domain.repository.OnboardingRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -14,17 +16,25 @@ import kotlinx.coroutines.launch
 
 @HiltViewModel
 class LaunchViewModel @Inject constructor(
-    onboardingRepository: OnboardingRepository,
+    private val onboardingRepository: OnboardingRepository,
+    private val databaseKeyChecker: DatabaseKeyChecker,
 ) : ViewModel() {
     private val mutableState = MutableStateFlow<LaunchState>(LaunchState.Loading)
     val state: StateFlow<LaunchState> = mutableState.asStateFlow()
 
     init {
+        // P1 (auditoria): antes de decidir onboarding/home (que ya implica leer la DB), se
+        // comprueba que la base de datos cifrada abre en este dispositivo. Si el Keystore/
+        // keyset esta corrupto, se enruta a Recovery en vez de dejar que la app crash-loopee.
         viewModelScope.launch {
-            delay(LOAD_TIMEOUT_MS)
-            if (mutableState.value == LaunchState.Loading) mutableState.value = LaunchState.Onboarding
-        }
-        viewModelScope.launch {
+            if (databaseKeyChecker.check() == DatabaseKeyCheckResult.KeyUnavailable) {
+                mutableState.value = LaunchState.Recovery
+                return@launch
+            }
+            launch {
+                delay(LOAD_TIMEOUT_MS)
+                if (mutableState.value == LaunchState.Loading) mutableState.value = LaunchState.Onboarding
+            }
             onboardingRepository.onboardingCompleted
                 .catch { mutableState.value = LaunchState.Onboarding }
                 .collect { completed ->
@@ -42,4 +52,5 @@ enum class LaunchState {
     Loading,
     Onboarding,
     Home,
+    Recovery,
 }

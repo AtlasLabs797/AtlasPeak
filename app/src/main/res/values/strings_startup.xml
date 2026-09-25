@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- i18n desde el día 1 (AGENTS.md regla 4). Idioma por defecto: español.
+     Strings de la auditoría de arranque (DB passphrase off-thread + pantalla de Recovery).
+     Archivo nuevo a propósito: strings.xml lo edita otro agente en paralelo. -->
+<resources>
+    <string name="recovery_title">No se puede abrir la base de datos local</string>
+    <string name="recovery_body">La base de datos cifrada de este dispositivo no se puede desbloquear. Esto puede pasar si el almacén seguro del sistema (Keystore) se dañó. Puedes borrar los datos locales y empezar de nuevo; si tenías un backup en Google Drive, podrás restaurarlo después desde la app.</string>
+    <string name="recovery_reset_action">Borrar datos locales y empezar de nuevo</string>
+    <string name="recovery_reset_failed">No se pudieron borrar los datos locales. Inténtalo de nuevo.</string>
+    <string name="recovery_confirm_title">¿Borrar todos los datos locales?</string>
+    <string name="recovery_confirm_body">Se borrará el entrenamiento guardado en este dispositivo. Esta acción no se puede deshacer.</string>
+    <string name="recovery_confirm_action">Borrar datos locales</string>
+</resources>

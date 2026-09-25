@@ -36,6 +36,55 @@ salvo lo que el propio Google maneja en su OAuth.
 Estos se detectaron al auditar el spec **antes** de escribir código. Los fixes están
 reflejados en `SPEC.md v2.2`, `AGENTS.md §8-9`, el manifest y el catálogo de versiones.
 
+### SEC-045 - Datos heredados del login retirado en DB y backups
+- **Estado:** Resuelto
+- **Fecha:** 2026-09-25
+- **Severidad:** Media
+- **Sintoma:** `users` conservaba `google_id`, `email`, `password_hash`, `password_salt`, `last_login_at` (y `auth_security`) de versiones con login; viajaban en backups de Drive.
+- **Causa raiz:** SEC-025 retiro el login sin limpiar datos ya guardados.
+- **Solucion:** `DatabaseSeeder` los anula en cada arranque (idempotente, sin cambio de schema); `RoomBackupSnapshotStore` los anula al exportar y al restaurar backups antiguos.
+- **Prevencion:** tests instrumentados en `RoomBackupSnapshotStoreInstrumentedTest` y `DatabaseSeederInstrumentedTest`. Pendiente opcional: eliminar las columnas con una migracion.
+
+### SEC-044 - Politica de privacidad y borrado total de datos
+- **Estado:** Mitigando (faltan datos del responsable y URL publica)
+- **Fecha:** 2026-09-25
+- **Severidad:** Alta (bloquea Play con Health Connect)
+- **Sintoma:** sin politica de privacidad en la app ni forma de borrar todos los datos desde la app.
+- **Solucion:** `PRIVACY_POLICY.md` (ES/EN), pantalla `PrivacyPolicyScreen` enlazada desde Perfil y desde `HealthPermissionsRationaleActivity`; "Borrar todos mis datos" en Perfil (`DeleteAllUserDataUseCase`: cancela WorkManager, borra backups de Drive si hay token, vacia la DB y re-siembra, limpia preferencias y exports).
+- **Pendiente:** rellenar `[FECHA_EFECTIVA]`, `[RESPONSABLE]`, `[CONTACTO]`; publicar la politica en una URL y ponerla en Play Console.
+- **Prevencion:** `DeleteAllUserDataUseCaseTest`, `ProfileViewModelTest`.
+
+### SEC-043 - Passphrase de la DB en EncryptedSharedPreferences (deprecado) y sin recuperacion
+- **Estado:** Resuelto (requiere verificacion en dispositivo)
+- **Fecha:** 2026-09-25
+- **Severidad:** Media
+- **Sintoma:** `androidx.security:security-crypto` esta deprecado (keysets corruptos en algunos fabricantes) y se usaba en el hilo principal; un fallo dejaba la app inservible.
+- **Solucion:** `DatabasePassphraseProvider` guarda la passphrase cifrada con AES-256-GCM en AndroidKeyStore (patron de `BackupCredentialStore`), migra el valor legado una vez y nunca genera una clave nueva para una DB existente (`DatabaseKeyUnavailableException` -> pantalla Recovery). `security-crypto` queda solo para leer el valor legado.
+- **Prevencion:** no reintroducir EncryptedSharedPreferences; cualquier fallo de clave debe acabar en Recovery, no en una clave nueva.
+
+### SEC-042 - SQLCipher con baseline antiguo de SQLite
+- **Estado:** Resuelto (requiere verificacion en dispositivo)
+- **Fecha:** 2026-09-25
+- **Severidad:** Media
+- **Solucion:** `sqlcipher-android` 4.6.1 -> 4.11.0 (ultima serie con `androidx.sqlite` 2.2.0, compatible con Room 2.6.1).
+- **Prevencion:** Dependabot + revisar el POM (dependencias transitivas) antes de cada subida de SQLCipher.
+
+### SEC-041 - Release firmado podia salir sin secretos reales
+- **Estado:** Resuelto
+- **Fecha:** 2026-09-25
+- **Severidad:** Baja
+- **Solucion:** `app/build.gradle.kts` aborta un build de release con keystore si `MAPS_API_KEY` u `OAUTH_WEB_CLIENT_ID` estan vacios o son de plantilla. El CI compila release sin firmar (R8) para detectar roturas de minificacion.
+- **Pendiente manual:** confirmar en Cloud Console que la Maps key esta restringida por paquete + SHA-1.
+
+### SEC-040 - Passphrase de backup sin longitud minima ni confirmacion
+- **Estado:** Resuelto
+- **Fecha:** 2026-09-25
+- **Severidad:** Alta
+- **Sintoma:** se aceptaba cualquier passphrase no vacia; un error al teclear hacia irrecuperables los backups y una de 1-4 caracteres permitia fuerza bruta offline sobre un `.enc` exportado.
+- **Solucion:** `BackupPassphrasePolicy` (>= 8 caracteres, lista local de ~2.000 contrasenas comunes de SecLists, sin reglas de complejidad) + campo de confirmacion al crear backups o guardar la passphrase automatica. Restaurar acepta cualquier passphrase no vacia. Descarga de Drive limitada a 64 MiB; exports en claro caducados se limpian al arrancar.
+- **Riesgo residual:** la comprobacion contra la lista materializa la passphrase como `String` en minusculas (mismo riesgo aceptado que SEC-039).
+- **Prevencion:** `BackupPassphrasePolicyTest`, `BackupRestoreViewModelTest`, `RetrofitDriveBackupServiceDownloadCapTest`.
+
 ### SEC-039 - Residuos de buffers cifrados en backup Drive
 - **Estado:** Resuelto / riesgo residual aceptado
 - **Fecha:** 2026-07-01

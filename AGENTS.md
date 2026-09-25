@@ -202,7 +202,7 @@ Ninguna fase, bug o cambio está hecho hasta que:
 |------|-----------|
 | Lenguaje | Kotlin |
 | UI | Jetpack Compose + Material 3 (estilo: `DESIGN.md`) |
-| Min / Target / Compile SDK | 31 / 35 / 36 |
+| Min / Target / Compile SDK | 31 / 36 / 36 |
 | JDK | 17 |
 | DB | Room + SQLCipher (cifrado transparente) |
 | DI | Hilt |
@@ -210,7 +210,7 @@ Ninguna fase, bug o cambio está hecho hasta que:
 | Gráficos | Vico (estable 2.x) |
 | HTTP | Retrofit + OkHttp — **exclusivamente** para Drive REST API v3 |
 | Serialización | Kotlinx Serialization |
-| Cifrado | Android Keystore + EncryptedSharedPreferences + SQLCipher + AES-256-GCM |
+| Cifrado | Android Keystore (AES-GCM) + SQLCipher + AES-256-GCM (`security-crypto` solo para migrar el valor legado) |
 | Auth/Backup | Sin login de app; Google Drive OAuth opcional + passphrase de backup |
 | Health | `androidx.health.connect:connect-client` |
 | Location | FusedLocationProvider |

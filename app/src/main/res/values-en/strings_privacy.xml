@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Privacy policy screen (P0 privacy audit / Play Store) -->
+    <string name="privacy_policy_title">Privacy policy</string>
+    <string name="privacy_policy_updated">Last updated: [EFFECTIVE_DATE]</string>
+
+    <string name="privacy_section_intro_title">Who we are</string>
+    <string name="privacy_section_intro_body">Atlas Peak is a strength and cardio training app developed by [CONTROLLER] ([CONTACT]). Atlas Peak has no servers or user accounts of its own: everything you log lives only on your phone.</string>
+
+    <string name="privacy_section_storage_title">Where your data is stored</string>
+    <string name="privacy_section_storage_body">Your routines, workouts, cardio sessions, body composition and settings are stored in an encrypted database (SQLCipher, AES-256) inside the app\'s private storage on your device. No one but you, with your device unlocked, can read that data. It is never uploaded to any Atlas Peak server, because none exists.</string>
+
+    <string name="privacy_section_tracking_title">No tracking, no ads</string>
+    <string name="privacy_section_tracking_body">Atlas Peak includes no third-party analytics, advertising, tracking SDKs or measurement tools (no Firebase, no Crashlytics, nothing similar). Your data is never shared with third parties for commercial or advertising purposes. The only network connections the app makes are, if you turn them on, to Google Drive (backup) and Health Connect (which is local to the phone, not a network connection).</string>
+
+    <string name="privacy_section_health_title">Health Connect</string>
+    <string name="privacy_section_health_body">If you grant permission, Atlas Peak reads from Health Connect: steps, active calories, sleep, heart rate, weight, body fat, lean body mass and body water mass. Atlas Peak writes to Health Connect: completed exercise sessions, weight, body fat, lean body mass and body water mass that you log in the app. This data is used only to show your progress and dashboard inside the app; it never leaves the device unless you turn on backup or export it yourself (see below). You can revoke access at any time from the Health Connect app.</string>
+
+    <string name="privacy_section_location_title">Location (GPS)</string>
+    <string name="privacy_section_location_body">Atlas Peak uses your precise location (GPS) only while you have an active cardio session running in the foreground, to trace your route and calculate distance and speed. The app never requests or uses background location: as soon as you finish or leave the cardio session, it stops accessing your location. The route is stored locally with the session, encrypted like the rest of the database.</string>
+
+    <string name="privacy_section_backup_title">Optional Google Drive backup</string>
+    <string name="privacy_section_backup_body">If you turn on backup, an encrypted copy of your database is uploaded to the app\'s private data folder in your Google Drive (appDataFolder): a space only Atlas Peak can read or write, hidden from your regular Drive view and not counted against your visible storage quota. Encryption happens on your device, with a password you choose, before anything is uploaded: Google never sees the content in plain form. That password (or, if you turn on automatic backup, its locally Android Keystore-encrypted copy) is stored only on your device, never in Drive or on any server.</string>
+
+    <string name="privacy_section_export_title">Exporting your data</string>
+    <string name="privacy_section_export_body">You can manually export your data as an encrypted file (.enc, protected with your password) or in the clear (JSON or CSV). These files are generated locally and are only shared if you explicitly pick an app or service from Android\'s share sheet.</string>
+
+    <string name="privacy_section_deletion_title">How to delete your data</string>
+    <string name="privacy_section_deletion_body">You can delete all your data at any time from Profile &gt; Delete all my data, including your Drive backups if you choose to. You can also uninstall the app (removes the local database), revoke Atlas Peak\'s access in Health Connect, or revoke Atlas Peak\'s access to your Google Drive from your Google account settings.</string>
+
+    <string name="privacy_section_contact_title">Contact</string>
+    <string name="privacy_section_contact_body">For questions about this policy or your data, write to [CONTACT].</string>
+
+    <!-- Button in HealthPermissionsRationaleActivity and row in Profile -->
+    <string name="action_view_privacy_policy">View privacy policy</string>
+    <string name="profile_privacy_policy">Privacy policy</string>
+    <string name="profile_privacy_policy_body">What data Atlas Peak stores and how we handle it</string>
+
+    <!-- Delete all data (P2 audit / right to erasure) -->
+    <string name="profile_delete_all_data">Delete all my data</string>
+    <string name="profile_delete_all_data_body">Permanently erases everything stored on this device</string>
+    <string name="delete_all_data_dialog_title">Delete all my data</string>
+    <string name="delete_all_data_dialog_body">This is irreversible: all your routines, workouts, cardio sessions, body composition and settings on this device will be deleted, and you will return to the welcome screen.</string>
+    <string name="delete_all_data_dialog_drive_option">Also delete my Google Drive backups</string>
+    <string name="delete_all_data_dialog_drive_hint">This only works if Google Drive is currently authorized. Otherwise you will need to delete them manually from your Google Drive.</string>
+    <string name="delete_all_data_dialog_confirm">Delete everything</string>
+    <string name="delete_all_data_partial_success">Local data deleted. Your Google Drive backups could not be deleted: remove them manually from your Google account.</string>
+    <string name="delete_all_data_failed">Your data could not be deleted. Please try again.</string>
+</resources>

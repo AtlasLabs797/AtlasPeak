@@ -7,6 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -67,13 +68,45 @@ class AppThemeViewModelTest {
         assertTrue(events.single().isError)
     }
 
+    @Test
+    fun `isLoaded stays false until the repository emits a theme value`() = runTest {
+        val viewModel = AppThemeViewModel(FakeAppSettingsRepository())
+
+        assertFalse(viewModel.isLoaded.value)
+
+        val collector = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.themeMode.collect {}
+        }
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(viewModel.isLoaded.value)
+        collector.cancel()
+    }
+
+    @Test
+    fun `theme falls back to System and isLoaded still completes when the database is unavailable`() = runTest {
+        val repository = FakeAppSettingsRepository(observeThemeModeFails = true)
+        val viewModel = AppThemeViewModel(repository)
+
+        val collector = backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            viewModel.themeMode.collect {}
+        }
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(viewModel.isLoaded.value)
+        assertEquals(AppThemeMode.System, viewModel.themeMode.value)
+        collector.cancel()
+    }
+
     private class FakeAppSettingsRepository(
         private val failOnSave: Boolean = false,
+        private val observeThemeModeFails: Boolean = false,
     ) : AppSettingsRepository {
         private val themeMode = MutableStateFlow(AppThemeMode.System)
         var savedMode: AppThemeMode? = null
 
-        override fun observeThemeMode(): Flow<AppThemeMode> = themeMode
+        override fun observeThemeMode(): Flow<AppThemeMode> =
+            if (observeThemeModeFails) flow { throw IllegalStateException("db unavailable") } else themeMode
 
         override suspend fun setThemeMode(mode: AppThemeMode) {
             if (failOnSave) error("save failed")

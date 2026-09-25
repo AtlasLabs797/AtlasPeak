@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- P0 bug: backup passphrase policy (minimum length + common password
+         list) and confirmation when creating a new backup. -->
+    <string name="backup_password_confirm_label">Confirm password</string>
+    <string name="backup_password_too_short">The password must be at least 8 characters long.</string>
+    <string name="backup_password_common">This password is too common. Choose another one.</string>
+    <string name="backup_password_mismatch">The passwords don\'t match.</string>
+    <string name="backup_auto_backup_error">Could not save the automatic backup password. Try again.</string>
+
+    <!-- P1: specific messages when a restore fails, instead of the generic
+         "check the password and the file" message. -->
+    <string name="backup_restore_error_wrong_password">Wrong password, or this backup was encrypted with a different one.</string>
+    <string name="backup_restore_error_network">No network connection. Try again.</string>
+    <string name="backup_restore_error_invalid">Invalid or corrupted backup file.</string>
+</resources>

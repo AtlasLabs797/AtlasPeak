@@ -113,8 +113,18 @@ Notas de integridad:
   `drive.appdata`; un ID token Google no es un bearer token valido para Drive y nunca
   desbloquea la DB local.
 - **Biometría:** no se usa para desbloqueo en v1 porque no hay gate local.
-- **Capturas:** permitidas en toda la app por decision de producto (SEC-026). `SecureScreenEffect`
-  limpia `FLAG_SECURE`; `SensitiveRoutePolicy` solo clasifica rutas sensibles para auditoria.
+- **Capturas:** permitidas en toda la app por decision de producto (SEC-026). No se usa
+  `FLAG_SECURE` en ningun sitio (el antiguo `SecureScreenEffect` se elimino como codigo muerto).
+- **Clave de la DB (SEC-043):** `DatabasePassphraseProvider` guarda la passphrase SQLCipher
+  cifrada con AES-256-GCM en AndroidKeyStore (prefs `atlas_peak_db_secure`) y migra una vez el
+  valor legado de `EncryptedSharedPreferences`. `LazyPassphraseOpenHelperFactory` difiere la
+  lectura hasta la primera apertura real de la DB (Room la hace fuera del hilo principal).
+  Si la clave no se puede leer y la DB existe, se lanza `DatabaseKeyUnavailableException`
+  (nunca se genera una clave nueva): `LaunchViewModel` usa `DatabaseKeyChecker` y enruta a
+  `Recovery`, que borra DB + clave y re-siembra.
+- **Borrado total (SEC-044):** `DeleteAllUserDataUseCase` + `AppUserDataEraser` (cancela
+  WorkManager, borra backups de Drive si hay token silencioso, `clearAllTables()` + seed,
+  limpia preferencias de onboarding/backup y `filesDir/exports`). La clave de la DB se conserva.
 - **Red:** solo HTTPS (`network_security_config.xml`, sin cleartext). Drive REST usa
   `Authorization: Bearer {access_token}` obtenido por `AuthorizationClient`; Atlas Peak no
   reutiliza ID tokens como credenciales Drive.
@@ -126,13 +136,18 @@ Notas de integridad:
   archivo (no es secreto) → permite restaurar en otro dispositivo. AES-256-GCM (tag de 16B
   incluido por el proveedor JCE).
 - **Backup automatico:** opt-in. Para cifrar sin pedir contrasena cada dia, la contrasena de
-  backup se guarda cifrada en `EncryptedSharedPreferences` protegido por Keystore. Si no hay
+  backup se guarda cifrada con una clave AES-GCM de AndroidKeyStore (`BackupCredentialStore`). Si no hay
   grant silencioso de Drive o contrasena guardada, el worker termina sin lanzar UI.
 - **Export manual:** JSON/CSV sin cifrar no exige contraseña tras retirar el gate local; excluye
   `users` y `auth_security` para no compartir restos de auth legada.
   El CSV neutraliza celdas textuales que puedan interpretarse como formulas en hojas de
   calculo (`=`, `+`, `-`, `@`) anteponiendo apostrofe en la salida.
   El restore valida tablas y columnas contra el schema actual antes de insertar datos.
+  Las columnas del login retirado en `users` se anulan al exportar y al restaurar (SEC-045).
+- **Passphrase de backup (SEC-040):** al crear un secreto (backup Drive/local, activar o
+  cambiar la automatica) `BackupPassphrasePolicy` exige >= 8 caracteres, que no este en
+  `res/raw/common_passwords.txt` y confirmacion identica. Restaurar solo exige no vacia.
+  La descarga de Drive se limita a 64 MiB.
 - **Secretos:** `MAPS_API_KEY` y `OAUTH_WEB_CLIENT_ID` en `secrets.properties` (gitignored),
   inyectados via `manifestPlaceholders` y `BuildConfig`. **Sin `google-services.json`.**
 
@@ -442,8 +457,11 @@ outliers.
 ## 14. Build, CI y release
 
 - Versiones **solo** en `gradle/libs.versions.toml` (version catalog).
-- CI (GitHub Actions): `assembleDebug` + `test` + `jacocoDebugDomainDataCoverageVerification` +
-  `lint` en cada push/PR.
+- CI (GitHub Actions): `assembleDebug` + `assembleRelease` (sin firmar, R8) +
+  `assembleDebugAndroidTest` + `test` + `jacocoDebugDomainDataCoverageVerification` + `lint`
+  en push a `main`/`V-*`, PR a `main` y lanzamiento manual. Timeout de 45 min.
+- Un release **firmado** aborta si `MAPS_API_KEY`/`OAUTH_WEB_CLIENT_ID` estan vacios o son de
+  plantilla (SEC-041). Target SDK 36.
 - Release: AAB firmado con keystore local fuera del repo. Gradle busca
   `ATLAS_PEAK_KEYSTORE_PROPERTIES` y después `keystore.properties` en la raiz solo como
   fallback local. R8/ProGuard activo (reglas para Room, Hilt, Retrofit, Kotlinx Serialization,

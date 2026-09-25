@@ -3,13 +3,17 @@ package com.atlaspeak.data.backup
 import com.atlaspeak.data.db.AppDatabase
 import com.atlaspeak.domain.model.backup.BackupFailure
 import com.atlaspeak.domain.model.backup.BackupHealthStatus
+import java.io.IOException
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import retrofit2.HttpException
+import retrofit2.Response
 
 class DriveBackupManagerTest {
     private val dispatcher = StandardTestDispatcher()
@@ -114,6 +118,63 @@ class DriveBackupManagerTest {
         assertEquals(0, store.restoreCount)
     }
 
+    @Test
+    fun `createBackup maps HttpException 401 to NotAuthorized`() = runTest(dispatcher) {
+        val store = FakeSnapshotStore(snapshot)
+        val service = FakeDriveBackupService().apply {
+            uploadError = HttpException(Response.error<Any>(401, "".toResponseBody(null)))
+        }
+        val manager = manager(store, service)
+
+        val result = manager.createBackup("access-token", "backup-password".toCharArray())
+
+        assertTrue(result is BackupOperationResult.Failed)
+        assertEquals(BackupFailureReason.NotAuthorized, (result as BackupOperationResult.Failed).reason)
+    }
+
+    @Test
+    fun `createBackup maps IOException to Network`() = runTest(dispatcher) {
+        val store = FakeSnapshotStore(snapshot)
+        val service = FakeDriveBackupService().apply {
+            uploadError = IOException("network down")
+        }
+        val manager = manager(store, service)
+
+        val result = manager.createBackup("access-token", "backup-password".toCharArray())
+
+        assertTrue(result is BackupOperationResult.Failed)
+        assertEquals(BackupFailureReason.Network, (result as BackupOperationResult.Failed).reason)
+    }
+
+    @Test
+    fun `createBackup succeeds and marks completed even if trimming old backups fails`() = runTest(dispatcher) {
+        val store = FakeSnapshotStore(snapshot)
+        val service = FakeDriveBackupService().apply {
+            backupsAfterUpload = List(6) { index ->
+                DriveBackupFile(id = "id-$index", name = "atlas_peak_backup_old_$index.enc", createdTimeMillis = index.toLong(), sizeBytes = 200)
+            }
+            deleteError = IOException("delete failed")
+        }
+        val manager = manager(store, service)
+
+        val result = manager.createBackup("access-token", "backup-password".toCharArray())
+
+        assertTrue(result is BackupOperationResult.Success)
+        assertEquals(1_800_000_000_000, store.lastBackupAt)
+    }
+
+    @Test
+    fun `createBackup reuses a provided snapshot instead of taking a new one`() = runTest(dispatcher) {
+        val store = FakeSnapshotStore(snapshot)
+        val service = FakeDriveBackupService()
+        val manager = manager(store, service)
+
+        val result = manager.createBackup("access-token", "backup-password".toCharArray(), snapshot)
+
+        assertTrue(result is BackupOperationResult.Success)
+        assertEquals(0, store.snapshotCalls)
+    }
+
     private fun manager(
         store: FakeSnapshotStore,
         service: FakeDriveBackupService,
@@ -130,8 +191,12 @@ class DriveBackupManagerTest {
         var lastBackupAt: Long? = null
         var restoreCount = 0
         var restoredSnapshot: DatabaseBackupSnapshot? = null
+        var snapshotCalls = 0
 
-        override suspend fun snapshot(): DatabaseBackupSnapshot = snapshot
+        override suspend fun snapshot(): DatabaseBackupSnapshot {
+            snapshotCalls += 1
+            return snapshot
+        }
 
         override suspend fun restore(snapshot: DatabaseBackupSnapshot) {
             restoreCount += 1
@@ -164,9 +229,12 @@ class DriveBackupManagerTest {
         var uploadedBytes = ByteArray(0)
         var downloadToken: String? = null
         var downloadFileId: String? = null
+        var uploadError: Throwable? = null
+        var deleteError: Throwable? = null
         val deletedIds = mutableListOf<String>()
 
         override suspend fun uploadBackup(accessToken: String, fileName: String, encryptedBytes: ByteArray): DriveBackupFile {
+            uploadError?.let { throw it }
             uploadToken = accessToken
             uploadedName = fileName
             uploadedBytes = encryptedBytes
@@ -182,6 +250,7 @@ class DriveBackupManagerTest {
         }
 
         override suspend fun deleteBackup(accessToken: String, fileId: String) {
+            deleteError?.let { throw it }
             deletedIds += fileId
         }
     }

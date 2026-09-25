@@ -4,6 +4,7 @@ import com.atlaspeak.domain.model.cardio.CardioMode
 
 sealed class AppRoute(val route: String) {
     data object Launch : AppRoute("launch")
+    data object Recovery : AppRoute("recovery")
     data object Onboarding : AppRoute("onboarding")
     data object AppGraph : AppRoute("app")
     data object Home : AppRoute("home")
@@ -54,4 +55,5 @@ sealed class AppRoute(val route: String) {
         fun createRoute(sessionId: String) = "cardio_complete/$sessionId"
     }
     data object BackupRestore : AppRoute("backup_restore")
+    data object PrivacyPolicy : AppRoute("privacy_policy")
 }

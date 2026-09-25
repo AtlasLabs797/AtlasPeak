@@ -89,7 +89,8 @@ descanso. La semana empieza en lunes.
 en tu Drive (carpeta privada que solo Atlas Peak ve). Puedes crear copias manuales o
 restaurar una. Se guardan las 5 más recientes.
 ⚠️ Para crear o restaurar backups cifrados necesitas una **contraseña de backup**. Si la olvidas,
-esa copia no se puede recuperar.
+esa copia no se puede recuperar. Al crearla se pide **dos veces** y debe tener al menos
+8 caracteres y no ser una contraseña común (por ejemplo `password1`).
 
 ### Exportar tus datos
 **Perfil → Copias de seguridad.** Saca todo en **JSON** (completo) o **CSV** (por tipo) y compártelo a
@@ -122,6 +123,14 @@ Tres tipos, todos activables/desactivables en **Perfil → Ajustes**:
   permisos y puedes revocarlos cuando quieras desde Health Connect.
 - **Privacidad:** sin publicidad, sin rastreadores, sin compartir datos con nadie. Todo
   vive en tu móvil; la copia de Drive está cifrada y solo tú la abres.
+- **Política de privacidad:** **Perfil → Política de privacidad** (también desde la pantalla de
+  permisos de Health Connect).
+- **Borrar todos tus datos:** **Perfil → Borrar todos mis datos.** Borra todo lo guardado en el
+  móvil y, si lo marcas y Drive está conectado, tus copias en Drive. No se puede deshacer; la
+  app vuelve a la pantalla de bienvenida.
+- **Si la app no puede abrir tus datos** (por ejemplo, tras un fallo del almacén de claves del
+  móvil), verás una pantalla de recuperación: puedes borrar los datos locales y empezar de
+  nuevo, y después restaurar una copia de Drive.
 - **Capturas:** puedes hacer screenshots de cualquier pantalla. Eso es comodo, pero si
   compartes una captura puedes exponer datos de salud, perfil, entrenamiento o backup.
 

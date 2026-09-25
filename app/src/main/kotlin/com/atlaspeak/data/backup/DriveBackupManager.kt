@@ -5,6 +5,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 import javax.crypto.AEADBadTagException
+import kotlinx.coroutines.CancellationException
 
 class DriveBackupManager(
     private val snapshotStore: BackupSnapshotStore,
@@ -13,16 +14,23 @@ class DriveBackupManager(
     private val driveBackupService: DriveBackupService,
     private val clock: () -> Long = { System.currentTimeMillis() },
 ) {
+    /**
+     * [snapshot] permite reutilizar una captura ya tomada por el llamador
+     * (p. ej. `BackupWorkerRunner`, que la necesita para calcular el hash de
+     * cambios) en vez de serializar la base de datos dos veces. Si se omite,
+     * se toma una captura nueva aqui (comportamiento previo).
+     */
     suspend fun createBackup(
         accessToken: String?,
         password: CharArray,
+        snapshot: DatabaseBackupSnapshot? = null,
     ): BackupOperationResult {
         if (accessToken.isNullOrBlank()) return BackupOperationResult.Failed(BackupFailureReason.NotAuthorized)
         if (password.isEmpty()) return BackupOperationResult.Failed(BackupFailureReason.EmptyPassword)
 
         return runCatching {
             val now = clock()
-            val payload = backupJsonCodec.encode(snapshotStore.snapshot()).encodeToByteArray()
+            val payload = backupJsonCodec.encode(snapshot ?: snapshotStore.snapshot()).encodeToByteArray()
             val encrypted = try {
                 backupFileCodec.encrypt(payload, password)
             } finally {
@@ -37,12 +45,27 @@ class DriveBackupManager(
             } finally {
                 encrypted.fill(0)
             }
-            trimOldBackups(accessToken)
+            // P1: un fallo al borrar backups antiguos tras una subida
+            // correcta es best-effort. No debe convertir el resultado en
+            // Failed ni saltarse el registro de exito (`markBackupCompleted`),
+            // o un backup real quedaria marcado como fallido por un error de
+            // limpieza no relacionado.
+            try {
+                trimOldBackups(accessToken)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                // Ignorado a proposito: la subida ya se completo.
+            }
             snapshotStore.markBackupCompleted(now)
             BackupOperationResult.Success(uploaded)
-        }.getOrElse { error ->
-            BackupOperationResult.Failed(error.toBackupFailure())
-        }
+        }.fold(
+            onSuccess = { it },
+            onFailure = { error ->
+                if (error is CancellationException) throw error
+                BackupOperationResult.Failed(error.toBackupFailure())
+            },
+        )
     }
 
     suspend fun restoreBackup(
@@ -68,9 +91,13 @@ class DriveBackupManager(
             val snapshot = backupJsonCodec.decode(json)
             snapshotStore.restore(snapshot)
             BackupOperationResult.Success()
-        }.getOrElse { error ->
-            BackupOperationResult.Failed(error.toBackupFailure())
-        }
+        }.fold(
+            onSuccess = { it },
+            onFailure = { error ->
+                if (error is CancellationException) throw error
+                BackupOperationResult.Failed(error.toBackupFailure())
+            },
+        )
     }
 
     suspend fun listBackups(accessToken: String?): List<DriveBackupFile> {
@@ -93,7 +120,16 @@ class DriveBackupManager(
 
     private fun Throwable.toBackupFailure(): BackupFailureReason = when (this) {
         is AEADBadTagException -> BackupFailureReason.Crypto
+        // Incluye kotlinx.serialization.SerializationException, que hereda de
+        // IllegalArgumentException: un JSON/backup mal formado es un backup
+        // invalido, no un error desconocido.
         is IllegalArgumentException -> BackupFailureReason.InvalidBackup
+        is retrofit2.HttpException -> if (code() == 401 || code() == 403) {
+            BackupFailureReason.NotAuthorized
+        } else {
+            BackupFailureReason.Network
+        }
+        is java.io.IOException -> BackupFailureReason.Network
         else -> BackupFailureReason.Unknown
     }
 

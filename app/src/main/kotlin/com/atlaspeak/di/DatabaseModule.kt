@@ -3,14 +3,19 @@ package com.atlaspeak.di
 import android.content.Context
 import androidx.room.Room
 import com.atlaspeak.data.db.AppDatabase
+import com.atlaspeak.data.db.seed.DatabaseSeeder
+import com.atlaspeak.data.security.AppDatabaseRecoveryUseCase
 import com.atlaspeak.data.security.DatabasePassphraseProvider
+import com.atlaspeak.data.security.LazyPassphraseOpenHelperFactory
+import com.atlaspeak.data.security.RoomDatabaseKeyChecker
+import com.atlaspeak.domain.usecase.recovery.DatabaseRecoveryUseCase
+import com.atlaspeak.domain.usecase.security.DatabaseKeyChecker
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
-import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -21,9 +26,10 @@ object DatabaseModule {
         @ApplicationContext context: Context,
         passphraseProvider: DatabasePassphraseProvider,
     ): AppDatabase {
-        val supportFactory = SupportOpenHelperFactory(passphraseProvider.getPassphrase())
+        // P1 (auditoria): la lectura de la passphrase (Keystore I/O) se aplaza hasta que Room
+        // abra la DB de verdad, fuera del hilo principal. Ver LazyPassphraseOpenHelperFactory.
         return Room.databaseBuilder(context, AppDatabase::class.java, AppDatabase.DATABASE_NAME)
-            .openHelperFactory(supportFactory)
+            .openHelperFactory(LazyPassphraseOpenHelperFactory(passphraseProvider))
             .addMigrations(
                 AppDatabase.MIGRATION_1_2,
                 AppDatabase.MIGRATION_2_3,
@@ -36,4 +42,19 @@ object DatabaseModule {
             )
             .build()
     }
+
+    @Provides
+    @Singleton
+    fun provideDatabaseKeyChecker(database: AppDatabase): DatabaseKeyChecker =
+        RoomDatabaseKeyChecker(database)
+
+    @Provides
+    @Singleton
+    fun provideDatabaseRecoveryUseCase(
+        @ApplicationContext context: Context,
+        database: AppDatabase,
+        passphraseProvider: DatabasePassphraseProvider,
+        databaseSeeder: DatabaseSeeder,
+    ): DatabaseRecoveryUseCase =
+        AppDatabaseRecoveryUseCase(context, database, passphraseProvider, databaseSeeder)
 }

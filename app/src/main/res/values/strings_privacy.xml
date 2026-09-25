@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Pantalla de politica de privacidad (P0 auditoria de privacidad / Play Store) -->
+    <string name="privacy_policy_title">Politica de privacidad</string>
+    <string name="privacy_policy_updated">Ultima actualizacion: [FECHA_EFECTIVA]</string>
+
+    <string name="privacy_section_intro_title">Quienes somos</string>
+    <string name="privacy_section_intro_body">Atlas Peak es una app de entrenamiento de fuerza y cardio desarrollada por [RESPONSABLE] ([CONTACTO]). Atlas Peak no tiene servidor propio ni cuentas de usuario: toda la informacion que registras vive unicamente en tu telefono.</string>
+
+    <string name="privacy_section_storage_title">Donde se guardan tus datos</string>
+    <string name="privacy_section_storage_body">Tus rutinas, entrenamientos, sesiones de cardio, composicion corporal y ajustes se guardan en una base de datos cifrada (SQLCipher, AES-256) dentro del almacenamiento privado de la app en tu dispositivo. Nadie mas que tu, con tu dispositivo desbloqueado, puede leer esos datos. No se suben a ningun servidor propio de Atlas Peak: no existe.</string>
+
+    <string name="privacy_section_tracking_title">Cero tracking, cero anuncios</string>
+    <string name="privacy_section_tracking_body">Atlas Peak no incluye analitica de terceros, publicidad, SDKs de rastreo ni herramientas de medicion (no hay Firebase, Crashlytics ni similares). No se comparte informacion tuya con terceros con fines comerciales o publicitarios. Las unicas conexiones de red que hace la app son, si tu las activas, con Google Drive (backup) y con Health Connect (que es local al telefono, no una conexion de red).</string>
+
+    <string name="privacy_section_health_title">Health Connect</string>
+    <string name="privacy_section_health_body">Si concedes permiso, Atlas Peak lee de Health Connect: pasos, calorias activas, sueno, frecuencia cardiaca, peso, grasa corporal, masa magra y agua corporal. Atlas Peak escribe en Health Connect: sesiones de ejercicio completadas, peso, grasa corporal, masa magra y agua corporal que tu registras en la app. Estos datos se usan solo para mostrarte tu progreso y el dashboard dentro de la app; no salen del dispositivo salvo que tu actives un backup o un export (ver mas abajo). Puedes revocar el acceso en cualquier momento desde la app Health Connect.</string>
+
+    <string name="privacy_section_location_title">Ubicacion (GPS)</string>
+    <string name="privacy_section_location_body">Atlas Peak usa tu ubicacion precisa (GPS) unicamente mientras tienes una sesion de cardio activa en primer plano, para trazar la ruta y calcular distancia y velocidad. La app no solicita ni usa ubicacion en segundo plano: en cuanto terminas o sales de la sesion de cardio, deja de acceder a tu ubicacion. La ruta se guarda localmente junto con la sesion, cifrada como el resto de la base de datos.</string>
+
+    <string name="privacy_section_backup_title">Backup opcional en Google Drive</string>
+    <string name="privacy_section_backup_body">Si activas el backup, una copia cifrada de tu base de datos se sube a la carpeta privada de datos de la app en tu Google Drive (appDataFolder): un espacio que solo Atlas Peak puede leer o escribir, invisible en tu Drive normal y que no cuenta contra tu cuota visible. El cifrado se hace en tu dispositivo, con una contrasena que tu eliges, antes de subir nada: Google nunca ve el contenido en claro. Esa contrasena (o, si activas el backup automatico, la version cifrada localmente con Android Keystore) se guarda solo en tu dispositivo, nunca en Drive ni en ningun servidor.</string>
+
+    <string name="privacy_section_export_title">Exportar tus datos</string>
+    <string name="privacy_section_export_body">Puedes exportar manualmente tus datos como archivo cifrado (.enc, con tu contrasena) o en claro (JSON o CSV). Estos archivos se generan localmente y solo se comparten si tu, explicitamente, eliges una app o servicio de destino desde el selector de Android para compartir.</string>
+
+    <string name="privacy_section_deletion_title">Como borrar tus datos</string>
+    <string name="privacy_section_deletion_body">Puedes borrar todos tus datos en cualquier momento desde Perfil &gt; Borrar todos mis datos, incluyendo los backups en Drive si lo indicas. Tambien puedes desinstalar la app (borra la base de datos local), revocar el acceso de Atlas Peak en Health Connect, o revocar el acceso de Atlas Peak a tu Google Drive desde los ajustes de tu cuenta de Google.</string>
+
+    <string name="privacy_section_contact_title">Contacto</string>
+    <string name="privacy_section_contact_body">Para preguntas sobre esta politica o tus datos, escribe a [CONTACTO].</string>
+
+    <!-- Boton en HealthPermissionsRationaleActivity y fila en Perfil -->
+    <string name="action_view_privacy_policy">Ver politica de privacidad</string>
+    <string name="profile_privacy_policy">Politica de privacidad</string>
+    <string name="profile_privacy_policy_body">Que datos guarda Atlas Peak y como los tratamos</string>
+
+    <!-- Borrado de todos los datos (P2 auditoria / derecho al olvido) -->
+    <string name="profile_delete_all_data">Borrar todos mis datos</string>
+    <string name="profile_delete_all_data_body">Elimina permanentemente todo lo guardado en este dispositivo</string>
+    <string name="delete_all_data_dialog_title">Borrar todos mis datos</string>
+    <string name="delete_all_data_dialog_body">Esta accion es irreversible: se borraran todas tus rutinas, entrenamientos, sesiones de cardio, composicion corporal y ajustes de este dispositivo, y volveras a la pantalla de bienvenida.</string>
+    <string name="delete_all_data_dialog_drive_option">Borrar tambien mis backups en Google Drive</string>
+    <string name="delete_all_data_dialog_drive_hint">Solo funciona si Google Drive esta autorizado ahora mismo. Si no, tendras que borrarlos manualmente desde tu Google Drive.</string>
+    <string name="delete_all_data_dialog_confirm">Borrar todo</string>
+    <string name="delete_all_data_partial_success">Datos locales borrados. No se pudieron borrar los backups de Google Drive: borralos manualmente desde tu cuenta de Google.</string>
+    <string name="delete_all_data_failed">No se pudieron borrar los datos. Intentalo de nuevo.</string>
+</resources>

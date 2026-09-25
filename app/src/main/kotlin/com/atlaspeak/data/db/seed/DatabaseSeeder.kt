@@ -20,6 +20,18 @@ class DatabaseSeeder @Inject constructor(
             database.settingsDao().insertSettings(AppSettingsEntity())
             database.authSecurityDao().insertAuthSecurity(AuthSecurityEntity())
             database.healthConnectDao().insertSyncLogs(SeedData.hcSyncLogs)
+            sanitizeLegacyLoginData()
         }
+    }
+
+    /**
+     * SEC-025 / SEC-036 (auditoria): instalaciones antiguas (antes del retiro del login local)
+     * pueden conservar google_id/email/password_hash/password_salt/last_login_at en `users` y
+     * un `auth_security` con intentos fallidos. Esos valores viajan tal cual en los backups de
+     * Drive. Idempotente: en una fila ya saneada, el UPDATE no cambia nada.
+     */
+    private suspend fun sanitizeLegacyLoginData() {
+        database.userDao().sanitizeLegacyLoginColumns()
+        database.authSecurityDao().resetAuthSecurity()
     }
 }

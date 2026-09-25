@@ -15,6 +15,7 @@ import com.atlaspeak.data.db.entity.UserProfileEntity
 import com.atlaspeak.data.db.entity.WorkoutSessionEntity
 import com.atlaspeak.data.db.entity.WorkoutSetEntity
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import org.junit.After
@@ -65,6 +66,51 @@ class RoomBackupSnapshotStoreInstrumentedTest {
         assertEquals(1, database.workoutDao().getSets("session-1").size)
         assertEquals(1, database.healthConnectDao().countSleepStages())
         assertEquals(1_700_000_000_000, database.settingsDao().getSettings()?.lastBackupAt)
+    }
+
+    @Test
+    fun snapshotNullsLegacyLoginColumnsForUsers() = runTest {
+        database.userDao().upsertUser(
+            UserEntity(
+                id = "user-legacy",
+                googleId = "google-1",
+                email = "athlete@example.com",
+                passwordHash = "hash",
+                passwordSalt = "salt",
+                createdAt = 1_700_000_000_000,
+                lastLoginAt = 1_700_000_500_000,
+            ),
+        )
+
+        val snapshot = store.snapshot()
+        val row = snapshot.tables.getValue("users").single { it.getValue("id") == JsonPrimitive("user-legacy") }
+
+        assertEquals(JsonNull, row.getValue("google_id"))
+        assertEquals(JsonNull, row.getValue("email"))
+        assertEquals(JsonNull, row.getValue("password_hash"))
+        assertEquals(JsonNull, row.getValue("password_salt"))
+        assertEquals(JsonNull, row.getValue("last_login_at"))
+    }
+
+    @Test
+    fun restoreNullsLegacyLoginColumnsFromAnOldBackup() = runTest {
+        insertConnectedRows()
+        val snapshot = store.snapshot()
+        val legacyUsers = snapshot.tables.getValue("users").map { row ->
+            row +
+                ("google_id" to JsonPrimitive("google-1")) +
+                ("email" to JsonPrimitive("athlete@example.com")) +
+                ("last_login_at" to JsonPrimitive(1_700_000_500_000L))
+        }
+        val legacyBackup = snapshot.copy(tables = snapshot.tables + ("users" to legacyUsers))
+
+        store.restore(legacyBackup)
+
+        val restoredUser = database.userDao().getLocalUser()
+        assertNotNull(restoredUser)
+        assertEquals(null, restoredUser?.googleId)
+        assertEquals(null, restoredUser?.email)
+        assertEquals(null, restoredUser?.lastLoginAt)
     }
 
     @Test

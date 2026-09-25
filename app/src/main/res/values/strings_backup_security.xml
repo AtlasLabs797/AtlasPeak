@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- BUG P0: política de contraseña de backup (longitud mínima + lista de
+         contraseñas comunes) y confirmación al crear un backup nuevo. -->
+    <string name="backup_password_confirm_label">Confirmar contraseña</string>
+    <string name="backup_password_too_short">La contraseña debe tener al menos 8 caracteres.</string>
+    <string name="backup_password_common">Esta contraseña es demasiado común. Elige otra.</string>
+    <string name="backup_password_mismatch">Las contraseñas no coinciden.</string>
+    <string name="backup_auto_backup_error">No se pudo guardar la contraseña de backup automático. Inténtalo de nuevo.</string>
+
+    <!-- P1: mensajes específicos al fallar una restauración, en vez del
+         mensaje genérico "comprueba la contraseña y el archivo". -->
+    <string name="backup_restore_error_wrong_password">Contraseña incorrecta o backup cifrado con otra contraseña.</string>
+    <string name="backup_restore_error_network">Sin conexión de red. Inténtalo de nuevo.</string>
+    <string name="backup_restore_error_invalid">Archivo de backup inválido o corrupto.</string>
+</resources>

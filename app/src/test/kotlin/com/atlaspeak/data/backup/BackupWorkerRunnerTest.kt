@@ -98,6 +98,30 @@ class BackupWorkerRunnerTest {
         assertEquals("\u0000\u0000\u0000\u0000", credentials.password.concatToString())
     }
 
+    @Test
+    fun `runner takes a single snapshot and reuses it for hash and upload`() = runTest {
+        val store = FakeSnapshotStore()
+        val recorder = BackupRecorder()
+        val credentials = FakeCredentials(password = charArrayOf('p', 'a', 's', 's'))
+
+        runner(store, recorder, credentials).run()
+
+        assertEquals(1, store.snapshotCalls)
+        assertEquals(store.snapshot().exportedAt, recorder.lastSnapshot?.exportedAt)
+    }
+
+    @Test
+    fun `runner marks Drive authorization required when upload fails with NotAuthorized`() = runTest {
+        val store = FakeSnapshotStore()
+        val recorder = BackupRecorder(result = BackupOperationResult.Failed(BackupFailureReason.NotAuthorized))
+        val credentials = FakeCredentials(password = charArrayOf('p', 'a', 's', 's'))
+
+        val result = runner(store, recorder, credentials).run()
+
+        assertEquals(BackupWorkerRunResult.Success, result)
+        assertEquals(1, store.markDriveAuthorizationRequiredCalls)
+    }
+
     private fun runner(
         store: FakeSnapshotStore,
         recorder: BackupRecorder,
@@ -115,19 +139,25 @@ class BackupWorkerRunnerTest {
     private class FakeSnapshotStore(
         private val autoEnabled: Boolean = true,
     ) : BackupSnapshotStore {
-        override suspend fun snapshot(): DatabaseBackupSnapshot = DatabaseBackupSnapshot(
-            schemaVersion = BackupJsonCodec.CURRENT_SCHEMA_VERSION,
-            exportedAt = 1_800_000_000_000,
-            tables = mapOf(
-                "app_settings" to listOf(
-                    mapOf(
-                        "id" to JsonPrimitive(1),
-                        "last_backup_at" to JsonPrimitive(1_800_000_000_000),
+        var snapshotCalls = 0
+        var markDriveAuthorizationRequiredCalls = 0
+
+        override suspend fun snapshot(): DatabaseBackupSnapshot {
+            snapshotCalls += 1
+            return DatabaseBackupSnapshot(
+                schemaVersion = BackupJsonCodec.CURRENT_SCHEMA_VERSION,
+                exportedAt = 1_800_000_000_000,
+                tables = mapOf(
+                    "app_settings" to listOf(
+                        mapOf(
+                            "id" to JsonPrimitive(1),
+                            "last_backup_at" to JsonPrimitive(1_800_000_000_000),
+                        ),
                     ),
+                    "users" to listOf(mapOf("id" to JsonPrimitive("user-1"))),
                 ),
-                "users" to listOf(mapOf("id" to JsonPrimitive("user-1"))),
-            ),
-        )
+            )
+        }
 
         override suspend fun restore(snapshot: DatabaseBackupSnapshot) = Unit
 
@@ -148,16 +178,20 @@ class BackupWorkerRunnerTest {
         override suspend fun recordBackupSuccess(timestampMillis: Long) = Unit
         override suspend fun recordBackupFailure(reason: com.atlaspeak.domain.model.backup.BackupFailure, timestampMillis: Long) = Unit
         override suspend fun clearDriveAuthorizationRequired() = Unit
-        override suspend fun markDriveAuthorizationRequired() = Unit
+        override suspend fun markDriveAuthorizationRequired() {
+            markDriveAuthorizationRequiredCalls += 1
+        }
     }
 
     private class BackupRecorder(
         private val result: BackupOperationResult = BackupOperationResult.Success(),
     ) {
         var uploadCount = 0
+        var lastSnapshot: DatabaseBackupSnapshot? = null
 
-        suspend fun createBackup(accessToken: String, password: CharArray): BackupOperationResult {
+        suspend fun createBackup(accessToken: String, password: CharArray, snapshot: DatabaseBackupSnapshot): BackupOperationResult {
             uploadCount += 1
+            lastSnapshot = snapshot
             return result
         }
     }
