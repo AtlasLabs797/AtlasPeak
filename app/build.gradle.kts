@@ -52,6 +52,25 @@ fun keystoreStoreFile(): File {
     return if (storeFile.isAbsolute) storeFile else keystoreFile.parentFile.resolve(configured)
 }
 
+// ── Guard: un release FIRMADO (keystore real presente) no debe salir con secretos vacíos o
+// de plantilla. CI construye release SIN firmar (sin keystore) con placeholders y debe seguir
+// pasando. Validación eager en configuración (compatible con configuration cache): solo corre
+// si se pidió una tarea de release y el keystore existe. Ver secrets.properties.template.
+if (keystoreFile.exists() && gradle.startParameter.taskNames.any { it.contains("Release") }) {
+    fun isPlaceholder(value: String) =
+        value.isBlank() ||
+            value.startsWith("TU_") ||
+            value.contains("placeholder", ignoreCase = true) ||
+            value == "TU_CLIENT_ID.apps.googleusercontent.com" ||
+            value == "TU_MAPS_API_KEY"
+
+    if (isPlaceholder(secret("MAPS_API_KEY")) || isPlaceholder(secret("OAUTH_WEB_CLIENT_ID"))) {
+        throw org.gradle.api.GradleException(
+            "Release firmado sin secretos reales: revisa MAPS_API_KEY y OAUTH_WEB_CLIENT_ID en secrets.properties.",
+        )
+    }
+}
+
 android {
     namespace = "com.atlaspeak"
     compileSdk = 36
@@ -59,7 +78,7 @@ android {
     defaultConfig {
         applicationId = atlasApplicationId
         minSdk = 31
-        targetSdk = 35
+        targetSdk = 36
         versionCode = atlasVersionCode
         versionName = atlasVersionName
 
