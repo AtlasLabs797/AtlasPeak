@@ -71,8 +71,8 @@ import kotlin.math.roundToInt
 
 @Composable
 fun HomeRoute(
-    onStartRoutine: (String) -> Unit,
-    onStartCardio: (String, Int) -> Unit,
+    onStartRoutine: (String, String?) -> Unit,
+    onStartCardio: (String, Int, String?) -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state = viewModel.state.collectAsStateWithLifecycle().value
@@ -102,8 +102,8 @@ fun HomeScreen(
     state: HomeUiState,
     onPeriodSelected: (DashboardWidget, DashboardPeriod) -> Unit,
     onRetry: () -> Unit,
-    onStartRoutine: (String) -> Unit,
-    onStartCardio: (String, Int) -> Unit,
+    onStartRoutine: (String, String?) -> Unit,
+    onStartCardio: (String, Int, String?) -> Unit,
     onOpenHealthConnectPermissions: () -> Unit,
     onDismissHealthConnect: () -> Unit,
     modifier: Modifier = Modifier,
@@ -172,8 +172,8 @@ private fun DashboardContent(
     onDismissHealthConnect: () -> Unit,
     onPeriodSelected: (DashboardWidget, DashboardPeriod) -> Unit,
     onRetry: () -> Unit,
-    onStartRoutine: (String) -> Unit,
-    onStartCardio: (String, Int) -> Unit,
+    onStartRoutine: (String, String?) -> Unit,
+    onStartCardio: (String, Int, String?) -> Unit,
 ) {
     val spacing = LocalSpacing.current
     val atlasColors = LocalAtlasColors.current
@@ -240,10 +240,10 @@ private fun DashboardContent(
                     if (workout.type == TodayWorkoutType.Cardio) {
                         val cardioTypeId = workout.cardioTypeId ?: return@TodayWorkoutCard
                         val targetSeconds = workout.cardioTargetDurationSec ?: return@TodayWorkoutCard
-                        onStartCardio(cardioTypeId, targetSeconds)
+                        onStartCardio(cardioTypeId, targetSeconds, workout.weeklyPlanSessionId)
                     } else {
                         val routineId = workout.routineId ?: return@TodayWorkoutCard
-                        onStartRoutine(routineId)
+                        onStartRoutine(routineId, workout.weeklyPlanSessionId)
                     }
                 },
             )
