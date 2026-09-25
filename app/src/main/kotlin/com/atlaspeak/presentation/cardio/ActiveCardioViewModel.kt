@@ -57,6 +57,7 @@ class ActiveCardioViewModel(
     )
 
     private val cardioTypeId: String = requireNotNull(savedStateHandle[AppRoute.ActiveCardio.CARDIO_TYPE_ID])
+    private val weeklyPlanSessionId: String? = savedStateHandle[AppRoute.ActiveCardio.WEEKLY_PLAN_SESSION_ID]
     private val mode: CardioMode = when (savedStateHandle.get<String>(AppRoute.ActiveCardio.MODE)) {
         AppRoute.ActiveCardio.MODE_COUNTDOWN -> CardioMode.Countdown(
             requireNotNull(savedStateHandle[AppRoute.ActiveCardio.TARGET_SECONDS]),
@@ -317,7 +318,7 @@ class ActiveCardioViewModel(
 
     private fun startCardio(): Job {
         return viewModelScope.launch {
-            when (val result = cardioUseCase.startSession(cardioTypeId, mode)) {
+            when (val result = cardioUseCase.startSession(cardioTypeId, mode, weeklyPlanSessionId)) {
                 is ActiveSessionStartResult.Started, is ActiveSessionStartResult.Resumed -> {
                     loadSession(result.sessionId)
                 }
