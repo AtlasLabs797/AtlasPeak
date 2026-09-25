@@ -1,5 +1,8 @@
 package com.atlaspeak.data.backup
 
+import com.atlaspeak.domain.model.backup.BackupFailure
+import com.atlaspeak.domain.model.backup.BackupHealthStatus
+
 data class DriveBackupFile(
     val id: String,
     val name: String,
