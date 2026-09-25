@@ -1,6 +1,7 @@
 package com.atlaspeak.data.backup
 
 import com.atlaspeak.domain.model.backup.BackupFailure
+import com.atlaspeak.domain.model.backup.BackupHealthStatus
 import com.atlaspeak.domain.model.backup.BackupResult
 import com.atlaspeak.domain.model.backup.BackupStatus
 import com.atlaspeak.domain.model.backup.DriveBackup
@@ -50,6 +51,12 @@ class DataBackupRepository @Inject constructor(
 
     override suspend fun writeCsvZip(): SharedBackupExport =
         localBackupExportManager.writeCsvZip().toDomain()
+
+    override suspend fun health(): BackupHealthStatus = snapshotStore.backupHealth()
+
+    override suspend fun clearDriveAuthorizationRequired() {
+        snapshotStore.clearDriveAuthorizationRequired()
+    }
 
     private fun BackupOperationResult.toDomain(): BackupResult = when (this) {
         is BackupOperationResult.Success -> BackupResult.Success(file?.toDomain())
