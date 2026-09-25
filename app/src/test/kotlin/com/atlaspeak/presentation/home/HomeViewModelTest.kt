@@ -1,15 +1,19 @@
 package com.atlaspeak.presentation.home
 
-import com.atlaspeak.domain.model.dashboard.DashboardSnapshot
+import com.atlaspeak.domain.model.dashboard.DashboardFilters
+import com.atlaspeak.domain.model.dashboard.DashboardInterval
+import com.atlaspeak.domain.model.dashboard.DashboardPoint
+import com.atlaspeak.domain.model.dashboard.DashboardSessionSummary
 import com.atlaspeak.domain.model.healthconnect.HealthConnectAvailability
 import com.atlaspeak.domain.model.healthconnect.HealthConnectSyncResult
 import com.atlaspeak.domain.model.planning.WeeklyPlanDay
 import com.atlaspeak.domain.model.planning.WeeklyPlanCompletionKey
-import com.atlaspeak.domain.model.planning.WeeklyPlanUpdate
 import com.atlaspeak.domain.model.profile.UserProfile
+import com.atlaspeak.domain.repository.DashboardRepository
 import com.atlaspeak.domain.repository.HealthConnectRepository
+import com.atlaspeak.domain.repository.NotificationScheduler
 import com.atlaspeak.domain.repository.ProfileRepository
-import com.atlaspeak.domain.usecase.dashboard.DashboardFilters
+import com.atlaspeak.domain.repository.WeeklyPlanRepository
 import com.atlaspeak.domain.usecase.dashboard.DashboardUseCase
 import com.atlaspeak.domain.usecase.healthconnect.SyncHealthConnectUseCase
 import com.atlaspeak.domain.usecase.planning.WeeklyPlanUseCase
@@ -33,8 +37,15 @@ class HomeViewModelTest {
 
     private var nextSyncResult: HealthConnectSyncResult =
         HealthConnectSyncResult(availability = HealthConnectAvailability.Available)
-    private val dashboardUseCase = FakeDashboardUseCase()
-    private val weeklyPlanUseCase = FakeWeeklyPlanUseCase()
+    private val dashboardUseCase = DashboardUseCase(
+        dashboardRepository = FakeDashboardRepository(),
+        now = { 1_700_000_000_000L },
+    )
+    private val weeklyPlanUseCase = WeeklyPlanUseCase(
+        repository = FakeWeeklyPlanRepository(),
+        notificationScheduler = FakeNotificationScheduler(),
+        now = { 1_700_000_000_000L },
+    )
     private val syncHealthConnectUseCase = SyncHealthConnectUseCase(FakeHealthConnectRepository { nextSyncResult })
     private val profileRepository = FakeProfileRepository()
 
@@ -141,15 +152,35 @@ class HomeViewModelTest {
         assertNotNull(viewModel.state.value.healthConnectSync as? HomeHealthConnectSync.Failed)
     }
 
-    private class FakeDashboardUseCase : DashboardUseCase {
-        override suspend fun snapshot(filters: DashboardFilters): DashboardSnapshot = DashboardSnapshot()
+    private class FakeDashboardRepository : DashboardRepository {
+        override suspend fun plannedTrainingDays(): Set<Int> = emptySet()
+        override suspend fun completedStrengthSessions(
+            startInclusive: Long,
+            endExclusive: Long,
+        ): List<DashboardSessionSummary> = emptyList()
+        override suspend fun completedCardioSessions(
+            startInclusive: Long,
+            endExclusive: Long,
+        ): List<DashboardSessionSummary> = emptyList()
+        override suspend fun bodyWeightPoints(startInclusive: Long, endExclusive: Long): List<DashboardPoint> = emptyList()
+        override suspend fun stepIntervals(startInclusive: Long, endExclusive: Long): List<DashboardInterval> = emptyList()
+        override suspend fun heartRateSamples(startInclusive: Long, endExclusive: Long): List<DashboardPoint> = emptyList()
+        override suspend fun sleepIntervals(startInclusive: Long, endExclusive: Long): List<DashboardInterval> = emptyList()
     }
 
-    private class FakeWeeklyPlanUseCase : WeeklyPlanUseCase {
+    private class FakeWeeklyPlanRepository : WeeklyPlanRepository {
         override suspend fun plan(): List<WeeklyPlanDay> = emptyList()
-        override suspend fun completedTrainingDays(start: java.time.LocalDate, end: java.time.LocalDate): Set<Int> = emptySet()
-        override suspend fun completedTrainingKeys(start: java.time.LocalDate, end: java.time.LocalDate): Set<WeeklyPlanCompletionKey> = emptySet()
-        override suspend fun updateDay(update: WeeklyPlanUpdate): Boolean = true
+        override suspend fun completedTrainingDays(startInclusive: Long, endExclusive: Long): Set<Int> = emptySet()
+        override suspend fun completedTrainingKeys(
+            startInclusive: Long,
+            endExclusive: Long,
+        ): Set<WeeklyPlanCompletionKey> = emptySet()
+        override suspend fun upsert(day: WeeklyPlanDay) = Unit
+        override suspend fun replaceDay(day: WeeklyPlanDay) = Unit
+    }
+
+    private class FakeNotificationScheduler : NotificationScheduler {
+        override suspend fun rescheduleAll() = Unit
     }
 
     private class FakeHealthConnectRepository(
@@ -170,7 +201,6 @@ class HomeViewModelTest {
     private class FakeProfileRepository : ProfileRepository {
         override suspend fun getProfile(): UserProfile? = null
         override suspend fun saveProfile(profile: UserProfile) = Unit
-        override suspend fun updateProfile(profile: UserProfile) = Unit
     }
 
     private class FakeWorkoutRepository : com.atlaspeak.domain.repository.WorkoutRepository {
@@ -181,7 +211,7 @@ class HomeViewModelTest {
         override suspend fun upsertSet(set: com.atlaspeak.domain.model.workout.WorkoutSet) = Unit
         override suspend fun deleteSet(id: String) = Unit
         override suspend fun maxCompletedWeightBefore(exerciseId: String, before: Long): Double? = null
-        override suspend fun updateSessionCompletion(sessionId: String, endTime: Long?, durationSeconds: Int, totalVolumeKg: Double) = Unit
+        override suspend fun updateSessionCompletion(sessionId: String, endTime: Long, durationSeconds: Int, totalVolumeKg: Double) = Unit
         override suspend fun findActiveSession(): com.atlaspeak.domain.model.workout.WorkoutSession? = null
     }
 
