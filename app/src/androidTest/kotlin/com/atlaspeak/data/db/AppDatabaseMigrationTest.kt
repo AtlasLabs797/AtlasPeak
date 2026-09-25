@@ -251,6 +251,30 @@ class AppDatabaseMigrationTest {
         migrated.close()
     }
 
+    @Test
+    fun migration7To8AddsCardioPauseColumns() {
+        helper.createDatabase(TEST_DB, 7).apply {
+            insertV7CardioSession()
+            close()
+        }
+
+        val migrated = helper.runMigrationsAndValidate(
+            TEST_DB,
+            8,
+            true,
+            AppDatabase.MIGRATION_7_8,
+        )
+
+        migrated.query(
+            "SELECT paused_at_ms, total_paused_duration_ms FROM cardio_sessions WHERE id = 'cardio-1'",
+        ).use { cursor ->
+            cursor.moveToFirst()
+            assertTrue(cursor.isNull(0))
+            assertEquals(0L, cursor.getLong(1))
+        }
+        migrated.close()
+    }
+
     /**
      * BUG-097 (Fase 8 P1): la migracion v8 -> v9 anade la columna
      * `weekly_plan_session_id` a `workout_sessions` y crea su indice. Las
@@ -296,6 +320,37 @@ class AppDatabaseMigrationTest {
             assertEquals("plan-1", cursor.getString(0))
         }
         migrated.close()
+    }
+
+    private fun SupportSQLiteDatabase.insertV7CardioSession() {
+        execSQL(
+            """
+            INSERT INTO cardio_types (
+                id, name_es, name_en, has_gps, icon_name, is_preset, is_archived
+            ) VALUES (
+                'run', 'Correr', 'Run', 1, 'directions_run', 1, 0
+            )
+            """.trimIndent(),
+        )
+        execSQL(
+            """
+            INSERT INTO workout_sessions (
+                id, type, start_time, completed
+            ) VALUES (
+                'cardio-1', 'CARDIO', 1700000000000, 0
+            )
+            """.trimIndent(),
+        )
+        execSQL(
+            """
+            INSERT INTO cardio_sessions (
+                id, session_id, cardio_type_id, mode, target_duration_sec,
+                has_gps, source
+            ) VALUES (
+                'cardio-1', 'cardio-1', 'run', 'TIMER', 0, 1, 'GPS'
+            )
+            """.trimIndent(),
+        )
     }
 
     private fun SupportSQLiteDatabase.insertV8StrengthSession() {
