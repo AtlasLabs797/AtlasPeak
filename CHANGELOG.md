@@ -19,8 +19,8 @@ Trabajo repartido en 5 paquetes ejecutados por subagentes y revisados por el orq
   comunes, confirmacion) al crear backups o guardar la passphrase automatica. Descarga de Drive
   limitada a 64 MiB. Exports en claro caducados se limpian al arrancar.
 - `SEC-041`: un release firmado aborta con secretos vacios o de plantilla.
-- `SEC-042` (abierto): la subida de SQLCipher a 4.11.0 se revirtio porque exige actualizar
-  `gradle/verification-metadata.xml`; queda pendiente de aprobacion del propietario.
+- `SEC-042`: SQLCipher 4.6.1 -> 4.11.0, con sus checksums en `gradle/verification-metadata.xml`
+  (autorizado por el propietario; SHA-1 contrastados con Maven Central).
 - `SEC-043`: passphrase de la DB fuera de `EncryptedSharedPreferences` (Keystore AES-GCM,
   migracion del valor legado) y pantalla `Recovery` si la clave no se puede leer.
 - `SEC-044`: politica de privacidad (`PRIVACY_POLICY.md` + pantalla en Perfil y en la
