@@ -47,6 +47,7 @@ import androidx.fragment.app.FragmentActivity
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.atlaspeak.R
+import com.atlaspeak.domain.model.backup.BackupFailure
 import com.atlaspeak.domain.model.backup.DriveBackup
 import com.atlaspeak.domain.model.backup.SharedBackupExport
 import com.atlaspeak.presentation.component.AtlasPrimaryButton
@@ -80,6 +81,10 @@ fun BackupRestoreRoute(
                 when (val action = pendingDriveActionKey?.toDriveAction()) {
                     DriveAction.CreateBackup -> viewModel.createDriveBackup(result.accessToken)
                     DriveAction.RefreshList -> viewModel.loadDriveBackups(result.accessToken)
+                    DriveAction.Reconnect -> {
+                        viewModel.onDriveReauthorized()
+                        viewModel.loadDriveBackups(result.accessToken)
+                    }
                     is DriveAction.Restore -> viewModel.restoreDriveBackup(result.accessToken, action.fileId)
                     null -> Unit
                 }
@@ -141,6 +146,7 @@ fun BackupRestoreRoute(
         onExportCsv = viewModel::requestExportCsv,
         onCancelCleartextExport = viewModel::cancelCleartextExport,
         onConfirmCleartextExport = viewModel::confirmCleartextExport,
+        onReconnectDrive = { requestDrive(DriveAction.Reconnect) },
         onRefreshDrive = { requestDrive(DriveAction.RefreshList) },
         onCreateDriveBackup = { requestDrive(DriveAction.CreateBackup) },
         onConfirmRestore = viewModel::confirmRestore,
@@ -161,6 +167,7 @@ fun BackupRestoreScreen(
     onExportCsv: () -> Unit,
     onCancelCleartextExport: () -> Unit,
     onConfirmCleartextExport: () -> Unit,
+    onReconnectDrive: () -> Unit,
     onRefreshDrive: () -> Unit,
     onCreateDriveBackup: () -> Unit,
     onConfirmRestore: (String) -> Unit,
@@ -215,6 +222,15 @@ fun BackupRestoreScreen(
                     }
                 }
             }
+            if (state.requiresDriveAuthorization) {
+                item {
+                    DriveAuthorizationWarning(onReconnectDrive = onReconnectDrive)
+                }
+            } else if (state.lastError != null) {
+                item {
+                    LastBackupErrorWarning(error = state.lastError)
+                }
+            }
             item {
                 PasswordCard(
                     password = state.password,
@@ -243,6 +259,69 @@ fun BackupRestoreScreen(
                     onExportCsv = onExportCsv,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun DriveAuthorizationWarning(onReconnectDrive: () -> Unit) {
+    val spacing = LocalSpacing.current
+    val colors = LocalAtlasColors.current
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(spacing.card),
+            verticalArrangement = Arrangement.spacedBy(spacing.sm),
+        ) {
+            Text(
+                text = stringResource(R.string.backup_drive_reconnect_title),
+                style = MaterialTheme.typography.titleMedium,
+                color = colors.risk,
+            )
+            Text(
+                text = stringResource(R.string.backup_drive_reconnect_body),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.ink2,
+            )
+            AtlasPrimaryButton(
+                onClick = onReconnectDrive,
+                text = stringResource(R.string.backup_drive_reconnect_action),
+            )
+        }
+    }
+}
+
+@Composable
+private fun LastBackupErrorWarning(error: BackupFailure) {
+    val spacing = LocalSpacing.current
+    val colors = LocalAtlasColors.current
+    val bodyRes = when (error) {
+        BackupFailure.Network -> R.string.backup_last_error_network
+        BackupFailure.Crypto -> R.string.backup_last_error_crypto
+        BackupFailure.InvalidBackup -> R.string.backup_last_error_invalid
+        BackupFailure.NotAuthorized,
+        BackupFailure.EmptyPassword,
+        BackupFailure.Unknown,
+        -> R.string.backup_last_error_unknown
+    }
+    PremiumCard(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(spacing.card),
+            verticalArrangement = Arrangement.spacedBy(spacing.xs),
+        ) {
+            Text(
+                text = stringResource(R.string.backup_last_error_title),
+                style = MaterialTheme.typography.titleMedium,
+                color = colors.warn,
+            )
+            Text(
+                text = stringResource(bodyRes),
+                style = MaterialTheme.typography.bodySmall,
+                color = colors.ink2,
+            )
         }
     }
 }
@@ -533,18 +612,21 @@ private fun Long?.formatSize(): String {
 private sealed interface DriveAction {
     data object RefreshList : DriveAction
     data object CreateBackup : DriveAction
+    data object Reconnect : DriveAction
     data class Restore(val fileId: String) : DriveAction
 }
 
 private fun DriveAction.toSavedValue(): String = when (this) {
     DriveAction.CreateBackup -> "create"
     DriveAction.RefreshList -> "refresh"
+    DriveAction.Reconnect -> "reconnect"
     is DriveAction.Restore -> "restore:$fileId"
 }
 
 private fun String.toDriveAction(): DriveAction? = when {
     this == "create" -> DriveAction.CreateBackup
     this == "refresh" -> DriveAction.RefreshList
+    this == "reconnect" -> DriveAction.Reconnect
     startsWith("restore:") -> DriveAction.Restore(removePrefix("restore:"))
     else -> null
 }
