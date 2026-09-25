@@ -104,7 +104,7 @@ class ActiveWorkoutViewModelTest {
         val startTime = workoutRepository.sessions.single().startTime
 
         val viewModel = newViewModel()
-        dispatcher.scheduler.advanceUntilIdle()
+        dispatcher.scheduler.runCurrent()
 
         val state = viewModel.state.value
         assertEquals(workoutRepository.sessions.single().id, state.session?.id)
@@ -123,7 +123,7 @@ class ActiveWorkoutViewModelTest {
         assertNotNull(first)
 
         val viewModel = newViewModel(routineId = "routine_upper")
-        dispatcher.scheduler.advanceUntilIdle()
+        dispatcher.scheduler.runCurrent()
 
         val conflict = viewModel.state.value.conflict
         assertNotNull(conflict)
@@ -137,11 +137,11 @@ class ActiveWorkoutViewModelTest {
         newViewModelAndStart("routine_lower")
 
         val viewModel = newViewModel(routineId = "routine_upper")
-        dispatcher.scheduler.advanceUntilIdle()
+        dispatcher.scheduler.runCurrent()
         assertNotNull(viewModel.state.value.conflict)
 
         viewModel.discardActiveSessionAndStartNew()
-        dispatcher.scheduler.advanceUntilIdle()
+        dispatcher.scheduler.runCurrent()
 
         val state = viewModel.state.value
         assertNull(state.conflict)
@@ -155,11 +155,11 @@ class ActiveWorkoutViewModelTest {
         val first = newViewModelAndStart("routine_lower").session
 
         val viewModel = newViewModel(routineId = "routine_upper")
-        dispatcher.scheduler.advanceUntilIdle()
+        dispatcher.scheduler.runCurrent()
         assertNotNull(viewModel.state.value.conflict)
 
         viewModel.resumeActiveSession()
-        dispatcher.scheduler.advanceUntilIdle()
+        dispatcher.scheduler.runCurrent()
 
         val state = viewModel.state.value
         assertNull(state.conflict)
@@ -171,11 +171,11 @@ class ActiveWorkoutViewModelTest {
     fun `dismiss conflict does not touch active session`() = runTest(dispatcher) {
         val first = newViewModelAndStart("routine_lower").session
         val viewModel = newViewModel(routineId = "routine_upper")
-        dispatcher.scheduler.advanceUntilIdle()
+        dispatcher.scheduler.runCurrent()
         assertNotNull(viewModel.state.value.conflict)
 
         viewModel.dismissActiveSessionConflict()
-        dispatcher.scheduler.advanceUntilIdle()
+        dispatcher.scheduler.runCurrent()
 
         assertNull(viewModel.state.value.conflict)
         assertEquals(first!!.id, workoutRepository.sessions.single().id)
@@ -184,7 +184,7 @@ class ActiveWorkoutViewModelTest {
     @Test
     fun `routine missing produces RoutineMissing message without active session`() = runTest(dispatcher) {
         val viewModel = newViewModel(routineId = "missing")
-        dispatcher.scheduler.advanceUntilIdle()
+        dispatcher.scheduler.runCurrent()
 
         val state = viewModel.state.value
         assertEquals(ActiveWorkoutMessage.RoutineMissing, state.message)
@@ -210,7 +210,7 @@ class ActiveWorkoutViewModelTest {
                 failed = true,
             ),
         )
-        dispatcher.scheduler.advanceUntilIdle()
+        dispatcher.scheduler.runCurrent()
         assertEquals(ActiveWorkoutMessage.TimerServiceUnavailable, viewModel.state.value.message)
 
         fixedClock.advanceBy(5_000L)
@@ -246,7 +246,7 @@ class ActiveWorkoutViewModelTest {
     @Test
     fun `elapsed_seconds keeps increasing across recreation when foreground service is unavailable`() = runTest(dispatcher) {
         val firstVm = newViewModel()
-        dispatcher.scheduler.advanceUntilIdle()
+        dispatcher.scheduler.runCurrent()
         val firstSessionId = firstVm.state.value.session?.id
         assertNotNull(firstSessionId)
         val startTime = firstVm.state.value.session!!.startTime
@@ -259,7 +259,7 @@ class ActiveWorkoutViewModelTest {
 
         // Recreamos la VM (mismo repository, misma sesion persistida, sin FGS).
         val secondVm = newViewModel()
-        dispatcher.scheduler.advanceUntilIdle()
+        dispatcher.scheduler.runCurrent()
 
         fixedClock.advanceBy(3_000L)
         advanceLocalTimer(3_000L)
@@ -290,7 +290,7 @@ class ActiveWorkoutViewModelTest {
                 failed = true,
             ),
         )
-        dispatcher.scheduler.advanceUntilIdle()
+        dispatcher.scheduler.runCurrent()
         assertEquals(ActiveWorkoutMessage.TimerServiceUnavailable, viewModel.state.value.message)
 
         // Damos tiempo al job local para que haga un par de ticks.
@@ -311,7 +311,6 @@ class ActiveWorkoutViewModelTest {
                 running = true,
             ),
         )
-        dispatcher.scheduler.advanceUntilIdle()
         dispatcher.scheduler.runCurrent()
 
         // Tras la transicion a healthy: el mensaje desaparece y elapsedSeconds refleja
@@ -355,6 +354,10 @@ class ActiveWorkoutViewModelTest {
      * completo, leyendo la nueva hora del reloj inyectable. Se usa en los tests del
      * BUG-092 para validar que `elapsedSeconds` se deriva de `now()`.
      */
+    // Nunca advanceUntilIdle(): sin FGS la VM arranca un cronometro local en bucle
+    // (delay(1000) infinito) y advanceUntilIdle() no terminaria jamas. runCurrent()
+    // drena lo pendiente en el instante virtual actual; el tiempo se avanza con
+    // advanceLocalTimer().
     private fun advanceLocalTimer(virtualMillis: Long) {
         // Cada tick del job local consume 1000ms virtuales de `delay`. Sumamos uno extra
         // para absorber el tick inmediato que ocurre al despertarse.
@@ -384,13 +387,13 @@ class ActiveWorkoutViewModelTest {
 
     private fun newViewModelAndStart(routineId: String = "routine_upper"): ActiveWorkoutUiState {
         val viewModel = newViewModel(routineId)
-        dispatcher.scheduler.advanceUntilIdle()
+        dispatcher.scheduler.runCurrent()
         return viewModel.state.value
     }
 
     private fun newStartedViewModel(routineId: String = "routine_upper"): ActiveWorkoutViewModel {
         val viewModel = newViewModel(routineId)
-        dispatcher.scheduler.advanceUntilIdle()
+        dispatcher.scheduler.runCurrent()
         return viewModel
     }
 

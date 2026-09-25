@@ -14,7 +14,9 @@
 
 **Corregido**
 - CI: `ActiveWorkoutViewModelTest` no compilaba (`viewModel.session` en vez de
-  `viewModel.state.value.session`).
+  `viewModel.state.value.session`). Ademas sus tests colgaban el job: sin FGS la VM arranca
+  un cronometro local en bucle y `advanceUntilIdle()` nunca terminaba; ahora usan
+  `runCurrent()` y el tiempo se avanza con `advanceLocalTimer()`.
 - `RoomCardioRepository`: el mapper Room→dominio perdia `weeklyPlanSessionId`, y cualquier
   pausa o finalizacion lo reescribia a `NULL`.
 - `BUG-104`: sesion de cardio GPS sin fix ya se puede finalizar con metricas manuales.
