@@ -19,6 +19,7 @@ import com.atlaspeak.domain.usecase.workout.ActiveSessionStartResult
 import com.atlaspeak.presentation.navigation.AppRoute
 import com.atlaspeak.service.CardioForegroundService
 import com.atlaspeak.service.CardioTrackerRegistry
+import com.atlaspeak.service.CardioTrackerState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
@@ -194,13 +195,13 @@ class ActiveCardioViewModel(
         viewModelScope.launch {
             val manualDistance = snapshot.manualDistanceKm.toDoubleOrNull()
             val manualSpeed = snapshot.manualAvgSpeedKmh.toDoubleOrNull()
+            context.stopService(CardioForegroundService.stopIntent(context))
+            stopLocalTimer()
             val completed = cardioUseCase.completeSession(
                 sessionId = session.id,
                 manualDistanceKm = manualDistance,
                 manualAvgSpeedKmh = manualSpeed,
             )
-            context.stopService(CardioForegroundService.stopIntent(context))
-            stopLocalTimer()
             mutableState.update {
                 it.copy(
                     completionInProgress = false,
@@ -277,6 +278,13 @@ class ActiveCardioViewModel(
         val pausedAt = now()
         val updated = session.copy(pausedAtMillis = pausedAt)
         mutableState.update { it.copy(session = updated) }
+        CardioTrackerRegistry.update(
+            CardioTrackerRegistry.state.value.copy(
+                pausedAtMillis = pausedAt,
+                totalPausedDurationMillis = updated.totalPausedDurationMillis,
+                running = false,
+            ),
+        )
         viewModelScope.launch {
             cardioRepository.updateSession(updated)
         }
@@ -301,12 +309,20 @@ class ActiveCardioViewModel(
             pausedAtMillis = null,
             totalPausedDurationMillis = session.totalPausedDurationMillis + added,
         )
+        val effectiveSeconds = effectiveElapsedSeconds(updated, now())
         mutableState.update {
             it.copy(
                 session = updated,
-                elapsedSeconds = effectiveElapsedSeconds(updated, now()),
+                elapsedSeconds = effectiveSeconds,
             )
         }
+        CardioTrackerRegistry.update(
+            CardioTrackerRegistry.state.value.copy(
+                elapsedSeconds = effectiveSeconds,
+                pausedAtMillis = null,
+                totalPausedDurationMillis = updated.totalPausedDurationMillis,
+            ),
+        )
         viewModelScope.launch {
             cardioRepository.updateSession(updated)
         }
@@ -362,13 +378,17 @@ class ActiveCardioViewModel(
         // que el FGS, si arranca, no intente reanudar por su cuenta.
         val effectiveSeconds = effectiveElapsedSeconds(session, now())
         CardioTrackerRegistry.update(
-            CardioTrackerRegistry.state.value.copy(
+            CardioTrackerState(
                 sessionId = session.id,
                 startedAt = session.startTime,
                 elapsedSeconds = effectiveSeconds,
+                targetDurationSeconds = (session.mode as? CardioMode.Countdown)?.targetDurationSeconds,
+                pausedAtMillis = session.pausedAtMillis,
+                totalPausedDurationMillis = session.totalPausedDurationMillis,
                 distanceKm = restore.distanceKm,
                 route = restore.points,
                 running = false,
+                failed = false,
             ),
         )
         mutableState.update {
@@ -376,7 +396,10 @@ class ActiveCardioViewModel(
                 isLoading = false,
                 conflict = null,
                 session = session,
+                mode = session.mode,
                 elapsedSeconds = effectiveSeconds,
+                distanceKm = restore.distanceKm,
+                currentSpeedKmh = null,
                 route = restore.points,
             )
         }
