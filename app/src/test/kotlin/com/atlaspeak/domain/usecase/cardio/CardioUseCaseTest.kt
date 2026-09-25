@@ -46,8 +46,9 @@ class CardioUseCaseTest {
         repository.types = listOf(CardioType("run", "Run", hasGps = true, isPreset = true, isArchived = false))
 
         val timerResult = useCase.startSession("run", CardioMode.Timer)
-        // Re-create state to simulate opening the screen a second time without an existing session.
-        repository.sessions = emptyList()
+        // Finish the timer session first so it is no longer active; otherwise the second
+        // call would resume it (see "returns Resumed" below) instead of creating a new one.
+        repository.sessions = repository.sessions.map { it.copy(completed = true) }
         val countdownResult = useCase.startSession("run", CardioMode.Countdown(targetDurationSeconds = 1800))
 
         val timerSessionId = assertInstanceOf(ActiveSessionStartResult.Started::class.java, timerResult).sessionId

@@ -127,6 +127,8 @@ class ActiveWorkoutViewModel(
                     it.copy(
                         elapsedSeconds = timer.elapsedSeconds,
                         restTimer = timer.restTimer?.toUiState(),
+                        // Solo retiramos el aviso de fallo del FGS; otros mensajes se conservan.
+                        message = it.message.takeUnless { m -> m == ActiveWorkoutMessage.TimerServiceUnavailable },
                     )
                 }
             }
