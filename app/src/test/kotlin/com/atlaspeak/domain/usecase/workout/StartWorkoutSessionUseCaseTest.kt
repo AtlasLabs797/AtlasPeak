@@ -42,6 +42,15 @@ class StartWorkoutSessionUseCaseTest {
     }
 
     @Test
+    fun `start session keeps weekly plan row id`() = runTest {
+        routineRepository.routines = listOf(routine("routine_upper", "Upper"))
+
+        useCase("routine_upper", weeklyPlanSessionId = "weekly_plan_1")
+
+        assertEquals("weekly_plan_1", workoutRepository.sessions.single().weeklyPlanSessionId)
+    }
+
+    @Test
     fun `start session returns NotFound when routine does not exist`() = runTest {
         assertInstanceOf(ActiveSessionStartResult.NotFound::class.java, useCase("missing"))
         assertEquals(emptyList<WorkoutSession>(), workoutRepository.sessions)
