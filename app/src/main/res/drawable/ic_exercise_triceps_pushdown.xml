@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Extension de triceps en polea: codos fijos al costado, empuja una barra recta hacia abajo. -->
+<!-- Extension de triceps en polea alta: de pie, codo pegado al costado, empuja la barra hacia abajo. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
@@ -12,39 +12,45 @@
         android:strokeAlpha="0.45"
         android:strokeWidth="2"
         android:strokeLineCap="round" />
-    <!-- cabeza -->
+    <!-- maquina: poste vertical -->
     <path
-        android:pathData="M23,9.5 m-3.5,0 a3.5,3.5 0 1,1 7,0 a3.5,3.5 0 1,1 -7,0"
-        android:fillColor="#FFFFFFFF" />
-    <!-- tronco y pierna -->
-    <path
-        android:pathData="M23,13 L23,29 L21,42"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="3"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
-    <!-- brazo: superior fijo, antebrazo empuja hacia abajo -->
-    <path
-        android:pathData="M23,16 L23,24 L28,31"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="3"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
-    <!-- barra recta -->
-    <path
-        android:pathData="M24,31 L32,31"
+        android:pathData="M39,5 L39,43"
         android:strokeColor="#FFFFFFFF"
         android:strokeWidth="2"
         android:strokeLineCap="round" />
-    <!-- cable hacia la polea -->
+    <!-- polea alta -->
     <path
-        android:pathData="M33,12 L32,31"
+        android:pathData="M35,7 m-2,0 a2,2 0 1,1 4,0 a2,2 0 1,1 -4,0"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2" />
+    <!-- cable de la polea a la barra -->
+    <path
+        android:pathData="M34,9 L30,29"
         android:strokeColor="#FFFFFFFF"
         android:strokeWidth="1.5"
         android:strokeLineCap="round" />
-    <!-- polea alta -->
+    <!-- cabeza -->
     <path
-        android:pathData="M33,10 m-2,0 a2,2 0 1,1 4,0 a2,2 0 1,1 -4,0"
+        android:pathData="M18,9 m-3.5,0 a3.5,3.5 0 1,1 7,0 a3.5,3.5 0 1,1 -7,0"
+        android:fillColor="#FFFFFFFF" />
+    <!-- tronco, pierna y pie -->
+    <path
+        android:pathData="M18,14 L17,28 L18,41 L22,41"
         android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="2" />
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- brazo: humero vertical, antebrazo hacia abajo y delante -->
+    <path
+        android:pathData="M18,16 L19,24 L28,29"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- barra corta -->
+    <path
+        android:pathData="M26,29 L33,29"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round" />
 </vector>

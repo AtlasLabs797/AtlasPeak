@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Curl martillo: vista lateral, una mancuerna vertical en agarre neutro, codo fijo al costado. -->
+<!-- Curl martillo: vista lateral, una mancuerna vertical en agarre neutro frente al hombro, codo fijo al costado. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
@@ -36,10 +36,11 @@
         android:strokeColor="#FFFFFFFF"
         android:strokeWidth="2"
         android:strokeLineCap="round" />
-    <!-- discos redondos arriba y abajo -->
+    <!-- disco arriba -->
     <path
         android:pathData="M33,19 m-1.7,0 a1.7,1.7 0 1,1 3.4,0 a1.7,1.7 0 1,1 -3.4,0"
         android:fillColor="#FFFFFFFF" />
+    <!-- disco abajo -->
     <path
         android:pathData="M33,25 m-1.7,0 a1.7,1.7 0 1,1 3.4,0 a1.7,1.7 0 1,1 -3.4,0"
         android:fillColor="#FFFFFFFF" />

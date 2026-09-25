@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Elevacion de talones: de pie sobre las puntas de los pies en el borde de un escalon, talones en el aire. -->
+<!-- Elevacion de talones: de pie totalmente vertical, en puntas sobre el borde de un escalon, talon elevado. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
@@ -7,36 +7,37 @@
     android:viewportHeight="48">
     <!-- cabeza -->
     <path
-        android:pathData="M20,10 m-3.5,0 a3.5,3.5 0 1,1 7,0 a3.5,3.5 0 1,1 -7,0"
+        android:pathData="M20,9 m-3.5,0 a3.5,3.5 0 1,1 7,0 a3.5,3.5 0 1,1 -7,0"
         android:fillColor="#FFFFFFFF" />
-    <!-- tronco y pierna recta -->
+    <!-- tronco y pierna, completamente rectos -->
     <path
-        android:pathData="M20,14 L20,37"
+        android:pathData="M20,13 L20,36"
         android:strokeColor="#FFFFFFFF"
         android:strokeWidth="3"
         android:strokeLineCap="round" />
-    <!-- pie en punta sobre el escalon y talon colgando -->
+    <!-- pie en punta sobre el escalon y talon elevado detras -->
     <path
-        android:pathData="M20,37 L24,38 M20,37 L18,40"
+        android:pathData="M20,36 L26,38 M20,36 L17,34"
         android:strokeColor="#FFFFFFFF"
         android:strokeWidth="3"
         android:strokeLineCap="round"
         android:strokeLineJoin="round" />
-    <!-- brazo al costado -->
+    <!-- brazo recto al costado -->
     <path
-        android:pathData="M20,15 L17,20"
+        android:pathData="M20,15 L18,23"
         android:strokeColor="#FFFFFFFF"
         android:strokeWidth="3"
         android:strokeLineCap="round" />
     <!-- borde del escalon -->
     <path
-        android:pathData="M12,38 L44,38 M12,38 L12,44"
+        android:pathData="M13,38 L27,38 L27,43"
         android:strokeColor="#FFFFFFFF"
         android:strokeWidth="2"
-        android:strokeLineCap="round" />
-    <!-- flecha de subida -->
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- flecha de subida junto al talon -->
     <path
-        android:pathData="M40,21 L40,14 M38,16 L40,14 L42,16"
+        android:pathData="M12,30 L12,22 M10,25 L12,22 L14,25"
         android:strokeColor="#FFFFFFFF"
         android:strokeAlpha="0.6"
         android:strokeWidth="1.5"

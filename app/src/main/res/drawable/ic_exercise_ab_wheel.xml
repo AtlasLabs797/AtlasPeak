@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Rueda abdominal: de rodillas, brazos extendidos al frente sosteniendo la rueda en el suelo, torso estirado. -->
+<!-- Rueda abdominal: de rodillas en el suelo, torso casi horizontal estirado al frente, brazos hacia la rueda. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
@@ -14,30 +14,30 @@
         android:strokeLineCap="round" />
     <!-- cabeza -->
     <path
-        android:pathData="M34,13 m-3.5,0 a3.5,3.5 0 1,1 7,0 a3.5,3.5 0 1,1 -7,0"
+        android:pathData="M36,15 m-3.5,0 a3.5,3.5 0 1,1 7,0 a3.5,3.5 0 1,1 -7,0"
         android:fillColor="#FFFFFFFF" />
-    <!-- tronco estirado hacia adelante -->
+    <!-- tronco casi horizontal -->
     <path
-        android:pathData="M32,16 L20,28"
+        android:pathData="M34,17 L18,24"
         android:strokeColor="#FFFFFFFF"
         android:strokeWidth="3"
         android:strokeLineCap="round" />
-    <!-- pierna de rodillas -->
+    <!-- muslo angulado y rodilla en el suelo -->
     <path
-        android:pathData="M20,28 L20,42 L13,42"
+        android:pathData="M18,24 L14,42 L9,42"
         android:strokeColor="#FFFFFFFF"
         android:strokeWidth="3"
         android:strokeLineCap="round"
         android:strokeLineJoin="round" />
-    <!-- brazo hacia la rueda -->
+    <!-- brazo recto hacia la rueda -->
     <path
-        android:pathData="M32,17 L41,37"
+        android:pathData="M34,18 L41,39"
         android:strokeColor="#FFFFFFFF"
         android:strokeWidth="3"
         android:strokeLineCap="round" />
     <!-- rueda -->
     <path
-        android:pathData="M41,40 m-3,0 a3,3 0 1,1 6,0 a3,3 0 1,1 -6,0"
+        android:pathData="M41,41 m-3,0 a3,3 0 1,1 6,0 a3,3 0 1,1 -6,0"
         android:strokeColor="#FFFFFFFF"
         android:strokeWidth="2" />
 </vector>

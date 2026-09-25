@@ -1,49 +1,57 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Jalon con agarre neutro: sentado, manos juntas en un mango en V, codos pegados al cuerpo. -->
+<!-- Jalon agarre neutro: sentado, manos juntas bajo la barbilla en un mango en V pequeno, codos hacia afuera y abajo. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="48"
     android:viewportHeight="48">
-    <!-- asiento y muslo -->
+    <!-- suelo -->
     <path
-        android:pathData="M16,37 L18,35 L28,33"
+        android:pathData="M6,43 L42,43"
         android:strokeColor="#FFFFFFFF"
+        android:strokeAlpha="0.45"
         android:strokeWidth="2"
         android:strokeLineCap="round" />
-    <!-- tronco -->
+    <!-- asiento, muslo y pierna al suelo -->
     <path
-        android:pathData="M18,35 L18,22"
+        android:pathData="M12,36 L16,36 L27,35 L29,42"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- cabeza -->
+    <path
+        android:pathData="M16,19 m-3.5,0 a3.5,3.5 0 1,1 7,0 a3.5,3.5 0 1,1 -7,0"
+        android:fillColor="#FFFFFFFF" />
+    <!-- tronco vertical -->
+    <path
+        android:pathData="M16,36 L16,24"
         android:strokeColor="#FFFFFFFF"
         android:strokeWidth="3"
         android:strokeLineCap="round" />
-    <!-- cabeza -->
+    <!-- mango en V pequeno bajo la barbilla -->
     <path
-        android:pathData="M18,18 m-3.5,0 a3.5,3.5 0 1,1 7,0 a3.5,3.5 0 1,1 -7,0"
-        android:fillColor="#FFFFFFFF" />
-    <!-- polea alta -->
-    <path
-        android:pathData="M22,7 m-2,0 a2,2 0 1,1 4,0 a2,2 0 1,1 -4,0"
+        android:pathData="M16,24 L14,27 L18,27 L16,24"
         android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="2" />
-    <!-- cable hasta el mango -->
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- brazos con codos hacia afuera y abajo, manos juntas en el mango -->
     <path
-        android:pathData="M22,9 L21,15"
+        android:pathData="M16,24 L11,29 L14,27 M16,24 L21,29 L18,27"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- cable corto hasta la polea, desplazado del eje de la cabeza -->
+    <path
+        android:pathData="M16,24 L22,11"
         android:strokeColor="#FFFFFFFF"
         android:strokeWidth="1.5"
         android:strokeLineCap="round" />
-    <!-- mango en V estrecho, manos juntas -->
+    <!-- polea alta -->
     <path
-        android:pathData="M18,15 L21,18 L24,15"
+        android:pathData="M23,9 m-1.6,0 a1.6,1.6 0 1,1 3.2,0 a1.6,1.6 0 1,1 -3.2,0"
         android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="2"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
-    <!-- brazos con codos pegados al cuerpo -->
-    <path
-        android:pathData="M19,22 L15,20 L20,18"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="3"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round" />
+        android:strokeWidth="2" />
 </vector>

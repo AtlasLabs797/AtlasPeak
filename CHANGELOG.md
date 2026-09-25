@@ -10,6 +10,26 @@
 
 ## [Unreleased]
 
+### 2026-09-25 - Iconos propios por ejercicio y cierre de SQLCipher 4.11.0
+
+**Añadido**
+- Cada uno de los 37 ejercicios predefinidos tiene su propio pictograma (`res/drawable/ic_exercise_*.xml`,
+  VectorDrawable monocromo de trazo redondeado, tintado por la app) que muestra la postura clave del
+  movimiento y su material. Se ven en la biblioteca de ejercicios, el editor y el detalle de rutina,
+  la tarjeta del entreno activo, el selector de "añadir ejercicio" y el detalle de sesión
+  (`presentation/component/ExerciseIcon.kt`, icon-badge suave de DESIGN.md §6.3). Los ejercicios
+  creados por el usuario muestran un monograma con sus iniciales.
+- `ExerciseIconTest`: cada preset de `SeedData` tiene icono, sin claves sobrantes, sin drawables
+  repetidos (ni por id ni por contenido) y casos del monograma.
+
+**Cambiado**
+- `SEC-042` cerrado: SQLCipher 4.11.0 con checksums en `gradle/verification-metadata.xml`.
+
+**Verificado**
+- Revision visual de la hoja completa de iconos a 96 px y 32 px; 13 iconos se rehicieron tras la
+  primera revision (prensas, jalones, gemelos, hip thrust, triceps, curls, zancada con mancuernas,
+  rueda abdominal). CI en verde.
+
 ### 2026-09-25 - V-02.00: correcciones de la auditoria pre-lanzamiento (seguridad, flujos, rendimiento, codigo muerto)
 
 Trabajo repartido en 5 paquetes ejecutados por subagentes y revisados por el orquestador.

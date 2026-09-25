@@ -50,6 +50,10 @@ antes de terminar.
 **Perfil → Editar perfil.** Cambia nombre, edad, altura, género y objetivo. Los cambios se
 guardan localmente en el dispositivo.
 
+### Iconos de ejercicios
+Cada ejercicio predefinido tiene un icono propio que muestra el movimiento. Los ejercicios que creas
+tú aparecen con sus iniciales.
+
 ### Crear una rutina
 **Entrenar → Rutinas → +**. Ponle nombre y un color, añade ejercicios (de la biblioteca o
 crea los tuyos), define series, repeticiones, peso objetivo y descanso. Arrastra para
