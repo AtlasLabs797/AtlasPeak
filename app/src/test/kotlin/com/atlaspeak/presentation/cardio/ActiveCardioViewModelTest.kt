@@ -221,14 +221,14 @@ class ActiveCardioViewModelTest {
 
     // --- BUG-093 (Fase 4 P0): cinco escenarios del CardioForegroundService ---
     // Cada uno cubre una combinacion de permisos y resultado del startForeground.
-    // Los contextos fake sustituyen a NoopContext: AllowingContext deja pasar la
-    // peticion, RejectingContext lanza SecurityException, ActivityRecognitionDeniedContext
+    // Los controllers fake sustituyen a NoopController: AllowingController deja pasar la
+    // peticion, RejectingController lanza SecurityException, ActivityRecognitionDeniedController
     // simula un dispositivo sin permiso ACTIVITY_RECOGNITION.
 
     @Test
     fun `startTrackingService with location allowed sets fgsMode to Location`() = runVmTest {
-        val context = AllowingContext()
-        val viewModel = newViewModel(cardioTypeId = "run", context = context)
+        val controller = AllowingController()
+        val viewModel = newViewModel(cardioTypeId = "run", controller = controller)
         dispatcher.scheduler.advanceUntilIdle()
 
         viewModel.startTrackingService(locationAllowed = true)
@@ -237,8 +237,8 @@ class ActiveCardioViewModelTest {
         val state = viewModel.state.value
         assertEquals(CardioFgsMode.Location, state.fgsMode)
         assertNull(state.message)
-        // El intent llego al sistema: el FGS ya decidira internamente que tipo reclamar.
-        assertEquals(1, context.startedIntents.size)
+        // La llamada llego al controlador: el FGS ya decidira internamente que tipo reclamar.
+        assertEquals(1, controller.startCalls.size)
         // Como Location implica hasGps, la sesion continua sin forzar metricas
         // manuales a menos que la ruta este vacia.
         assertTrue(state.trackerServiceStartHandled)
@@ -246,8 +246,8 @@ class ActiveCardioViewModelTest {
 
     @Test
     fun `startTrackingService with location denied sets fgsMode to None with LocationPermissionDenied`() = runVmTest {
-        val context = AllowingContext()
-        val viewModel = newViewModel(cardioTypeId = "run", context = context)
+        val controller = AllowingController()
+        val viewModel = newViewModel(cardioTypeId = "run", controller = controller)
         dispatcher.scheduler.advanceUntilIdle()
 
         viewModel.startTrackingService(locationAllowed = false)
@@ -262,15 +262,15 @@ class ActiveCardioViewModelTest {
         // No se inicia un foreground service si el preflight ya devuelve None:
         // hacerlo obligaria al servicio a llamar startForeground() y Android lo
         // terminaria si intentase permanecer en modo local.
-        assertEquals(0, context.startedIntents.size)
+        assertEquals(0, controller.startCalls.size)
         // La UI tendra que permitir introducir distancia manualmente.
         assertTrue(state.shouldShowManualMetrics)
     }
 
     @Test
     fun `startTrackingService for non-GPS cardio with ACTIVITY_RECOGNITION sets fgsMode to Health`() = runVmTest {
-        val context = AllowingContext()
-        val viewModel = newViewModel(cardioTypeId = "bike", context = context)
+        val controller = AllowingController()
+        val viewModel = newViewModel(cardioTypeId = "bike", controller = controller)
         dispatcher.scheduler.advanceUntilIdle()
 
         viewModel.startTrackingService(locationAllowed = true)
@@ -280,13 +280,13 @@ class ActiveCardioViewModelTest {
         // !hasGps && ACTIVITY_RECOGNITION -> Health (FGS_HEALTH con uso legitimo).
         assertEquals(CardioFgsMode.Health, state.fgsMode)
         assertNull(state.message)
-        assertEquals(1, context.startedIntents.size)
+        assertEquals(1, controller.startCalls.size)
     }
 
     @Test
     fun `startTrackingService for non-GPS cardio without ACTIVITY_RECOGNITION sets fgsMode to None`() = runVmTest {
-        val context = ActivityRecognitionDeniedContext()
-        val viewModel = newViewModel(cardioTypeId = "bike", context = context)
+        val controller = ActivityRecognitionDeniedController()
+        val viewModel = newViewModel(cardioTypeId = "bike", controller = controller)
         dispatcher.scheduler.advanceUntilIdle()
 
         viewModel.startTrackingService(locationAllowed = true)
@@ -299,7 +299,7 @@ class ActiveCardioViewModelTest {
         assertNull(state.message)
         // Sin un tipo de FGS legal, el ViewModel mantiene el cronometro local
         // y no crea un servicio que no podria promocionarse a foreground.
-        assertEquals(0, context.startedIntents.size)
+        assertEquals(0, controller.startCalls.size)
         // Cardio manual sin GPS: la UI muestra el formulario de metricas
         // manuales para que el usuario introduzca distancia/velocidad.
         assertTrue(state.shouldShowManualMetrics)
@@ -307,7 +307,7 @@ class ActiveCardioViewModelTest {
 
     @Test
     fun `startTrackingService rejection by system falls back to local timer with fgsMode None`() = runVmTest {
-        val viewModel = newViewModel(cardioTypeId = "run", context = RejectingContext())
+        val viewModel = newViewModel(cardioTypeId = "run", controller = RejectingController())
         dispatcher.scheduler.advanceUntilIdle()
 
         viewModel.startTrackingService(locationAllowed = true)
@@ -325,7 +325,7 @@ class ActiveCardioViewModelTest {
 
     @Test
     fun `elapsed seconds keeps increasing when foreground service is rejected`() = runVmTest {
-        val viewModel = newViewModel(cardioTypeId = "run", context = RejectingContext())
+        val viewModel = newViewModel(cardioTypeId = "run", controller = RejectingController())
         dispatcher.scheduler.advanceUntilIdle()
 
         val initialElapsed = viewModel.state.value.elapsedSeconds
@@ -363,7 +363,7 @@ class ActiveCardioViewModelTest {
     ): ActiveCardioViewModel {
         return newViewModel(
             cardioTypeId = cardioTypeId,
-            context = NoopContext,
+            controller = NoopController,
             now = fixedClock.asNow(),
             mode = mode,
         )
@@ -371,7 +371,7 @@ class ActiveCardioViewModelTest {
 
     private fun newViewModel(
         cardioTypeId: String,
-        context: android.content.Context,
+        controller: CardioTrackerServiceController,
         now: () -> Long = fixedClock.asNow(),
         mode: CardioMode = CardioMode.Timer,
     ): ActiveCardioViewModel {
@@ -380,7 +380,7 @@ class ActiveCardioViewModelTest {
             cardioUseCase = cardioUseCase,
             resumeCardioSessionUseCase = resumeCardioSessionUseCase,
             cardioRepository = cardioRepository,
-            context = context,
+            trackerController = controller,
             now = now,
         ).also { createdViewModels += it }
     }
@@ -610,39 +610,41 @@ class ActiveCardioViewModelTest {
     @Test
     fun `pause and resume in local-only mode never call startService on the FGS`() = runVmTest {
         // BUG-105: sin FGS legal (fgsMode None), pause/resume no deben tocar
-        // el servicio. AllowingContext registra cada intent (la llamada va dentro
-        // de runCatching, asi que un context que lanza no detectaria la regresion).
-        val context = AllowingContext()
-        val viewModel = newViewModel("run", context = context)
+        // el servicio. AllowingController registra cada llamada (la llamada va
+        // dentro de runCatching, asi que un controller que lanza no detectaria
+        // la regresion).
+        val controller = AllowingController()
+        val viewModel = newViewModel("run", controller = controller)
         dispatcher.scheduler.advanceUntilIdle()
         assertEquals(CardioFgsMode.None, viewModel.state.value.fgsMode)
-        val intentsBefore = context.startedIntents.size
+        val callsBefore = controller.pauseCalls.size + controller.resumeCalls.size
 
         viewModel.pauseCardio()
         assertEquals(true, viewModel.state.value.isPaused)
 
         viewModel.resumeCardio()
         assertEquals(false, viewModel.state.value.isPaused)
-        assertEquals(intentsBefore, context.startedIntents.size)
+        assertEquals(callsBefore, controller.pauseCalls.size + controller.resumeCalls.size)
     }
 
     @Test
     fun `pause and resume forward the intent to the FGS when it is running`() = runVmTest {
         // Con fgsMode distinto de None (FGS realmente arrancado), pause/resume
         // si deben reenviar la accion al servicio.
-        val context = AllowingContext()
-        val viewModel = newViewModel("run", context = context)
+        val controller = AllowingController()
+        val viewModel = newViewModel("run", controller = controller)
         dispatcher.scheduler.advanceUntilIdle()
         viewModel.startTrackingService(locationAllowed = true)
         dispatcher.scheduler.advanceUntilIdle()
         assertEquals(CardioFgsMode.Location, viewModel.state.value.fgsMode)
-        val intentsAfterStart = context.startedIntents.size
+        assertEquals(0, controller.pauseCalls.size)
+        assertEquals(0, controller.resumeCalls.size)
 
         viewModel.pauseCardio()
-        assertEquals(intentsAfterStart + 1, context.startedIntents.size)
+        assertEquals(1, controller.pauseCalls.size)
 
         viewModel.resumeCardio()
-        assertEquals(intentsAfterStart + 2, context.startedIntents.size)
+        assertEquals(1, controller.resumeCalls.size)
     }
 
     @Test
@@ -667,12 +669,20 @@ class ActiveCardioViewModelTest {
     @Test
     fun `completeCardio is idempotent and second call is a no-op`() = runVmTest {
         val viewModel = newViewModel("run")
+        // startCardio() se lanza en una corrutina desde el init{}; sin drenar el
+        // scheduler la sesion todavia no esta cargada (session == null) y
+        // completeCardio() no haria nada. runCurrent() basta (no advanceUntilIdle:
+        // el cronometro local del BUG-093 corre en bucle con delay(1000) y no
+        // termina nunca).
+        dispatcher.scheduler.runCurrent()
         viewModel.onManualDistanceChanged("5.2")
         viewModel.completeCardio()
+        dispatcher.scheduler.runCurrent()
         val firstId = viewModel.state.value.completedSessionId
         assertNotNull(firstId)
 
         viewModel.completeCardio()
+        dispatcher.scheduler.runCurrent()
         assertEquals(firstId, viewModel.state.value.completedSessionId)
         // La sesion en repo solo se completa una vez (no se duplica).
         assertEquals(1, cardioRepository.sessions.count { it.completed })
@@ -699,67 +709,79 @@ class ActiveCardioViewModelTest {
     }
 }
 
-private object NoopContext : android.content.ContextWrapper(null) {
-    override fun startService(intent: android.content.Intent): android.content.ComponentName? =
-        throw UnsupportedOperationException("NoopContext does not support startService in unit tests")
-    override fun stopService(intent: android.content.Intent): Boolean =
-        throw UnsupportedOperationException("NoopContext does not support stopService in unit tests")
+/**
+ * Fake que no espera ninguna llamada de start/pause/resume al FGS (esos tests
+ * no ejercitan startTrackingService, asi que fgsMode se queda en None y el VM
+ * nunca llega a llamarlos). `stop()` si es un no-op valido: `completeCardio`/
+ * `cancelCardio` lo invocan incondicionalmente aunque no haya FGS activo.
+ */
+private object NoopController : CardioTrackerServiceController {
+    override fun hasActivityRecognition(): Boolean =
+        throw UnsupportedOperationException("NoopController does not support hasActivityRecognition in unit tests")
+    override fun start(sessionId: String, startedAt: Long, gpsEnabled: Boolean, mode: CardioMode) =
+        throw UnsupportedOperationException("NoopController does not support start in unit tests")
+    override fun pause(sessionId: String) =
+        throw UnsupportedOperationException("NoopController does not support pause in unit tests")
+    override fun resume(sessionId: String) =
+        throw UnsupportedOperationException("NoopController does not support resume in unit tests")
+    override fun stop() = Unit
 }
 
 /**
- * Context que deja pasar `startForegroundService`/`startService` y reporta
- * permisos como concedidos. Usado por los tests del BUG-093 para verificar el
- * camino feliz y los caminos en los que el FGS recibe el intent.
+ * Controller que deja pasar `start`/`pause`/`resume` y reporta permisos como
+ * concedidos. Usado por los tests del BUG-093 para verificar el camino feliz
+ * y los caminos en los que el FGS recibe la llamada.
  */
-private class AllowingContext : android.content.ContextWrapper(null) {
-    val startedIntents = mutableListOf<android.content.Intent>()
-    override fun startService(intent: android.content.Intent): android.content.ComponentName? {
-        startedIntents.add(intent)
-        return android.content.ComponentName(this, "allowing")
+private class AllowingController : CardioTrackerServiceController {
+    val startCalls = mutableListOf<String>()
+    val pauseCalls = mutableListOf<String>()
+    val resumeCalls = mutableListOf<String>()
+    var stopCalls = 0
+
+    override fun hasActivityRecognition(): Boolean = true
+    override fun start(sessionId: String, startedAt: Long, gpsEnabled: Boolean, mode: CardioMode) {
+        startCalls.add(sessionId)
     }
-    override fun startForegroundService(intent: android.content.Intent): android.content.ComponentName? {
-        startedIntents.add(intent)
-        return android.content.ComponentName(this, "allowing")
+    override fun pause(sessionId: String) {
+        pauseCalls.add(sessionId)
     }
-    override fun stopService(intent: android.content.Intent): Boolean = true
-    override fun checkSelfPermission(permission: String): Int = android.content.pm.PackageManager.PERMISSION_GRANTED
+    override fun resume(sessionId: String) {
+        resumeCalls.add(sessionId)
+    }
+    override fun stop() {
+        stopCalls++
+    }
 }
 
 /**
- * Context que lanza `SecurityException` al llamar a `startForegroundService`.
- * Simula la politica estricta de tipos de FGS en Android 14+ que rechaza
- * reclamar un tipo sin el permiso/uso real que lo justifica. El VM debe
- * capturar la excepcion, rebajar el modo a None y arrancar el cronometro local.
+ * Controller que lanza `SecurityException` al llamar a `start`. Simula la
+ * politica estricta de tipos de FGS en Android 14+ que rechaza reclamar un
+ * tipo sin el permiso/uso real que lo justifica. El VM debe capturar la
+ * excepcion, rebajar el modo a None y arrancar el cronometro local.
  */
-private class RejectingContext : android.content.ContextWrapper(null) {
-    override fun startService(intent: android.content.Intent): android.content.ComponentName? =
-        throw SecurityException("Rejected: simulated startService rejection in unit test")
-    override fun startForegroundService(intent: android.content.Intent): android.content.ComponentName? =
-        throw SecurityException("Rejected: simulated startForegroundService rejection in unit test")
-    override fun stopService(intent: android.content.Intent): Boolean = true
-    override fun checkSelfPermission(permission: String): Int = android.content.pm.PackageManager.PERMISSION_GRANTED
+private class RejectingController : CardioTrackerServiceController {
+    override fun hasActivityRecognition(): Boolean = true
+    override fun start(sessionId: String, startedAt: Long, gpsEnabled: Boolean, mode: CardioMode) {
+        throw SecurityException("Rejected: simulated start rejection in unit test")
+    }
+    override fun pause(sessionId: String) = Unit
+    override fun resume(sessionId: String) = Unit
+    override fun stop() = Unit
 }
 
 /**
- * Context que deja pasar `startForegroundService` pero deniega el permiso
- * `ACTIVITY_RECOGNITION`. Simula un dispositivo donde el usuario nunca concedio
- * el permiso (o donde correr sin GPS pero sin AR no admite FGS_HEALTH).
+ * Controller que deja pasar `start` pero deniega `hasActivityRecognition`.
+ * Simula un dispositivo donde el usuario nunca concedio el permiso (o donde
+ * correr sin GPS pero sin AR no admite FGS_HEALTH).
  */
-private class ActivityRecognitionDeniedContext : android.content.ContextWrapper(null) {
-    val startedIntents = mutableListOf<android.content.Intent>()
-    override fun startService(intent: android.content.Intent): android.content.ComponentName? {
-        startedIntents.add(intent)
-        return android.content.ComponentName(this, "no-ar")
+private class ActivityRecognitionDeniedController : CardioTrackerServiceController {
+    val startCalls = mutableListOf<String>()
+
+    override fun hasActivityRecognition(): Boolean = false
+    override fun start(sessionId: String, startedAt: Long, gpsEnabled: Boolean, mode: CardioMode) {
+        startCalls.add(sessionId)
     }
-    override fun startForegroundService(intent: android.content.Intent): android.content.ComponentName? {
-        startedIntents.add(intent)
-        return android.content.ComponentName(this, "no-ar")
-    }
-    override fun stopService(intent: android.content.Intent): Boolean = true
-    override fun checkSelfPermission(permission: String): Int =
-        if (permission == android.Manifest.permission.ACTIVITY_RECOGNITION) {
-            android.content.pm.PackageManager.PERMISSION_DENIED
-        } else {
-            android.content.pm.PackageManager.PERMISSION_GRANTED
-        }
+    override fun pause(sessionId: String) = Unit
+    override fun resume(sessionId: String) = Unit
+    override fun stop() = Unit
 }

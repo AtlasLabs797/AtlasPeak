@@ -1,9 +1,6 @@
 package com.atlaspeak.presentation.cardio
 
-import android.Manifest
 import android.content.Context
-import android.content.pm.PackageManager
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -37,7 +34,7 @@ class ActiveCardioViewModel(
     private val cardioUseCase: CardioUseCase,
     private val resumeCardioSessionUseCase: ResumeCardioSessionUseCase,
     private val cardioRepository: CardioRepository,
-    @ApplicationContext private val context: Context,
+    private val trackerController: CardioTrackerServiceController,
     private val now: () -> Long,
 ) : ViewModel() {
 
@@ -53,7 +50,7 @@ class ActiveCardioViewModel(
         cardioUseCase = cardioUseCase,
         resumeCardioSessionUseCase = resumeCardioSessionUseCase,
         cardioRepository = cardioRepository,
-        context = context,
+        trackerController = ContextCardioTrackerServiceController(context),
         now = { System.currentTimeMillis() },
     )
 
@@ -116,10 +113,7 @@ class ActiveCardioViewModel(
         // a startForegroundService. La UI usa este valor para etiquetar el
         // escenario; si el startForegroundService falla despues, lo rebajamos
         // a None en el catch.
-        val hasActivityRecognition = ContextCompat.checkSelfPermission(
-            context,
-            Manifest.permission.ACTIVITY_RECOGNITION,
-        ) == PackageManager.PERMISSION_GRANTED
+        val hasActivityRecognition = trackerController.hasActivityRecognition()
         val requestedFgsMode = CardioForegroundService.preflightFgsType(
             hasGps = session.hasGps,
             hasFineLocation = locationAllowed,
@@ -148,10 +142,7 @@ class ActiveCardioViewModel(
         }
 
         try {
-            ContextCompat.startForegroundService(
-                context,
-                CardioForegroundService.startIntent(context, session.id, session.startTime, gpsEnabled, session.mode),
-            )
+            trackerController.start(session.id, session.startTime, gpsEnabled, session.mode)
         } catch (_: SecurityException) {
             // BUG-093: SecurityException explicito (subclase de
             // RuntimeException, pero mas claro para el lector). Android 14+
@@ -195,7 +186,7 @@ class ActiveCardioViewModel(
         viewModelScope.launch {
             val manualDistance = snapshot.manualDistanceKm.toDoubleOrNull()
             val manualSpeed = snapshot.manualAvgSpeedKmh.toDoubleOrNull()
-            context.stopService(CardioForegroundService.stopIntent(context))
+            trackerController.stop()
             stopLocalTimer()
             val completed = cardioUseCase.completeSession(
                 sessionId = session.id,
@@ -214,7 +205,7 @@ class ActiveCardioViewModel(
 
     fun cancelCardio() {
         val sessionId = mutableState.value.session?.id
-        context.stopService(CardioForegroundService.stopIntent(context))
+        trackerController.stop()
         stopLocalTimer()
         viewModelScope.launch {
             if (sessionId != null) {
@@ -251,7 +242,7 @@ class ActiveCardioViewModel(
                 // El servicio tracker de la sesion anterior esta en primer plano;
                 // hay que pararlo para no dejar una notificacion zombi.
                 runCatching {
-                    context.stopService(CardioForegroundService.stopIntent(context))
+                    trackerController.stop()
                 }
             }
             // Esperamos a que la nueva sesion se haya cargado para que el boton siga
@@ -296,7 +287,7 @@ class ActiveCardioViewModel(
         // (el unico que realmente cuenta el tiempo en este modo) se entere.
         if (mutableState.value.fgsMode != CardioFgsMode.None) {
             runCatching {
-                context.startService(CardioForegroundService.pauseIntent(context, session.id))
+                trackerController.pause(session.id)
             }
         }
         stopLocalTimer()
@@ -338,7 +329,7 @@ class ActiveCardioViewModel(
         // reanudar en el servicio; seguimos con el cronometro local.
         if (mutableState.value.fgsMode != CardioFgsMode.None) {
             runCatching {
-                context.startService(CardioForegroundService.resumeIntent(context, session.id))
+                trackerController.resume(session.id)
             }
         }
         startLocalTimerIfNeeded()

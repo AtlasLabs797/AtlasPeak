@@ -19,6 +19,11 @@
   `runCurrent()` y el tiempo se avanza con `advanceLocalTimer()`. Como `runTest` tambien
   drena el scheduler al terminar, `ActiveWorkoutViewModelTest` y `ActiveCardioViewModelTest`
   usan `runVmTest`, que cancela el `viewModelScope` de cada VM antes de ese drenaje.
+- `ActiveCardioViewModel` accede a permisos e intents del FGS a traves de
+  `CardioTrackerServiceController` (implementacion real `ContextCardioTrackerServiceController`);
+  los tests JVM usan fakes en vez de `ContextWrapper`, que chocaban con los stubs "not mocked"
+  del android.jar (`Process.myPid()`, `Intent(Context, Class)`).
+- `ActiveWorkoutViewModel` retira el aviso `TimerServiceUnavailable` cuando el FGS se recupera.
 - `RoomCardioRepository`: el mapper Room→dominio perdia `weeklyPlanSessionId`, y cualquier
   pausa o finalizacion lo reescribia a `NULL`.
 - `BUG-104`: sesion de cardio GPS sin fix ya se puede finalizar con metricas manuales.
