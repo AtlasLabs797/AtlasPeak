@@ -183,6 +183,7 @@ class RoomCardioRepository @Inject constructor(
             // es nullable; un valor null significa "sesion no pausada".
             pausedAtMillis = pausedAtMs,
             totalPausedDurationMillis = totalPausedDurationMs,
+            weeklyPlanSessionId = workout.weeklyPlanSessionId,
         )
     }
 
