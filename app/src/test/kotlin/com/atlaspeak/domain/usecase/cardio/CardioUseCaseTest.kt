@@ -58,6 +58,19 @@ class CardioUseCaseTest {
     }
 
     @Test
+    fun `start cardio keeps weekly plan row id`() = runTest {
+        repository.types = listOf(CardioType("run", "Run", hasGps = true, isPreset = true, isArchived = false))
+
+        useCase.startSession(
+            cardioTypeId = "run",
+            mode = CardioMode.Timer,
+            weeklyPlanSessionId = "weekly_plan_cardio_1",
+        )
+
+        assertEquals("weekly_plan_cardio_1", repository.sessions.single().weeklyPlanSessionId)
+    }
+
+    @Test
     fun `start session returns NotFound for missing type`() = runTest {
         assertInstanceOf(ActiveSessionStartResult.NotFound::class.java, useCase.startSession("missing", CardioMode.Timer))
     }
