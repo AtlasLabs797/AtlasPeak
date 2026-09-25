@@ -16,6 +16,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,8 +36,8 @@ class WeeklyPlanViewModel @Inject constructor(
         refresh()
     }
 
-    fun refresh() {
-        viewModelScope.launch {
+    fun refresh(): Job {
+        return viewModelScope.launch {
             mutableState.update { it.copy(isLoading = true, messageRes = null) }
             try {
                 val routines = routineUseCase.routines().map { it.toOption() }
@@ -218,7 +219,7 @@ class WeeklyPlanViewModel @Inject constructor(
                     ),
                 )
                 if (saved) {
-                    refresh()
+                    refresh().join()
                     mutableState.update {
                         it.copy(
                             messageRes = R.string.weekly_plan_saved,
