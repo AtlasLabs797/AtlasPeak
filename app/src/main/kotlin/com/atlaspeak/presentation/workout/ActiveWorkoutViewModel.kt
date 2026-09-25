@@ -75,6 +75,7 @@ class ActiveWorkoutViewModel(
     )
 
     private val routineId: String = requireNotNull(savedStateHandle[AppRoute.ActiveWorkout.ROUTINE_ID])
+    private val weeklyPlanSessionId: String? = savedStateHandle[AppRoute.ActiveWorkout.WEEKLY_PLAN_SESSION_ID]
     private val mutableState = MutableStateFlow(ActiveWorkoutUiState())
     val state: StateFlow<ActiveWorkoutUiState> = mutableState.asStateFlow()
     private var exerciseOrder: List<String> = emptyList()
@@ -452,7 +453,7 @@ class ActiveWorkoutViewModel(
 
     private fun startWorkout(): Job {
         return viewModelScope.launch {
-            when (val result = startWorkoutSessionUseCase(routineId)) {
+            when (val result = startWorkoutSessionUseCase(routineId, weeklyPlanSessionId)) {
                 is ActiveSessionStartResult.Started, is ActiveSessionStartResult.Resumed -> {
                     loadSession(result.sessionId)
                 }
