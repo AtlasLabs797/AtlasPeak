@@ -45,14 +45,12 @@ class BackupRestoreViewModel @Inject constructor(
     }
 
     /**
-     * BUG-096 (Fase 7 P1): limpia la marca de "Drive requiere reautorizacion"
-     * y reintenta la peticion del token silencioso. Pensado para el boton
-     * "Reconectar Drive" de la UI.
+     * Limpia el bloqueo solo despues de que AuthorizationClient haya devuelto
+     * un token valido. Si el usuario cancela, el aviso sigue visible.
      */
-    fun reconnectDrive() {
+    fun onDriveReauthorized() {
         viewModelScope.launch {
             backupUseCase.clearDriveAuthorizationRequired()
-            _state.update { it.copy(requiresDriveAuthorization = false, messageRes = R.string.backup_drive_reconnect_attempting) }
             refreshStatus()
         }
     }
