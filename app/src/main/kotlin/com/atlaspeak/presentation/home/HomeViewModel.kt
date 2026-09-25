@@ -30,7 +30,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 @HiltViewModel
-class HomeViewModel @Inject constructor(
+class HomeViewModel(
     private val dashboardUseCase: DashboardUseCase,
     private val weeklyPlanUseCase: WeeklyPlanUseCase,
     private val syncHealthConnectUseCase: SyncHealthConnectUseCase,
@@ -39,6 +39,24 @@ class HomeViewModel @Inject constructor(
     private val cardioRepository: CardioRepository,
     private val now: () -> Long = { System.currentTimeMillis() },
 ) : ViewModel() {
+
+    @Inject
+    constructor(
+        dashboardUseCase: DashboardUseCase,
+        weeklyPlanUseCase: WeeklyPlanUseCase,
+        syncHealthConnectUseCase: SyncHealthConnectUseCase,
+        profileRepository: ProfileRepository,
+        workoutRepository: WorkoutRepository,
+        cardioRepository: CardioRepository,
+    ) : this(
+        dashboardUseCase = dashboardUseCase,
+        weeklyPlanUseCase = weeklyPlanUseCase,
+        syncHealthConnectUseCase = syncHealthConnectUseCase,
+        profileRepository = profileRepository,
+        workoutRepository = workoutRepository,
+        cardioRepository = cardioRepository,
+        now = { System.currentTimeMillis() },
+    )
     private val mutableState = MutableStateFlow(HomeUiState())
     private var refreshJob: Job? = null
     val state: StateFlow<HomeUiState> = mutableState.asStateFlow()
