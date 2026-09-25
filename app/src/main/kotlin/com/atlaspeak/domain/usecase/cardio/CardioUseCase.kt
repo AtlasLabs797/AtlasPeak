@@ -125,8 +125,7 @@ class CardioUseCase(
             speedKmh = null,
             distanceFromPreviousKm = incrementalKm,
         )
-        repository.addRoutePoint(persisted)
-        return persisted
+        return if (repository.addRoutePointIfSessionActive(persisted)) persisted else null
     }
 
     /**
