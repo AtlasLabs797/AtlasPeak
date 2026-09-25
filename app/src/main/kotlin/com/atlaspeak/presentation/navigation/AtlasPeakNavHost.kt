@@ -81,14 +81,17 @@ fun AtlasPeakNavHost(
         ) {
             composable(AppRoute.Home.route) {
                 HomeRoute(
-                    onStartRoutine = { routineId ->
-                        navController.navigate(AppRoute.ActiveWorkout.createRoute(routineId))
+                    onStartRoutine = { routineId, weeklyPlanSessionId ->
+                        navController.navigate(
+                            AppRoute.ActiveWorkout.createRoute(routineId, weeklyPlanSessionId),
+                        )
                     },
-                    onStartCardio = { cardioTypeId, targetSeconds ->
+                    onStartCardio = { cardioTypeId, targetSeconds, weeklyPlanSessionId ->
                         navController.navigate(
                             AppRoute.ActiveCardio.createRoute(
                                 cardioTypeId,
                                 CardioMode.Countdown(targetSeconds),
+                                weeklyPlanSessionId,
                             ),
                         )
                     },
@@ -106,7 +109,14 @@ fun AtlasPeakNavHost(
             }
             composable(
                 route = AppRoute.ActiveWorkout.route,
-                arguments = listOf(navArgument(AppRoute.ActiveWorkout.ROUTINE_ID) { type = NavType.StringType }),
+                arguments = listOf(
+                    navArgument(AppRoute.ActiveWorkout.ROUTINE_ID) { type = NavType.StringType },
+                    navArgument(AppRoute.ActiveWorkout.WEEKLY_PLAN_SESSION_ID) {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    },
+                ),
             ) {
                 ActiveWorkoutRoute(
                     onWorkoutCompleted = { sessionId ->
@@ -141,6 +151,11 @@ fun AtlasPeakNavHost(
                     navArgument(AppRoute.ActiveCardio.CARDIO_TYPE_ID) { type = NavType.StringType },
                     navArgument(AppRoute.ActiveCardio.MODE) { type = NavType.StringType },
                     navArgument(AppRoute.ActiveCardio.TARGET_SECONDS) { type = NavType.IntType },
+                    navArgument(AppRoute.ActiveCardio.WEEKLY_PLAN_SESSION_ID) {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    },
                 ),
             ) {
                 ActiveCardioRoute(
