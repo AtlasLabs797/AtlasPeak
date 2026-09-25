@@ -77,13 +77,15 @@ fun CardioRouteMap(
         ) {
             // Marcadores inicio/fin para sesiones GPS largas donde la
             // polilinea sola no dice donde empezo/termino el recorrido.
+            val start = points.first()
             Marker(
-                state = MarkerState(position = points.first()),
+                state = remember(start) { MarkerState(position = start) },
                 title = stringResource(R.string.cardio_route_start),
             )
             if (points.size > 1) {
+                val end = points.last()
                 Marker(
-                    state = MarkerState(position = points.last()),
+                    state = remember(end) { MarkerState(position = end) },
                     title = stringResource(R.string.cardio_route_end),
                 )
             }
