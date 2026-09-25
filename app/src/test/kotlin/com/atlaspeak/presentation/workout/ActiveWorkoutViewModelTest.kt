@@ -18,9 +18,13 @@ import com.atlaspeak.domain.usecase.workout.StartWorkoutSessionUseCase
 import com.atlaspeak.presentation.navigation.AppRoute
 import com.atlaspeak.service.WorkoutTimerRegistry
 import com.atlaspeak.service.WorkoutTimerState
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -37,6 +41,19 @@ import org.junit.jupiter.api.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class ActiveWorkoutViewModelTest {
     private val dispatcher = StandardTestDispatcher()
+
+    // runTest drena el scheduler al terminar (advanceUntilIdle en su finally); si el
+    // cronometro local de la VM (bucle con delay(1000)) sigue vivo, el test no termina
+    // nunca. Cancelamos el viewModelScope de cada VM dentro del cuerpo del test.
+    private val createdViewModels = mutableListOf<ViewModel>()
+
+    private fun runVmTest(testBody: suspend TestScope.() -> Unit) = runTest(dispatcher) {
+        try {
+            testBody()
+        } finally {
+            createdViewModels.forEach { it.viewModelScope.cancel() }
+        }
+    }
     private val routineRepository = FakeRoutineRepository()
     private val workoutRepository = FakeWorkoutRepository()
     private val workoutSettingsRepository = FakeWorkoutSettingsRepository()
@@ -67,7 +84,7 @@ class ActiveWorkoutViewModelTest {
     }
 
     @Test
-    fun `process recreation preserves active session and does not duplicate it`() = runTest(dispatcher) {
+    fun `process recreation preserves active session and does not duplicate it`() = runVmTest {
         val firstSessionId = newViewModelAndStart().session?.id
         assertNotNull(firstSessionId)
 
@@ -99,7 +116,7 @@ class ActiveWorkoutViewModelTest {
     }
 
     @Test
-    fun `elapsed seconds derives from startTime after recreation`() = runTest(dispatcher) {
+    fun `elapsed seconds derives from startTime after recreation`() = runVmTest {
         newViewModelAndStart()
         val startTime = workoutRepository.sessions.single().startTime
 
@@ -118,7 +135,7 @@ class ActiveWorkoutViewModelTest {
     }
 
     @Test
-    fun `conflict state is exposed when active session belongs to a different routine`() = runTest(dispatcher) {
+    fun `conflict state is exposed when active session belongs to a different routine`() = runVmTest {
         val first = newViewModelAndStart("routine_lower").session
         assertNotNull(first)
 
@@ -133,7 +150,7 @@ class ActiveWorkoutViewModelTest {
     }
 
     @Test
-    fun `discard active and start new replaces active session`() = runTest(dispatcher) {
+    fun `discard active and start new replaces active session`() = runVmTest {
         newViewModelAndStart("routine_lower")
 
         val viewModel = newViewModel(routineId = "routine_upper")
@@ -151,7 +168,7 @@ class ActiveWorkoutViewModelTest {
     }
 
     @Test
-    fun `resume active keeps the existing session`() = runTest(dispatcher) {
+    fun `resume active keeps the existing session`() = runVmTest {
         val first = newViewModelAndStart("routine_lower").session
 
         val viewModel = newViewModel(routineId = "routine_upper")
@@ -168,7 +185,7 @@ class ActiveWorkoutViewModelTest {
     }
 
     @Test
-    fun `dismiss conflict does not touch active session`() = runTest(dispatcher) {
+    fun `dismiss conflict does not touch active session`() = runVmTest {
         val first = newViewModelAndStart("routine_lower").session
         val viewModel = newViewModel(routineId = "routine_upper")
         dispatcher.scheduler.runCurrent()
@@ -182,7 +199,7 @@ class ActiveWorkoutViewModelTest {
     }
 
     @Test
-    fun `routine missing produces RoutineMissing message without active session`() = runTest(dispatcher) {
+    fun `routine missing produces RoutineMissing message without active session`() = runVmTest {
         val viewModel = newViewModel(routineId = "missing")
         dispatcher.scheduler.runCurrent()
 
@@ -193,7 +210,7 @@ class ActiveWorkoutViewModelTest {
     }
 
     @Test
-    fun `elapsed_seconds keeps increasing when foreground service fails to start`() = runTest(dispatcher) {
+    fun `elapsed_seconds keeps increasing when foreground service fails to start`() = runVmTest {
         val viewModel = newStartedViewModel()
         val sessionId = viewModel.state.value.session?.id
         assertNotNull(sessionId)
@@ -224,7 +241,7 @@ class ActiveWorkoutViewModelTest {
     }
 
     @Test
-    fun `elapsed_seconds keeps increasing when foreground service never started`() = runTest(dispatcher) {
+    fun `elapsed_seconds keeps increasing when foreground service never started`() = runVmTest {
         val viewModel = newStartedViewModel()
         assertNotNull(viewModel.state.value.session?.id)
         // Registry queda como en el setUp (estado inicial vacio): el FGS no ha arrancado
@@ -244,7 +261,7 @@ class ActiveWorkoutViewModelTest {
     }
 
     @Test
-    fun `elapsed_seconds keeps increasing across recreation when foreground service is unavailable`() = runTest(dispatcher) {
+    fun `elapsed_seconds keeps increasing across recreation when foreground service is unavailable`() = runVmTest {
         val firstVm = newViewModel()
         dispatcher.scheduler.runCurrent()
         val firstSessionId = firstVm.state.value.session?.id
@@ -275,7 +292,7 @@ class ActiveWorkoutViewModelTest {
     }
 
     @Test
-    fun `local fallback timer stops when foreground service becomes healthy`() = runTest(dispatcher) {
+    fun `local fallback timer stops when foreground service becomes healthy`() = runVmTest {
         val viewModel = newStartedViewModel()
         val sessionId = viewModel.state.value.session?.id
         assertNotNull(sessionId)
@@ -332,7 +349,7 @@ class ActiveWorkoutViewModelTest {
     }
 
     @Test
-    fun `elapsed_seconds matches math from startTime`() = runTest(dispatcher) {
+    fun `elapsed_seconds matches math from startTime`() = runVmTest {
         val viewModel = newStartedViewModel()
         val session = viewModel.state.value.session
         assertNotNull(session)
@@ -412,7 +429,7 @@ class ActiveWorkoutViewModelTest {
             exerciseRepository = exerciseRepository,
             context = NoopContext,
             now = now,
-        )
+        ).also { createdViewModels += it }
     }
 
     private fun handleFor(routineId: String): androidx.lifecycle.SavedStateHandle {

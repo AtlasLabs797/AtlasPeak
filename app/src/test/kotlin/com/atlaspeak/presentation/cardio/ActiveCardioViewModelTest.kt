@@ -12,9 +12,13 @@ import com.atlaspeak.domain.usecase.cardio.CardioUseCase
 import com.atlaspeak.domain.usecase.cardio.ResumeCardioSessionUseCase
 import com.atlaspeak.presentation.navigation.AppRoute
 import com.atlaspeak.service.CardioTrackerRegistry
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -30,6 +34,19 @@ import org.junit.jupiter.api.Test
 @OptIn(ExperimentalCoroutinesApi::class)
 class ActiveCardioViewModelTest {
     private val dispatcher = StandardTestDispatcher()
+
+    // runTest drena el scheduler al terminar (advanceUntilIdle en su finally); si el
+    // cronometro local de la VM (bucle con delay(1000)) sigue vivo, el test no termina
+    // nunca. Cancelamos el viewModelScope de cada VM dentro del cuerpo del test.
+    private val createdViewModels = mutableListOf<ViewModel>()
+
+    private fun runVmTest(testBody: suspend TestScope.() -> Unit) = runTest(dispatcher) {
+        try {
+            testBody()
+        } finally {
+            createdViewModels.forEach { it.viewModelScope.cancel() }
+        }
+    }
     private val cardioRepository = FakeCardioRepository()
     private val bodyRepository = FakeBodyCompositionRepository()
     private val cardioUseCase = CardioUseCase(
@@ -61,7 +78,7 @@ class ActiveCardioViewModelTest {
     }
 
     @Test
-    fun `process recreation preserves cardio session route and does not duplicate it`() = runTest(dispatcher) {
+    fun `process recreation preserves cardio session route and does not duplicate it`() = runVmTest {
         val first = newViewModelAndStart(cardioTypeId = "run").session
         assertNotNull(first)
         val firstSessionId = first!!.id
@@ -77,7 +94,7 @@ class ActiveCardioViewModelTest {
     }
 
     @Test
-    fun `elapsed seconds is recomputed from startTime after recreation`() = runTest(dispatcher) {
+    fun `elapsed seconds is recomputed from startTime after recreation`() = runVmTest {
         newViewModelAndStart(cardioTypeId = "run")
         val stored = cardioRepository.sessions.single()
         val startTime = stored.startTime
@@ -96,7 +113,7 @@ class ActiveCardioViewModelTest {
     }
 
     @Test
-    fun `conflict state is exposed when active cardio session belongs to different type`() = runTest(dispatcher) {
+    fun `conflict state is exposed when active cardio session belongs to different type`() = runVmTest {
         val first = newViewModelAndStart(cardioTypeId = "bike").session
         assertNotNull(first)
 
@@ -112,7 +129,7 @@ class ActiveCardioViewModelTest {
     }
 
     @Test
-    fun `discard active and start new replaces cardio session`() = runTest(dispatcher) {
+    fun `discard active and start new replaces cardio session`() = runVmTest {
         newViewModelAndStart(cardioTypeId = "bike")
 
         val viewModel = newViewModel(cardioTypeId = "run")
@@ -130,7 +147,7 @@ class ActiveCardioViewModelTest {
     }
 
     @Test
-    fun `resume active keeps the existing cardio session with its route`() = runTest(dispatcher) {
+    fun `resume active keeps the existing cardio session with its route`() = runVmTest {
         val first = newViewModelAndStart(cardioTypeId = "bike").session
         cardioRepository.sessions = cardioRepository.sessions.map { it.copy(route = listOf(LocationPoint(40.0, -3.0, 1L))) }
 
@@ -152,7 +169,7 @@ class ActiveCardioViewModelTest {
     }
 
     @Test
-    fun `dismiss conflict does not touch active cardio session`() = runTest(dispatcher) {
+    fun `dismiss conflict does not touch active cardio session`() = runVmTest {
         val first = newViewModelAndStart(cardioTypeId = "bike").session
         val viewModel = newViewModel(cardioTypeId = "run")
         dispatcher.scheduler.advanceUntilIdle()
@@ -166,7 +183,7 @@ class ActiveCardioViewModelTest {
     }
 
     @Test
-    fun `cardio type missing produces SessionMissing message`() = runTest(dispatcher) {
+    fun `cardio type missing produces SessionMissing message`() = runVmTest {
         val viewModel = newViewModel(cardioTypeId = "missing")
         dispatcher.scheduler.advanceUntilIdle()
 
@@ -177,7 +194,7 @@ class ActiveCardioViewModelTest {
     }
 
     @Test
-    fun `process recreation restores route from persisted route points not from in-memory session`() = runTest(dispatcher) {
+    fun `process recreation restores route from persisted route points not from in-memory session`() = runVmTest {
         // Simulamos muerte del proceso: el primer ViewModel persistio varios puntos
         // via el caso de uso. Despues recreamos el ViewModel contra el mismo
         // repositorio; la ruta debe venir de cardio_route_points, no de session.route.
@@ -209,7 +226,7 @@ class ActiveCardioViewModelTest {
     // simula un dispositivo sin permiso ACTIVITY_RECOGNITION.
 
     @Test
-    fun `startTrackingService with location allowed sets fgsMode to Location`() = runTest(dispatcher) {
+    fun `startTrackingService with location allowed sets fgsMode to Location`() = runVmTest {
         val context = AllowingContext()
         val viewModel = newViewModel(cardioTypeId = "run", context = context)
         dispatcher.scheduler.advanceUntilIdle()
@@ -228,7 +245,7 @@ class ActiveCardioViewModelTest {
     }
 
     @Test
-    fun `startTrackingService with location denied sets fgsMode to None with LocationPermissionDenied`() = runTest(dispatcher) {
+    fun `startTrackingService with location denied sets fgsMode to None with LocationPermissionDenied`() = runVmTest {
         val context = AllowingContext()
         val viewModel = newViewModel(cardioTypeId = "run", context = context)
         dispatcher.scheduler.advanceUntilIdle()
@@ -251,7 +268,7 @@ class ActiveCardioViewModelTest {
     }
 
     @Test
-    fun `startTrackingService for non-GPS cardio with ACTIVITY_RECOGNITION sets fgsMode to Health`() = runTest(dispatcher) {
+    fun `startTrackingService for non-GPS cardio with ACTIVITY_RECOGNITION sets fgsMode to Health`() = runVmTest {
         val context = AllowingContext()
         val viewModel = newViewModel(cardioTypeId = "bike", context = context)
         dispatcher.scheduler.advanceUntilIdle()
@@ -267,7 +284,7 @@ class ActiveCardioViewModelTest {
     }
 
     @Test
-    fun `startTrackingService for non-GPS cardio without ACTIVITY_RECOGNITION sets fgsMode to None`() = runTest(dispatcher) {
+    fun `startTrackingService for non-GPS cardio without ACTIVITY_RECOGNITION sets fgsMode to None`() = runVmTest {
         val context = ActivityRecognitionDeniedContext()
         val viewModel = newViewModel(cardioTypeId = "bike", context = context)
         dispatcher.scheduler.advanceUntilIdle()
@@ -289,7 +306,7 @@ class ActiveCardioViewModelTest {
     }
 
     @Test
-    fun `startTrackingService rejection by system falls back to local timer with fgsMode None`() = runTest(dispatcher) {
+    fun `startTrackingService rejection by system falls back to local timer with fgsMode None`() = runVmTest {
         val viewModel = newViewModel(cardioTypeId = "run", context = RejectingContext())
         dispatcher.scheduler.advanceUntilIdle()
 
@@ -307,7 +324,7 @@ class ActiveCardioViewModelTest {
     }
 
     @Test
-    fun `elapsed seconds keeps increasing when foreground service is rejected`() = runTest(dispatcher) {
+    fun `elapsed seconds keeps increasing when foreground service is rejected`() = runVmTest {
         val viewModel = newViewModel(cardioTypeId = "run", context = RejectingContext())
         dispatcher.scheduler.advanceUntilIdle()
 
@@ -365,7 +382,7 @@ class ActiveCardioViewModelTest {
             cardioRepository = cardioRepository,
             context = context,
             now = now,
-        )
+        ).also { createdViewModels += it }
     }
 
     private fun handleFor(cardioTypeId: String, mode: CardioMode): androidx.lifecycle.SavedStateHandle {
@@ -475,7 +492,7 @@ class ActiveCardioViewModelTest {
     }
 
     @Test
-    fun `elapsed seconds excludes paused time on a single pause resume cycle`() = runTest(dispatcher) {
+    fun `elapsed seconds excludes paused time on a single pause resume cycle`() = runVmTest {
         val viewModel = newViewModel("run")
         fixedClock.advanceBy(10_000L)
         advanceLocalTimer(10_000L)
@@ -506,7 +523,7 @@ class ActiveCardioViewModelTest {
     }
 
     @Test
-    fun `elapsed seconds sums multiple pauses correctly`() = runTest(dispatcher) {
+    fun `elapsed seconds sums multiple pauses correctly`() = runVmTest {
         val viewModel = newViewModel("run")
         fixedClock.advanceBy(4_000L)
         advanceLocalTimer(4_000L)
@@ -534,7 +551,7 @@ class ActiveCardioViewModelTest {
     }
 
     @Test
-    fun `process recreation while paused resumes the paused state`() = runTest(dispatcher) {
+    fun `process recreation while paused resumes the paused state`() = runVmTest {
         val viewModel = newViewModel("run")
         fixedClock.advanceBy(8_000L)
         advanceLocalTimer(8_000L)
@@ -559,7 +576,7 @@ class ActiveCardioViewModelTest {
     }
 
     @Test
-    fun `countdown mode ticks down only during unpaused time`() = runTest(dispatcher) {
+    fun `countdown mode ticks down only during unpaused time`() = runVmTest {
         val viewModel = newViewModel("run", mode = CardioMode.Countdown(targetDurationSeconds = 20))
         fixedClock.advanceBy(5_000L)
         advanceLocalTimer(5_000L)
@@ -578,7 +595,7 @@ class ActiveCardioViewModelTest {
     }
 
     @Test
-    fun `finalize button is disabled when canComplete is false`() = runTest(dispatcher) {
+    fun `finalize button is disabled when canComplete is false`() = runVmTest {
         val viewModel = newViewModel("run")
         // Sesion sin ruta y sin metricas manuales: requiresManualMetrics && !hasValidManualMetrics.
         assertEquals(false, viewModel.state.value.canComplete)
@@ -591,7 +608,7 @@ class ActiveCardioViewModelTest {
     }
 
     @Test
-    fun `pause and resume in local-only mode never call startService on the FGS`() = runTest(dispatcher) {
+    fun `pause and resume in local-only mode never call startService on the FGS`() = runVmTest {
         // BUG-105: sin FGS legal (fgsMode None), pause/resume no deben tocar
         // el servicio. AllowingContext registra cada intent (la llamada va dentro
         // de runCatching, asi que un context que lanza no detectaria la regresion).
@@ -610,7 +627,7 @@ class ActiveCardioViewModelTest {
     }
 
     @Test
-    fun `pause and resume forward the intent to the FGS when it is running`() = runTest(dispatcher) {
+    fun `pause and resume forward the intent to the FGS when it is running`() = runVmTest {
         // Con fgsMode distinto de None (FGS realmente arrancado), pause/resume
         // si deben reenviar la accion al servicio.
         val context = AllowingContext()
@@ -629,7 +646,7 @@ class ActiveCardioViewModelTest {
     }
 
     @Test
-    fun `manual metrics form shows and completion is possible when GPS has no fix yet`() = runTest(dispatcher) {
+    fun `manual metrics form shows and completion is possible when GPS has no fix yet`() = runVmTest {
         // BUG-104: sesion GPS sin ningun fix
         // aceptado (route vacia) y sin mensaje de error todavia. El formulario
         // manual debe revelarse igualmente para que la sesion se pueda cerrar.
@@ -648,7 +665,7 @@ class ActiveCardioViewModelTest {
     }
 
     @Test
-    fun `completeCardio is idempotent and second call is a no-op`() = runTest(dispatcher) {
+    fun `completeCardio is idempotent and second call is a no-op`() = runVmTest {
         val viewModel = newViewModel("run")
         viewModel.onManualDistanceChanged("5.2")
         viewModel.completeCardio()
