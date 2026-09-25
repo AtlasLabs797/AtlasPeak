@@ -8,11 +8,15 @@ import com.atlaspeak.domain.model.dashboard.DashboardFilters
 import com.atlaspeak.domain.model.dashboard.DashboardPeriod
 import com.atlaspeak.domain.model.dashboard.DashboardSnapshot
 import com.atlaspeak.domain.model.dashboard.DashboardWidget
+import com.atlaspeak.domain.model.healthconnect.HealthConnectAvailability
+import com.atlaspeak.domain.model.healthconnect.HealthConnectSyncResult
 import com.atlaspeak.domain.model.planning.WeeklyPlanDayType
 import com.atlaspeak.domain.usecase.dashboard.DashboardUseCase
 import com.atlaspeak.domain.usecase.healthconnect.SyncHealthConnectUseCase
 import com.atlaspeak.domain.usecase.planning.WeeklyPlanUseCase
+import com.atlaspeak.domain.repository.CardioRepository
 import com.atlaspeak.domain.repository.ProfileRepository
+import com.atlaspeak.domain.repository.WorkoutRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import java.time.Instant
 import java.time.ZoneId
@@ -26,18 +30,67 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
 @HiltViewModel
-class HomeViewModel @Inject constructor(
+class HomeViewModel(
     private val dashboardUseCase: DashboardUseCase,
     private val weeklyPlanUseCase: WeeklyPlanUseCase,
     private val syncHealthConnectUseCase: SyncHealthConnectUseCase,
     private val profileRepository: ProfileRepository,
+    private val workoutRepository: WorkoutRepository,
+    private val cardioRepository: CardioRepository,
+    private val now: () -> Long = { System.currentTimeMillis() },
 ) : ViewModel() {
+
+    @Inject
+    constructor(
+        dashboardUseCase: DashboardUseCase,
+        weeklyPlanUseCase: WeeklyPlanUseCase,
+        syncHealthConnectUseCase: SyncHealthConnectUseCase,
+        profileRepository: ProfileRepository,
+        workoutRepository: WorkoutRepository,
+        cardioRepository: CardioRepository,
+    ) : this(
+        dashboardUseCase = dashboardUseCase,
+        weeklyPlanUseCase = weeklyPlanUseCase,
+        syncHealthConnectUseCase = syncHealthConnectUseCase,
+        profileRepository = profileRepository,
+        workoutRepository = workoutRepository,
+        cardioRepository = cardioRepository,
+        now = { System.currentTimeMillis() },
+    )
     private val mutableState = MutableStateFlow(HomeUiState())
     private var refreshJob: Job? = null
+    private var syncJob: Job? = null
     val state: StateFlow<HomeUiState> = mutableState.asStateFlow()
 
     init {
         refresh(syncBefore = true)
+        loadActiveSessionShortcut()
+    }
+
+    /**
+     * BUG-103 (Fase 16 P3): quick action "Continuar sesion activa" cuando
+     * hay una sesion de fuerza o cardio abierta. Se consulta al repositorio
+     * de workout/cardio y se proyecta al UiState. El refresh posterior (en
+     * `refresh()`) reescribe `activeSessionShortcut` para mantenerlo
+     * sincronizado.
+     */
+    private fun loadActiveSessionShortcut() {
+        viewModelScope.launch {
+            val activeStrength = runCatching { workoutRepository.findActiveSession() }.getOrNull()
+            val activeCardio = runCatching { cardioRepository.findActiveSession() }.getOrNull()
+            val shortcut: ActiveSessionShortcut? = when {
+                activeStrength != null -> ActiveSessionShortcut.Strength(
+                    sessionId = activeStrength.id,
+                    routineName = activeStrength.routineName.orEmpty(),
+                )
+                activeCardio != null -> ActiveSessionShortcut.Cardio(
+                    sessionId = activeCardio.id,
+                    cardioTypeName = activeCardio.cardioTypeName,
+                )
+                else -> null
+            }
+            mutableState.update { it.copy(activeSessionShortcut = shortcut) }
+        }
     }
 
     fun selectPeriod(widget: DashboardWidget, period: DashboardPeriod) {
@@ -45,15 +98,39 @@ class HomeViewModel @Inject constructor(
         refresh()
     }
 
+    /**
+     * BUG-106: el sync de Health Connect corre en su propio Job
+     * (`syncJob`), independiente del Job que refresca snapshot/today
+     * workouts (`refreshJob`). Antes ambos compartian `refreshJob`, asi que
+     * el ON_RESUME de `HomeRoute` (que llama `refresh()` sin `syncBefore`)
+     * cancelaba el sync inicial disparado en `init { refresh(syncBefore =
+     * true) }` antes de que terminara, dejando el banner clavado en
+     * "Syncing" para siempre (el refresh de reemplazo no vuelve a tocar
+     * `healthConnectSync` porque `syncBefore` es false). Al separar los Jobs,
+     * un refresh sin sync ya no cancela un sync en curso.
+     */
     fun refresh(syncBefore: Boolean = false) {
+        if (syncBefore) {
+            syncJob?.cancel()
+            syncJob = viewModelScope.launch {
+                mutableState.update { it.copy(healthConnectSync = HomeHealthConnectSync.Syncing) }
+                val syncResult = runCatching { syncHealthConnectUseCase() }.getOrNull()
+                val mapped = syncResult.toHomeSyncStatus(now())
+                mutableState.update { it.copy(healthConnectSync = mapped) }
+                // Recargamos el dashboard para reflejar lo importado por el sync.
+                refresh()
+            }
+        }
         refreshJob?.cancel()
         refreshJob = viewModelScope.launch {
             val filters = mutableState.value.filters
-            mutableState.update { it.copy(isLoading = it.snapshot == null, errorMessageRes = null) }
+            mutableState.update {
+                it.copy(
+                    isLoading = it.snapshot == null,
+                    errorMessageRes = null,
+                )
+            }
             try {
-                if (syncBefore) {
-                    runCatching { syncHealthConnectUseCase() }
-                }
                 val snapshot = dashboardUseCase.snapshot(filters)
                 val todayWorkouts = todayWorkouts()
                 val greetingName = profileRepository.getProfile()?.displayName
@@ -84,6 +161,12 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    fun dismissHealthConnectSyncStatus() {
+        mutableState.update { it.copy(healthConnectSync = HomeHealthConnectSync.Idle) }
+    }
+
+    fun requiredHealthConnectPermissions(): Set<String> = syncHealthConnectUseCase.requiredPermissions()
+
     private suspend fun todayWorkouts(): List<TodayWorkoutUiState> {
         val today = Instant.ofEpochMilli(System.currentTimeMillis())
             .atZone(ZoneId.systemDefault())
@@ -97,6 +180,7 @@ class HomeViewModel @Inject constructor(
                 val cardioTypeName = session.cardioTypeName ?: return@mapNotNull null
                 val targetSeconds = session.cardioTargetDurationSec
                 TodayWorkoutUiState(
+                    weeklyPlanSessionId = session.id,
                     orderIndex = session.orderIndex,
                     type = TodayWorkoutType.Cardio,
                     routineId = null,
@@ -115,6 +199,7 @@ class HomeViewModel @Inject constructor(
             } else {
                 if (session.routineId == null || session.routineName == null) return@mapNotNull null
                 TodayWorkoutUiState(
+                    weeklyPlanSessionId = session.id,
                     orderIndex = session.orderIndex,
                     type = TodayWorkoutType.Strength,
                     routineId = session.routineId,
@@ -142,12 +227,69 @@ data class HomeUiState(
     val todayWorkouts: List<TodayWorkoutUiState> = emptyList(),
     val greetingName: String? = null,
     @StringRes val errorMessageRes: Int? = null,
+    /**
+     * BUG-095 (Fase 6 P1): estado de sincronizacion de Health Connect para que
+     * la UI pueda mostrar si los datos estan al dia, faltan
+     * permisos, o el sistema rechazo la sincronizacion. Antes el resultado de
+     * `syncHealthConnectUseCase()` se descartaba en `runCatching {}` y el
+     * usuario podia ver metricas antiguas sin saber que la sincronizacion
+     * fallo.
+     */
+    val healthConnectSync: HomeHealthConnectSync = HomeHealthConnectSync.Idle,
+    /**
+     * BUG-103 (Fase 16 P3): quick action "Continuar sesion activa" en Home
+     * cuando hay una sesion de fuerza o cardio abierta. El VM expone el tipo
+     * y el id para que la UI pueda navegar directamente.
+     */
+    val activeSessionShortcut: ActiveSessionShortcut? = null,
 ) {
     val todayWorkout: TodayWorkoutUiState? = todayWorkouts.firstOrNull()
 }
 
+sealed class ActiveSessionShortcut {
+    data class Strength(val sessionId: String, val routineName: String) : ActiveSessionShortcut()
+    data class Cardio(val sessionId: String, val cardioTypeName: String) : ActiveSessionShortcut()
+}
+
+/**
+ * Estado de sincronizacion de Health Connect proyectado al Home. BUG-095.
+ * Mapea el `HealthConnectSyncResult` del caso de uso a algo que la UI sabe
+ * pintar: exito parcial, faltan permisos, requiere actualizacion, fallo.
+ */
+sealed class HomeHealthConnectSync {
+    data object Idle : HomeHealthConnectSync()
+    data object Syncing : HomeHealthConnectSync()
+    data class Success(val timestampMillis: Long) : HomeHealthConnectSync()
+    data class PartialSuccess(val timestampMillis: Long) : HomeHealthConnectSync()
+    data object MissingPermissions : HomeHealthConnectSync()
+    data object UpdateRequired : HomeHealthConnectSync()
+    data object Unavailable : HomeHealthConnectSync()
+    data class Failed(val timestampMillis: Long) : HomeHealthConnectSync()
+}
+
+private fun HealthConnectSyncResult?.toHomeSyncStatus(now: Long): HomeHealthConnectSync {
+    if (this == null) return HomeHealthConnectSync.Failed(now)
+    // BUG-107: `missingPermissions` se marca true en cuanto hay alguna capacidad
+    // omitida (`skippedCapabilities.isNotEmpty()`), y ese es tambien uno de
+    // los requisitos de `partiallySuccessful`. Si se evalua
+    // `missingPermissions` antes, un resultado parcial (algunas capacidades
+    // completadas y otras omitidas) siempre cae en MissingPermissions y
+    // PartialSuccess queda inalcanzable. `partiallySuccessful` debe
+    // evaluarse primero.
+    return when {
+        availability == HealthConnectAvailability.Unavailable -> HomeHealthConnectSync.Unavailable
+        availability == HealthConnectAvailability.UpdateRequired -> HomeHealthConnectSync.UpdateRequired
+        partiallySuccessful -> HomeHealthConnectSync.PartialSuccess(now)
+        missingPermissions -> HomeHealthConnectSync.MissingPermissions
+        successful -> HomeHealthConnectSync.Success(now)
+        failed -> HomeHealthConnectSync.Failed(now)
+        else -> HomeHealthConnectSync.Idle
+    }
+}
+
 data class TodayWorkoutUiState(
     val orderIndex: Int,
+    val weeklyPlanSessionId: String? = null,
     val type: TodayWorkoutType,
     val routineId: String?,
     val routineName: String?,

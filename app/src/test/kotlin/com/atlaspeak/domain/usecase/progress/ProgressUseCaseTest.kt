@@ -228,6 +228,7 @@ class ProgressUseCaseTest {
         override suspend fun createSession(session: WorkoutSession): WorkoutSession = session
         override suspend fun session(id: String): WorkoutSession? = sessions.firstOrNull { it.id == id }
         override suspend fun sessions(): List<WorkoutSession> = sessions
+        override suspend fun findActiveSession(): WorkoutSession? = sessions.firstOrNull { !it.completed }
         override suspend fun deleteSession(id: String) {
             sessions = sessions.filterNot { it.id == id }
         }
@@ -251,8 +252,15 @@ class ProgressUseCaseTest {
         override suspend fun createSession(session: CardioSession): CardioSession = session
         override suspend fun session(id: String): CardioSession? = sessions.firstOrNull { it.id == id }
         override suspend fun sessions(): List<CardioSession> = sessions
+        override suspend fun findActiveSession(): CardioSession? = sessions.firstOrNull { !it.completed }
         override suspend fun updateSession(session: CardioSession) = Unit
         override suspend fun deleteSession(id: String) = Unit
+        override suspend fun addRoutePoint(point: com.atlaspeak.domain.model.cardio.CardioRoutePoint) = Unit
+        override suspend fun routePoints(sessionId: String): List<com.atlaspeak.domain.model.cardio.CardioRoutePoint> = emptyList()
+        override suspend fun routePointsCount(sessionId: String): Int = 0
+        override suspend fun routeDistanceKm(sessionId: String): Double = 0.0
+        override suspend fun deleteRoutePoints(sessionId: String) = Unit
+        override suspend fun finalizeCardioSessionRoute(session: CardioSession) = Unit
     }
 
     private class FakeExerciseRepository : ExerciseRepository {

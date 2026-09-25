@@ -48,6 +48,20 @@ class BackupSnapshotUpgrader @Inject constructor() {
         )
     }
 
+    private data class AddedTableUpgradeStep(
+        override val fromVersion: Int,
+        val tableName: String,
+    ) : UpgradeStep {
+        override fun apply(snapshot: DatabaseBackupSnapshot): DatabaseBackupSnapshot = snapshot.copy(
+            schemaVersion = fromVersion + 1,
+            tables = if (snapshot.tables.containsKey(tableName)) {
+                snapshot.tables
+            } else {
+                snapshot.tables + (tableName to emptyList())
+            },
+        )
+    }
+
     private data object ReindexWeeklyPlanUpgradeStep : UpgradeStep {
         override val fromVersion: Int = 4
 
@@ -98,6 +112,25 @@ class BackupSnapshotUpgrader @Inject constructor() {
                 ),
             ),
             ReindexWeeklyPlanUpgradeStep,
+            AddedTableUpgradeStep(
+                fromVersion = 5,
+                tableName = "cardio_route_points",
+            ),
+            AddedColumnsUpgradeStep(
+                fromVersion = 6,
+                addedColumns = mapOf(
+                    "cardio_sessions" to mapOf(
+                        "paused_at_ms" to JsonNull,
+                        "total_paused_duration_ms" to JsonPrimitive(0),
+                    ),
+                ),
+            ),
+            AddedColumnsUpgradeStep(
+                fromVersion = 7,
+                addedColumns = mapOf(
+                    "workout_sessions" to mapOf("weekly_plan_session_id" to JsonNull),
+                ),
+            ),
         )
 
         const val WEEKLY_PLAN_TABLE = "weekly_plan"

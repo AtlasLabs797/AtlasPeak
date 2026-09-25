@@ -1,6 +1,7 @@
 package com.atlaspeak.presentation.backup
 
 import com.atlaspeak.R
+import com.atlaspeak.domain.model.backup.BackupHealthStatus
 import com.atlaspeak.domain.model.backup.BackupResult
 import com.atlaspeak.domain.model.backup.BackupStatus
 import com.atlaspeak.domain.model.backup.DriveBackup
@@ -123,6 +124,9 @@ class BackupRestoreViewModelTest {
             csvCalls += 1
             return export()
         }
+
+        override suspend fun health(): BackupHealthStatus = BackupHealthStatus(lastSuccessfulBackupAt = null, lastAttemptAt = null, lastError = null, requiresDriveAuthorization = false)
+        override suspend fun clearDriveAuthorizationRequired() = Unit
 
         private fun export(): SharedBackupExport = SharedBackupExport(
             uri = "content://atlas/export",

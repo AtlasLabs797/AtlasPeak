@@ -1,5 +1,6 @@
 package com.atlaspeak.domain.repository
 
+import com.atlaspeak.domain.model.backup.BackupHealthStatus
 import com.atlaspeak.domain.model.backup.BackupResult
 import com.atlaspeak.domain.model.backup.BackupStatus
 import com.atlaspeak.domain.model.backup.DriveBackup
@@ -16,4 +17,7 @@ interface BackupRepository {
     suspend fun writeEncryptedBackup(password: CharArray): SharedBackupExport
     suspend fun writeManualJson(): SharedBackupExport
     suspend fun writeCsvZip(): SharedBackupExport
+    // BUG-096 (Fase 7 P1): estado funcional del backup automatico (no sensible).
+    suspend fun health(): BackupHealthStatus
+    suspend fun clearDriveAuthorizationRequired()
 }

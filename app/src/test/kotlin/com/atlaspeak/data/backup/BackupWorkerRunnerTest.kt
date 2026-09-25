@@ -140,6 +140,15 @@ class BackupWorkerRunnerTest {
         override suspend fun setAutoBackupEnabled(enabled: Boolean) = Unit
 
         override suspend fun latestDataChangedAt(): Long? = null
+
+        // BUG-096 (Fase 7 P1): implementaciones no-op para los nuevos
+        // metodos del estado funcional. Las pruebas viven en BackupHealthStoreTest.
+        override suspend fun backupHealth(): com.atlaspeak.domain.model.backup.BackupHealthStatus =
+            com.atlaspeak.domain.model.backup.BackupHealthStatus(null, null, null, false)
+        override suspend fun recordBackupSuccess(timestampMillis: Long) = Unit
+        override suspend fun recordBackupFailure(reason: com.atlaspeak.domain.model.backup.BackupFailure, timestampMillis: Long) = Unit
+        override suspend fun clearDriveAuthorizationRequired() = Unit
+        override suspend fun markDriveAuthorizationRequired() = Unit
     }
 
     private class BackupRecorder(

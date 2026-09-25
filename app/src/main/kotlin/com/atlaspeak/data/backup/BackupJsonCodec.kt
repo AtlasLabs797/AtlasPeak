@@ -22,13 +22,13 @@ class BackupJsonCodec @Inject constructor(
         val snapshot = json.decodeFromString<DatabaseBackupSnapshot>(value)
         require(snapshot.formatVersion == DatabaseBackupSnapshot.FORMAT_VERSION) { "Unsupported backup format" }
         require(snapshot.schemaVersion <= CURRENT_SCHEMA_VERSION) { "Unsupported future schema" }
-        require(snapshot.tables.keys == AppDatabase.TABLES) { "Backup table set does not match the app schema" }
         return upgrader.upgradeToCurrent(snapshot).also { upgraded ->
             require(upgraded.schemaVersion == CURRENT_SCHEMA_VERSION) { "Backup schema upgrade failed" }
+            require(upgraded.tables.keys == AppDatabase.TABLES) { "Backup table set does not match the app schema" }
         }
     }
 
     companion object {
-        const val CURRENT_SCHEMA_VERSION = 5
+        const val CURRENT_SCHEMA_VERSION = 8
     }
 }

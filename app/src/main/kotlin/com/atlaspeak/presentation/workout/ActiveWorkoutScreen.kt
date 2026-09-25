@@ -204,6 +204,42 @@ fun ActiveWorkoutRoute(
         )
     }
 
+    state.conflict?.let { conflict ->
+        AtlasDialog(
+            onDismissRequest = viewModel::dismissActiveSessionConflict,
+            title = stringResource(R.string.workout_active_session_conflict_title),
+            message = stringResource(
+                R.string.workout_active_session_conflict_body,
+                conflict.activeRoutineName.ifBlank {
+                    stringResource(R.string.workout_active_session_conflict_unknown_routine)
+                },
+            ),
+            confirmButton = {
+                AtlasPrimaryButton(
+                    onClick = viewModel::resumeActiveSession,
+                    text = stringResource(R.string.workout_active_session_conflict_continue),
+                    enabled = !state.discardInProgress,
+                )
+            },
+            dismissButton = {
+                Column {
+                    AtlasSecondaryButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = viewModel::discardActiveSessionAndStartNew,
+                        text = stringResource(R.string.workout_active_session_conflict_discard),
+                        enabled = !state.discardInProgress,
+                    )
+                    AtlasSecondaryButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = viewModel::dismissActiveSessionConflict,
+                        text = stringResource(R.string.action_cancel),
+                        enabled = !state.discardInProgress,
+                    )
+                }
+            },
+        )
+    }
+
 ActiveWorkoutScreen(
         state = state,
         snackbarHostState = snackbarHostState,

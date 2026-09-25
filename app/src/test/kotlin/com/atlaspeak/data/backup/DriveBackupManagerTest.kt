@@ -1,6 +1,8 @@
 package com.atlaspeak.data.backup
 
 import com.atlaspeak.data.db.AppDatabase
+import com.atlaspeak.domain.model.backup.BackupFailure
+import com.atlaspeak.domain.model.backup.BackupHealthStatus
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.JsonPrimitive
@@ -147,6 +149,11 @@ class DriveBackupManagerTest {
         override suspend fun setAutoBackupEnabled(enabled: Boolean) = Unit
 
         override suspend fun latestDataChangedAt(): Long? = 1_800_000_000_000
+        override suspend fun backupHealth(): BackupHealthStatus = BackupHealthStatus(lastSuccessfulBackupAt = null, lastAttemptAt = null, lastError = null, requiresDriveAuthorization = false)
+        override suspend fun recordBackupSuccess(timestampMillis: Long) = Unit
+        override suspend fun recordBackupFailure(reason: BackupFailure, timestampMillis: Long) = Unit
+        override suspend fun clearDriveAuthorizationRequired() = Unit
+        override suspend fun markDriveAuthorizationRequired() = Unit
     }
 
     private class FakeDriveBackupService : DriveBackupService {

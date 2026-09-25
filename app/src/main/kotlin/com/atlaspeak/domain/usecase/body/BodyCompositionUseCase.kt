@@ -64,6 +64,10 @@ class BodyCompositionUseCase(
     }
 
     private fun BodyCompositionInput.isValid(): Boolean {
+        // BUG-099 (Fase 10 P2): estos rangos vivian duplicados con literales
+        // propios (weight <=500 exclusivo de 0, muscleMass <=250, boneMass
+        // <=20, bodyAge <=120) que divergian de `BodyCompositionDraft` en la
+        // UI. Ahora ambos pasan por `BodyCompositionValidation`.
         if (measuredAt <= 0L) return false
         val hasMetric = listOf(
             weightKg,
@@ -77,22 +81,18 @@ class BodyCompositionUseCase(
             bodyAge,
         ).any { it != null }
         if (!hasMetric) return false
-        return weightKg.validPositive(max = 500.0) &&
-            bodyFatPercent.validPercent() &&
-            muscleMassKg.validPositive(max = 250.0) &&
-            waterPercent.validPercent() &&
-            bodyWaterMassKg.validPositive(max = 250.0) &&
-            visceralFatLevel.validIntRange(min = 1, max = 100) &&
-            proteinPercent.validPercent() &&
-            boneMassKg.validPositive(max = 20.0) &&
-            bodyAge.validIntRange(min = 1, max = 120)
+        return weightKg.validOrAbsent(BodyCompositionValidation::weightIsValid) &&
+            bodyFatPercent.validOrAbsent(BodyCompositionValidation::percentIsValid) &&
+            muscleMassKg.validOrAbsent(BodyCompositionValidation::muscleMassIsValid) &&
+            waterPercent.validOrAbsent(BodyCompositionValidation::percentIsValid) &&
+            bodyWaterMassKg.validOrAbsent(BodyCompositionValidation::bodyWaterMassIsValid) &&
+            visceralFatLevel.validOrAbsent(BodyCompositionValidation::visceralFatIsValid) &&
+            proteinPercent.validOrAbsent(BodyCompositionValidation::percentIsValid) &&
+            boneMassKg.validOrAbsent(BodyCompositionValidation::boneMassIsValid) &&
+            bodyAge.validOrAbsent(BodyCompositionValidation::bodyAgeIsValid)
     }
 
-    private fun Double?.validPositive(max: Double): Boolean = this == null || (this > 0.0 && this <= max)
-
-    private fun Double?.validPercent(): Boolean = this == null || (this >= 0.0 && this <= 100.0)
-
-    private fun Int?.validIntRange(min: Int, max: Int): Boolean = this == null || this in min..max
+    private fun <T> T?.validOrAbsent(isValid: (T?) -> Boolean): Boolean = this == null || isValid(this)
 
     private fun List<BodyCompositionEntry>.latestValue(metric: BodyMetric): BodyMetricValue? {
         return firstNotNullOfOrNull { entry ->

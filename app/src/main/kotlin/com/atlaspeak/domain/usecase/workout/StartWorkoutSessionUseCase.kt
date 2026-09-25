@@ -8,6 +8,23 @@ import com.atlaspeak.domain.repository.RoutineRepository
 import com.atlaspeak.domain.repository.WorkoutRepository
 import java.util.UUID
 
+/**
+ * Inicia (o reanuda) una sesion activa de fuerza.
+ *
+ * Una sesion ya creada en Room se considera activa mientras `completed = false`.
+ * El arranque y la reanudacion se colapsan en una sola llamada para que la UI
+ * no tenga que distinguir entre ambos casos:
+ *
+ * - Sin sesion activa: se crea una nueva ([ActiveSessionStartResult.Started]).
+ * - Ya existe una sesion activa para la misma rutina: se devuelve su id
+ *   ([ActiveSessionStartResult.Resumed]). Asi, si Android mata el proceso y el
+ *   usuario vuelve a abrir la pantalla, no se duplica la sesion ni se pierden
+ *   los sets registrados.
+ * - Existe una sesion activa pero de OTRA rutina: [ActiveSessionStartResult.Conflict].
+ *   La UI debe mostrar el dialogo de decision (continuar/descartar/cancelar);
+ *   no se sustituye en silencio porque seria destruir datos del usuario.
+ * - La rutina no existe: [ActiveSessionStartResult.NotFound].
+ */
 class StartWorkoutSessionUseCase(
     private val routineRepository: RoutineRepository,
     private val workoutRepository: WorkoutRepository,
@@ -19,13 +36,18 @@ class StartWorkoutSessionUseCase(
         workoutRepository: WorkoutRepository,
     ) : this(routineRepository, workoutRepository, { System.currentTimeMillis() })
 
-    suspend operator fun invoke(routineId: String): String? {
-        val routine = routineRepository.routine(routineId) ?: return null
-        val session = routine.toWorkoutSession(startedAt = now())
-        return workoutRepository.createSession(session).id
+    suspend operator fun invoke(routineId: String, weeklyPlanSessionId: String? = null): ActiveSessionStartResult {
+        val routine = routineRepository.routine(routineId) ?: return ActiveSessionStartResult.NotFound
+        val candidate = routine.toWorkoutSession(startedAt = now(), weeklyPlanSessionId = weeklyPlanSessionId)
+        val activeOrCreated = workoutRepository.findActiveOrCreateSession(candidate)
+        return when {
+            activeOrCreated.id == candidate.id -> ActiveSessionStartResult.Started(candidate.id)
+            activeOrCreated.routineId == routineId -> ActiveSessionStartResult.Resumed(activeOrCreated.id)
+            else -> ActiveSessionStartResult.Conflict(activeOrCreated.id)
+        }
     }
 
-    private fun Routine.toWorkoutSession(startedAt: Long): WorkoutSession {
+    private fun Routine.toWorkoutSession(startedAt: Long, weeklyPlanSessionId: String? = null): WorkoutSession {
         val sessionId = UUID.randomUUID().toString()
         return WorkoutSession(
             id = sessionId,
@@ -36,6 +58,7 @@ class StartWorkoutSessionUseCase(
             durationSeconds = null,
             completed = false,
             totalVolumeKg = null,
+            weeklyPlanSessionId = weeklyPlanSessionId,
             exercises = exercises.sortedBy { it.orderIndex }.map { routineExercise ->
                 ActiveWorkoutExercise(
                     exerciseId = routineExercise.exerciseId,

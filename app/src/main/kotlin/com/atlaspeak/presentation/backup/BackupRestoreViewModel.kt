@@ -32,10 +32,39 @@ class BackupRestoreViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             val status = backupUseCase.status()
+            val health = backupUseCase.health()
             _state.update {
                 it.copy(
                     autoBackupEnabled = status.autoBackupEnabled,
                     lastBackupAt = status.lastBackupAt,
+                    requiresDriveAuthorization = health.requiresDriveAuthorization,
+                    lastError = health.lastError,
+                )
+            }
+        }
+    }
+
+    /**
+     * Limpia el bloqueo solo despues de que AuthorizationClient haya devuelto
+     * un token valido. Si el usuario cancela, el aviso sigue visible.
+     */
+    fun onDriveReauthorized() {
+        viewModelScope.launch {
+            backupUseCase.clearDriveAuthorizationRequired()
+            refreshStatus()
+        }
+    }
+
+    fun refreshStatus() {
+        viewModelScope.launch {
+            val status = backupUseCase.status()
+            val health = backupUseCase.health()
+            _state.update {
+                it.copy(
+                    autoBackupEnabled = status.autoBackupEnabled,
+                    lastBackupAt = status.lastBackupAt,
+                    requiresDriveAuthorization = health.requiresDriveAuthorization,
+                    lastError = health.lastError,
                 )
             }
         }
@@ -264,6 +293,11 @@ data class BackupRestoreUiState(
     val pendingRestoreFileId: String? = null,
     val pendingCleartextExport: CleartextExportType? = null,
     @StringRes val messageRes: Int? = null,
+    // BUG-096 (Fase 7 P1): estado funcional del backup automatico para que
+    // la UI muestre avisos no silenciosos cuando Drive requiere reautorizacion
+    // o el ultimo intento fallo.
+    val requiresDriveAuthorization: Boolean = false,
+    val lastError: com.atlaspeak.domain.model.backup.BackupFailure? = null,
 )
 
 sealed interface BackupRestoreEvent {

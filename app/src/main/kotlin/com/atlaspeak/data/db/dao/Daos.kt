@@ -7,6 +7,7 @@ import androidx.room.Query
 import com.atlaspeak.data.db.entity.AppSettingsEntity
 import com.atlaspeak.data.db.entity.AuthSecurityEntity
 import com.atlaspeak.data.db.entity.BodyCompositionEntity
+import com.atlaspeak.data.db.entity.CardioRoutePointEntity
 import com.atlaspeak.data.db.entity.CardioTypeEntity
 import com.atlaspeak.data.db.entity.CardioSessionEntity
 import com.atlaspeak.data.db.entity.ExerciseEntity
@@ -136,6 +137,16 @@ interface WorkoutDao {
     @Query("SELECT * FROM workout_sessions WHERE type = 'STRENGTH' ORDER BY start_time DESC")
     suspend fun getStrengthSessions(): List<WorkoutSessionEntity>
 
+    @Query(
+        """
+        SELECT * FROM workout_sessions
+        WHERE type = 'STRENGTH' AND completed = 0
+        ORDER BY start_time DESC
+        LIMIT 1
+        """,
+    )
+    suspend fun getActiveStrengthSession(): WorkoutSessionEntity?
+
     @Query("DELETE FROM workout_sessions WHERE id = :id")
     suspend fun deleteSession(id: String)
 
@@ -214,6 +225,44 @@ interface CardioDao {
         """,
     )
     suspend fun getCardioSessions(): List<CardioSessionEntity>
+
+    @Query(
+        """
+        SELECT cardio_sessions.*
+        FROM cardio_sessions
+        INNER JOIN workout_sessions ON cardio_sessions.session_id = workout_sessions.id
+        WHERE workout_sessions.completed = 0
+        ORDER BY workout_sessions.start_time DESC
+        LIMIT 1
+        """,
+    )
+    suspend fun getActiveCardioSession(): CardioSessionEntity?
+}
+
+/**
+ * Puntos GPS de cardio persistidos incrementalmente durante la sesion activa.
+ * BUG-091 / Fase 2 P0. La ruta completa se serializa en cardio_sessions.route_polyline_json
+ * solo al finalizar la sesion; aqui viven los puntos en vuelo para sobrevivir a la muerte
+ * del proceso.
+ */
+@Dao
+interface CardioRoutePointDao {
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(point: CardioRoutePointEntity)
+
+    @Query("SELECT * FROM cardio_route_points WHERE session_id = :sessionId ORDER BY timestamp_ms ASC")
+    suspend fun getRoutePoints(sessionId: String): List<CardioRoutePointEntity>
+
+    @Query("SELECT COUNT(*) FROM cardio_route_points WHERE session_id = :sessionId")
+    suspend fun countRoutePoints(sessionId: String): Int
+
+    @Query(
+        "SELECT IFNULL(SUM(distance_from_previous_km), 0.0) FROM cardio_route_points WHERE session_id = :sessionId",
+    )
+    suspend fun totalDistanceKm(sessionId: String): Double
+
+    @Query("DELETE FROM cardio_route_points WHERE session_id = :sessionId")
+    suspend fun deleteRoutePoints(sessionId: String)
 }
 
 @Dao
@@ -362,7 +411,8 @@ interface WeeklyPlanDao {
             workout_sessions.type AS type,
             workout_sessions.routine_id AS routineId,
             cardio_sessions.cardio_type_id AS cardioTypeId,
-            workout_sessions.start_time AS startTime
+            workout_sessions.start_time AS startTime,
+            workout_sessions.weekly_plan_session_id AS weeklyPlanSessionId
         FROM workout_sessions
         LEFT JOIN cardio_sessions ON cardio_sessions.session_id = workout_sessions.id
         WHERE workout_sessions.completed = 1
@@ -378,6 +428,11 @@ data class WeeklyPlanCompletionRow(
     val routineId: String?,
     val cardioTypeId: String?,
     val startTime: Long,
+    // BUG-097 (Fase 8 P1): si la sesion se inicio desde el plan semanal, este
+    // campo lleva el id del row `weekly_plan` que la origino. Cuando esta
+    // presente, "completar" se asocia a esa entrada concreta (no a cualquier
+    // sesion del mismo tipo/rutina ese dia).
+    val weeklyPlanSessionId: String? = null,
 )
 
 @Dao

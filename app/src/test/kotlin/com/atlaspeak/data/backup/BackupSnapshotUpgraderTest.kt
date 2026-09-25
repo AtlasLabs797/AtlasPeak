@@ -136,6 +136,36 @@ class BackupSnapshotUpgraderTest {
     }
 
     @Test
+    fun `schema v5 snapshot adds route table and new session columns`() {
+        val previousTables = AppDatabase.TABLES
+            .minus("cardio_route_points")
+            .associateWith { table ->
+                when (table) {
+                    "workout_sessions" -> listOf(mapOf("id" to JsonPrimitive("workout-1")))
+                    "cardio_sessions" -> listOf(mapOf("id" to JsonPrimitive("cardio-1")))
+                    else -> emptyList()
+                }
+            }
+        val upgraded = upgrader.upgradeToCurrent(
+            DatabaseBackupSnapshot(
+                schemaVersion = 5,
+                exportedAt = 1_800_000_000_000,
+                tables = previousTables,
+            ),
+        )
+
+        assertEquals(BackupJsonCodec.CURRENT_SCHEMA_VERSION, upgraded.schemaVersion)
+        assertTrue(upgraded.tables.getValue("cardio_route_points").isEmpty())
+        assertEquals(
+            JsonNull,
+            upgraded.tables.getValue("workout_sessions").single().getValue("weekly_plan_session_id"),
+        )
+        val cardio = upgraded.tables.getValue("cardio_sessions").single()
+        assertEquals(JsonNull, cardio.getValue("paused_at_ms"))
+        assertEquals(JsonPrimitive(0), cardio.getValue("total_paused_duration_ms"))
+    }
+
+    @Test
     fun `current schema snapshot passes through unchanged`() {
         val current = snapshot(
             schemaVersion = BackupJsonCodec.CURRENT_SCHEMA_VERSION,

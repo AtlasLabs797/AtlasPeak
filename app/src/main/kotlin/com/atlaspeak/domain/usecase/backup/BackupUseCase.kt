@@ -1,5 +1,6 @@
 package com.atlaspeak.domain.usecase.backup
 
+import com.atlaspeak.domain.model.backup.BackupHealthStatus
 import com.atlaspeak.domain.repository.BackupRepository
 import javax.inject.Inject
 
@@ -27,4 +28,8 @@ class BackupUseCase @Inject constructor(
     suspend fun writeManualJson() = repository.writeManualJson()
 
     suspend fun writeCsvZip() = repository.writeCsvZip()
+
+    // BUG-096 (Fase 7 P1)
+    suspend fun health(): BackupHealthStatus = repository.health()
+    suspend fun clearDriveAuthorizationRequired() = repository.clearDriveAuthorizationRequired()
 }

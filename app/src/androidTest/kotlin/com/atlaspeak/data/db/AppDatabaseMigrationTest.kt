@@ -6,6 +6,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -192,6 +193,176 @@ class AppDatabaseMigrationTest {
             assertEquals(1, cursor.getInt(1))
         }
         migrated.close()
+    }
+
+    @Test
+    fun migration6To7CreatesCardioRoutePointsTable() {
+        helper.createDatabase(TEST_DB, 6).apply {
+            insertV6CardioSession()
+            close()
+        }
+
+        val migrated = helper.runMigrationsAndValidate(
+            TEST_DB,
+            7,
+            true,
+            AppDatabase.MIGRATION_6_7,
+        )
+
+        migrated.query(
+            "SELECT COUNT(*) FROM cardio_route_points WHERE session_id = 'session-cardio-1'",
+        ).use { cursor ->
+            cursor.moveToFirst()
+            assertEquals(0, cursor.getInt(0))
+        }
+        migrated.query(
+            """
+            SELECT COUNT(*) FROM sqlite_master
+            WHERE type='index' AND name='index_cardio_route_points_session_id'
+            """.trimIndent(),
+        ).use { cursor ->
+            cursor.moveToFirst()
+            assertEquals(1, cursor.getInt(0))
+        }
+        migrated.query(
+            """
+            SELECT COUNT(*) FROM sqlite_master
+            WHERE type='index' AND name='index_cardio_route_points_session_id_timestamp_ms'
+            """.trimIndent(),
+        ).use { cursor ->
+            cursor.moveToFirst()
+            assertEquals(1, cursor.getInt(0))
+        }
+        migrated.execSQL(
+            """
+            INSERT INTO cardio_route_points (
+                id, session_id, timestamp_ms, latitude, longitude,
+                accuracy_m, speed_kmh, distance_from_previous_km
+            ) VALUES (
+                'route-1', 'session-cardio-1', 1700000000000, 40.0, -3.0,
+                5.0, 4.5, 0.0
+            )
+            """.trimIndent(),
+        )
+        migrated.query("SELECT latitude FROM cardio_route_points WHERE id = 'route-1'").use { cursor ->
+            cursor.moveToFirst()
+            assertEquals(40.0, cursor.getDouble(0), 0.0)
+        }
+        migrated.close()
+    }
+
+    @Test
+    fun migration7To8AddsCardioPauseColumns() {
+        helper.createDatabase(TEST_DB, 7).apply {
+            insertV7CardioSession()
+            close()
+        }
+
+        val migrated = helper.runMigrationsAndValidate(
+            TEST_DB,
+            8,
+            true,
+            AppDatabase.MIGRATION_7_8,
+        )
+
+        migrated.query(
+            "SELECT paused_at_ms, total_paused_duration_ms FROM cardio_sessions WHERE id = 'cardio-1'",
+        ).use { cursor ->
+            cursor.moveToFirst()
+            assertTrue(cursor.isNull(0))
+            assertEquals(0L, cursor.getLong(1))
+        }
+        migrated.close()
+    }
+
+    /**
+     * BUG-097 (Fase 8 P1): la migracion v8 -> v9 anade la columna
+     * `weekly_plan_session_id` a `workout_sessions` y crea su indice. Las
+     * sesiones preexistentes quedan con `weekly_plan_session_id = NULL`,
+     * lo cual mantiene la compatibilidad con el fallback de matching por
+     * (day, type, targetId) en WeeklyPlanUseCase.
+     */
+    @Test
+    fun migration8To9AddsWeeklyPlanSessionIdColumn() {
+        helper.createDatabase(TEST_DB, 8).apply {
+            insertV8StrengthSession()
+            close()
+        }
+
+        val migrated = helper.runMigrationsAndValidate(
+            TEST_DB,
+            9,
+            true,
+            AppDatabase.MIGRATION_8_9,
+        )
+        migrated.query(
+            "SELECT weekly_plan_session_id FROM workout_sessions WHERE id = 'session-strength-1'",
+        ).use { cursor ->
+            cursor.moveToFirst()
+            assertTrue(cursor.isNull(0))
+        }
+        migrated.query(
+            """
+            SELECT COUNT(*) FROM sqlite_master
+            WHERE type='index' AND name='index_workout_sessions_weekly_plan_session_id'
+            """.trimIndent(),
+        ).use { cursor ->
+            cursor.moveToFirst()
+            assertEquals(1, cursor.getInt(0))
+        }
+        migrated.execSQL(
+            "UPDATE workout_sessions SET weekly_plan_session_id = 'plan-1' WHERE id = 'session-strength-1'",
+        )
+        migrated.query(
+            "SELECT weekly_plan_session_id FROM workout_sessions WHERE id = 'session-strength-1'",
+        ).use { cursor ->
+            cursor.moveToFirst()
+            assertEquals("plan-1", cursor.getString(0))
+        }
+        migrated.close()
+    }
+
+    private fun SupportSQLiteDatabase.insertV7CardioSession() {
+        execSQL(
+            """
+            INSERT INTO cardio_types (
+                id, name_es, name_en, has_gps, icon_name, is_preset, is_archived
+            ) VALUES (
+                'run', 'Correr', 'Run', 1, 'directions_run', 1, 0
+            )
+            """.trimIndent(),
+        )
+        execSQL(
+            """
+            INSERT INTO workout_sessions (
+                id, type, start_time, completed
+            ) VALUES (
+                'cardio-1', 'CARDIO', 1700000000000, 0
+            )
+            """.trimIndent(),
+        )
+        execSQL(
+            """
+            INSERT INTO cardio_sessions (
+                id, session_id, cardio_type_id, mode, target_duration_sec,
+                has_gps, source
+            ) VALUES (
+                'cardio-1', 'cardio-1', 'run', 'TIMER', 0, 1, 'GPS'
+            )
+            """.trimIndent(),
+        )
+    }
+
+    private fun SupportSQLiteDatabase.insertV8StrengthSession() {
+        execSQL(
+            """
+            INSERT INTO workout_sessions (
+                id, routine_id, type, start_time, end_time, completed
+            ) VALUES (
+                'session-strength-1', 'routine-1', 'STRENGTH', 1700000000000, 1700003600000, 1
+            )
+            """.trimIndent(),
+        )
     }
 
     private fun SupportSQLiteDatabase.insertV1BodyComposition() {
@@ -414,6 +585,18 @@ class AppDatabaseMigrationTest {
             ) VALUES
                 ('weekly_plan_1', 1, 0, 'STRENGTH', 'routine-1', NULL, NULL, 0, 1, '18:00'),
                 ('weekly_plan_2', 1, 0, 'STRENGTH', 'routine-2', NULL, NULL, 0, 1, '19:00')
+            """.trimIndent(),
+        )
+    }
+
+    private fun SupportSQLiteDatabase.insertV6CardioSession() {
+        execSQL(
+            """
+            INSERT INTO workout_sessions (
+                id, type, start_time, completed
+            ) VALUES (
+                'session-cardio-1', 'CARDIO', 1700000000000, 0
+            )
             """.trimIndent(),
         )
     }

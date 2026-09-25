@@ -10,6 +10,614 @@
 
 ## [Unreleased]
 
+### 2026-09-25 - Correcciones de la revision del PR #16 y CI
+
+**Corregido**
+- CI: `ActiveWorkoutViewModelTest` no compilaba (`viewModel.session` en vez de
+  `viewModel.state.value.session`). Ademas sus tests colgaban el job: sin FGS la VM arranca
+  un cronometro local en bucle y `advanceUntilIdle()` nunca terminaba; ahora usan
+  `runCurrent()` y el tiempo se avanza con `advanceLocalTimer()`. Como `runTest` tambien
+  drena el scheduler al terminar, `ActiveWorkoutViewModelTest` y `ActiveCardioViewModelTest`
+  usan `runVmTest`, que cancela el `viewModelScope` de cada VM antes de ese drenaje.
+- `ActiveCardioViewModel` accede a permisos e intents del FGS a traves de
+  `CardioTrackerServiceController` (implementacion real `ContextCardioTrackerServiceController`);
+  los tests JVM usan fakes en vez de `ContextWrapper`, que chocaban con los stubs "not mocked"
+  del android.jar (`Process.myPid()`, `Intent(Context, Class)`).
+- `ActiveWorkoutViewModel` retira el aviso `TimerServiceUnavailable` cuando el FGS se recupera.
+- `RoomCardioRepository`: el mapper Room→dominio perdia `weeklyPlanSessionId`, y cualquier
+  pausa o finalizacion lo reescribia a `NULL`.
+- `BUG-104`: sesion de cardio GPS sin fix ya se puede finalizar con metricas manuales.
+- `BUG-105`: pausar/reanudar cardio sin FGS ya no arranca un servicio ordinario.
+- `BUG-106`: el sync inicial de Health Connect ya no se cancela con el `ON_RESUME` de Home.
+- `BUG-107`: Home muestra `PartialSuccess` en sincronizaciones parciales reales.
+- `BUG-108`: los avisos de backup automatico se ocultan si el backup automatico esta desactivado.
+- `ProfileValidation` se usa en onboarding (bloquea el avance y no persiste edad/altura fuera
+  de rango) y en `EditProfileViewModel`; `BodyCompositionValidation` es ahora la unica fuente
+  de rangos para `BodyCompositionDraft` y `BodyCompositionUseCase` (la UI ya no acepta
+  valores que el guardado rechazaba: edad corporal >120, masa muscular/agua >250, osea >20).
+
+**Verificado**
+- Revisados contra el codigo actual los hilos ya resueltos: upgrader de backups (tabla
+  `cardio_route_points` y columnas nuevas), schemas 7-9 exportados, test de migracion 7→8,
+  buscar-o-crear sesion activa en una transaccion, propagacion de `weeklyPlanSessionId`,
+  tiempo en pausa del FGS, persistencia de GPS antes de finalizar, recarga del plan semanal,
+  permisos de Health Connect y aviso de reautorizacion de Drive.
+- No se pudo compilar localmente (entorno sin Android SDK); la verificacion es el CI del PR.
+
+### 2026-09-20 - CardioForegroundService robusto frente a politica estricta de tipos de FGS en Android 14+/15+ (Fase 4 P0)
+
+**Corregido**
+- `BUG-093`: el `CardioForegroundService` ya no reclama un tipo de foreground service
+  ilegal para el escenario actual. Antes, la eleccion de tipo se hacia inline en
+  `startForegroundCompat` con un booleano `locationTracking`, lo que dejaba tres
+  agujeros en Android 14+ (API 34+) / 15+ (API 35):
+    1. Cardio GPS sin permiso `ACCESS_FINE_LOCATION`: el FGS intentaba reclamar
+       `FOREGROUND_SERVICE_TYPE_HEALTH` sin uso real de datos de salud
+       (`ACTIVITY_RECOGNITION`, Health Connect write), y la politica estricta de
+       Android 14+ dispara `SecurityException`.
+    2. Cardio sin GPS sin `ACTIVITY_RECOGNITION`: mismo problema, el sistema rechaza
+       reclamar `HEALTH` sin un uso real de salud.
+    3. Cualquier combinacion anterior + dispositivo que rechaza `startForegroundService`
+       por background activities: el VM capturaba `RuntimeException` (que cubre
+       `SecurityException` por ser subclase) pero no distinguia el caso del resto de
+       `RuntimeException`s, y el VM no etiquetaba el modo efectivo del FGS, asi que
+       la UI no podia mostrar la nota de "modo local" cuando no habia un FGS legal.
+  Ahora `preflightFgsType(hasGps, hasFineLocation, hasActivityRecognition)` decide
+  en funcion de los permisos reales del dispositivo que tipo de FGS es legal:
+  `Location` (GPS + permiso), `Health` (no GPS + `ACTIVITY_RECOGNITION`) o `None`
+  (ninguno legal). Cuando el ViewModel obtiene `None`, no inicia ningun foreground
+  service y mantiene el cronometro local. Si los permisos cambian entre el preflight
+  del ViewModel y el del servicio y este ultimo obtiene `None`, el servicio marca
+  el tracker como fallido y se detiene inmediatamente.
+
+**Cambiado**
+- `CardioForegroundService`:
+  - Nuevo helper `preflightFgsType(hasGps, hasFineLocation, hasActivityRecognition)` en el
+    `companion object`: sin estado, sin dependencias de Android, facil de testear.
+  - `startTracking` lo invoca como defensa frente a carreras de permisos. Si devuelve
+    `None`, no deja jobs vivos: publica `failed=true`, llama a `stopSelf()` y retorna.
+  - `startForegroundCompat(notification, fgsMode)` toma un `CardioFgsMode` en vez de
+    un booleano. Mantiene `require(fgsMode != None)` como red de seguridad para que un
+    caller incorrecto falle ruidosamente en vez de reclamar un tipo arbitrario.
+  - El catch alrededor de `startForeground` ahora tiene un `catch (_: SecurityException)`
+    explicito seguido del `catch (_: RuntimeException)` existente (mismo cuerpo):
+    SecurityException es subclase de RuntimeException, pero queremos que la intencion
+    sea visible al lector. No se elimina el catch de RuntimeException: sigue cubriendo
+    cualquier otra excepcion inesperada.
+  - Nuevo `hasActivityRecognitionPermission()` que usa
+    `ContextCompat.checkSelfPermission(this, Manifest.permission.ACTIVITY_RECOGNITION)`.
+- `ActiveCardioViewModel`:
+  - Constructor primario recibe `now: () -> Long` inyectable; el `@Inject` secundario
+    (Hilt) pasa `{ System.currentTimeMillis() }` (mismo patron que el post-BUG-092
+    en `ActiveWorkoutViewModel`).
+  - `loadSession` y `startLocalTimerIfNeeded` ahora usan `now()` en vez de
+    `System.currentTimeMillis()` para derivar `elapsedSeconds` desde `session.startTime`.
+  - `startTrackingService(locationAllowed)`:
+    - Calcula `requestedFgsMode = CardioForegroundService.preflightFgsType(hasGps =
+      session.hasGps, hasFineLocation = locationAllowed, hasActivityRecognition = ...)`
+      consultando `ContextCompat.checkSelfPermission` para `ACTIVITY_RECOGNITION`.
+    - Publica `fgsMode` en el estado antes de la llamada. Si el usuario denego
+      localizacion y el tipo es GPS, fija el mensaje `LocationPermissionDenied`.
+    - Si `requestedFgsMode == None`, no llama a `startForegroundService` y arranca
+      directamente el temporizador local.
+    - El try alrededor de `startForegroundService` para `Location`/`Health` tiene
+      `catch (_: SecurityException)`
+      explicito seguido del `catch (_: RuntimeException)` existente (mismo cuerpo). Si
+      cualquiera de los dos dispara, baja `fgsMode` a `None`, fija el mensaje
+      `TrackerUnavailable` y arranca el cronometro local.
+  - El collector del `CardioTrackerRegistry`: cuando `tracker.failed && tracker.sessionId ==
+    sessionId`, ademas de fijar el mensaje `TrackerUnavailable`, baja `fgsMode` a `None`
+    para reflejar el modo efectivo (el FGS fallo, asi que no hay un FGS reclamable
+    en este momento aunque el preflight hubiera dicho otra cosa).
+- `domain/model/cardio/CardioModels.kt`:
+  - Nuevo enum `CardioFgsMode { Location, Health, None }` con comentario KDoc que
+    documenta cada valor y cuando se aplica.
+
+**Añadido**
+- `ActiveCardioUiState.fgsMode: CardioFgsMode = CardioFgsMode.None`: campo nuevo
+  para que la UI pueda etiquetar el escenario. La pantalla `ActiveCardioScreen` NO
+  lo referencia en esta fase: el plan reservaba la nota visible ("modo local, sin
+  notificacion persistente") para una iteracion UX posterior. El dato ya esta
+  disponible para cuando se anada.
+- Tests en `ActiveCardioViewModelTest` (JUnit5, hand-written fakes, `StandardTestDispatcher`):
+  - `startTrackingService with location allowed sets fgsMode to Location`: contexto
+    AllowingContext, cardio GPS, `locationAllowed = true` -> `fgsMode = Location`,
+    intent enviado al sistema.
+  - `startTrackingService with location denied sets fgsMode to None with
+    LocationPermissionDenied`: cardio GPS, `locationAllowed = false` -> `fgsMode =
+    None`, mensaje `LocationPermissionDenied`, formulario manual visible.
+  - `startTrackingService for non-GPS cardio with ACTIVITY_RECOGNITION sets fgsMode
+    to Health`: cardio manual + AllowingContext -> `fgsMode = Health`.
+  - `startTrackingService for non-GPS cardio without ACTIVITY_RECOGNITION sets fgsMode
+    to None`: cardio manual + ActivityRecognitionDeniedContext -> `fgsMode = None`,
+    formulario manual visible.
+  - `startTrackingService rejection by system falls back to local timer with fgsMode
+    None`: RejectingContext (lanza `SecurityException` en `startForegroundService`) ->
+    `fgsMode = None`, mensaje `TrackerUnavailable`.
+  - `elapsed seconds keeps increasing when foreground service is rejected`: misma
+    configuracion que el anterior + reloj inyectable +5s -> `elapsedSeconds` sube al
+    menos 5. Patron espejo del BUG-092.
+- Fake contexts `AllowingContext`, `RejectingContext` y `ActivityRecognitionDeniedContext`
+  al estilo del `NoopContext` existente, siguiendo el estilo de
+  `ActiveWorkoutViewModelTest`.
+- Helper privado `TestClock(initialMillis)` con `reset / advanceBy / currentMillis /
+  asNow()` para inyectar reloj determinista al test del fallback local
+  (mismo patron que `ActiveWorkoutViewModelTest`).
+
+**Limitaciones conocidas**
+- El VM computa `fgsMode` antes de iniciar el servicio y el FGS vuelve a calcularlo,
+  por lo que existe una ventana de carrera si cambian los permisos entre ambos checks.
+  Si el servicio obtiene `None`, publica `failed=true` y se detiene inmediatamente;
+  el collector del VM baja a `None` y mantiene el temporizador local. No se
+  expone el fgsMode del FGS en el registry: aceptado como deuda para una fase
+  posterior si se necesita precision bit-exact entre el modo pedido y el modo
+  realmente reclamado.
+- La nota visible en la UI para `fgsMode == None` ("modo local, sin notificacion
+  persistente") NO se añade en esta fase; el plan la reservaba para una iteracion
+  UX posterior. El campo ya esta disponible en el estado para cuando se anada.
+
+**Verificado**
+- Compilacion a nivel de tipos y referencias en Kotlin. No se pudo ejecutar
+  `./gradlew test` ni `./gradlew lint` en este entorno por falta de JDK
+  (`JAVA_HOME` apunta a `C:\tmp\atlas-dev-tools\jdk-17.0.19+10`, ruta inexistente).
+- Los 6 tests del BUG-093 estan escritos siguiendo los mismos patrones que los
+  casos preexistentes de `ActiveCardioViewModelTest` (mismo `FakeCardioRepository`,
+  mismo `dispatcher`, mismo `CardioTrackerRegistry.update(CardioTrackerState())` en
+  `setUp()`), y reflejan los mismos helpers (`advanceLocalTimer`, `TestClock`) que
+  `ActiveWorkoutViewModelTest` introdujo para BUG-092. Su semantica es la misma que
+  el resto de la suite.
+
+### 2026-09-20 - Cronometro de fuerza robusto frente a caida del WorkoutForegroundService (Fase 3 P0)
+
+**Corregido**
+- `BUG-092`: el cronometro visual de `ActiveWorkoutScreen` ya no se congela cuando
+  `WorkoutForegroundService` falla o no llega a arrancar. Antes, el VM se limitaba a
+  espejar `WorkoutTimerRegistry.state`; si el FGS no estaba vivo (SecurityException en
+  `startForeground`, kill del OS, `ACTIVITY_RECOGNITION` denegado) el contador quedaba
+  congelado en el ultimo valor publicado por el registry. Ahora el VM mantiene un job
+  local de respaldo que recalcula `elapsedSeconds = (now - session.startTime) / 1000`
+  mientras no haya un FGS sano escribiendo para la sesion. La formula es identica a la
+  que usa `WorkoutTimerRegistry.tick`, asi que ambos caminos convergen al mismo valor.
+
+**Cambiado**
+- `ActiveWorkoutViewModel`:
+  - Constructor primario recibe `now: () -> Long` para poder inyectar un reloj en
+    tests. Hilt sigue construyendo via un `@Inject` constructor secundario que pasa
+    `{ System.currentTimeMillis() }` (mismo patron que `CardioUseCase`).
+  - `loadSession()` usa `now()` en vez de `System.currentTimeMillis()` para derivar
+    `elapsedSeconds` desde `session.startTime`.
+  - Nuevo `localTimerJob: Job?` con `startLocalTimerIfNeeded()` y `stopLocalTimer()`
+    que ejecutan el tick 1Hz en `viewModelScope`. El job se arranca solo cuando el
+    registry no tiene un timer sano para la sesion actual (`failed=true` para nuestro
+    `sessionId` o `sessionId == null`) y se para en cuanto el registry pasa a
+    `running=true` con nuestro `sessionId`. Asi no hay doble escritor.
+  - El collector del registry reescrito: cuando el FGS esta sano espeja
+    `timer.elapsedSeconds` y `restTimer`; cuando falla o no ha arrancado fija el
+    mensaje `TimerServiceUnavailable`, limpia `restTimer` (el FGS es dueno del rest
+    timer; al morir, la VM no puede mantenerlo) y deja que el job local derive el
+    tiempo. Cuando el registry esta vacio y la VM tiene sesion cargada, arranca el
+    job local sin fijar mensaje (la sesion acaba de empezar).
+  - La logica de las tres ramas del collector se extrae a `reconcileTimerState()`,
+    que se invoca tambien desde `loadSession()` al final. Esto cubre una carrera
+    posible en produccion con el dispatcher Main: el `collect` inicial del registry
+    puede dispararse antes de que la consulta de Room que carga la sesion haya
+    terminado (las queries de Room suspenden), en cuyo caso `startLocalTimerIfNeeded`
+    arrancaba el job y este salia por `session == null` sin re-arrancar, dejando
+    el cronometro muerto hasta el siguiente cambio del FGS. Con el segundo punto
+    de llamada, `loadSession` re-evalua la situacion y arranca el fallback si
+    corresponde.
+  - Nuevo `onCleared()` explicito que para el job local antes que `viewModelScope`
+    se cancele implicitamente.
+
+**Añadido**
+- Tests en `ActiveWorkoutViewModelTest` (JUnit5, hand-written fakes, `StandardTestDispatcher`):
+  - `elapsed_seconds keeps increasing when foreground service fails to start`:
+    registry en `failed=true` para nuestra sesion, reloj +5s, `elapsedSeconds >= 5`.
+  - `elapsed_seconds keeps increasing when foreground service never started`:
+    registry vacio (FGS no llego a arrancar), reloj +5s, `elapsedSeconds >= 5`,
+    `message == null` (sin mensaje de fallback porque el FGS no fallo, simplemente
+    no arranco).
+  - `elapsed_seconds keeps increasing across recreation when foreground service is
+    unavailable`: VM1 +3s, recrear VM2 contra el mismo repo, +3s mas,
+    `elapsedSeconds >= 6` (math derivada del `startTime` persistido).
+  - `local fallback timer stops when foreground service becomes healthy`: FGS
+    `failed=true`, dejar correr el job local, transicionar el registry a
+    `running=true` con un `elapsedSeconds` arbitrario que NO coincide con la formula,
+    avanzar reloj +10s y verificar que el valor no se sobrescribe (prueba que solo
+    el collector escribe).
+  - `elapsed_seconds matches math from startTime`: reloj = `startTime + 3000`,
+    `elapsedSeconds == (now - startTime) / 1000`.
+  - Helper privado `TestClock(initialMillis)` con `reset / advanceBy / currentMillis /
+    asNow()` para inyectar reloj determinista sin tocar `System.currentTimeMillis()`.
+
+**Verificado**
+- Compilacion a nivel de tipos y referencias en Kotlin. No se pudo ejecutar
+  `./gradlew test` ni `./gradlew lint` en este entorno por falta de JDK
+  (`JAVA_HOME` apunta a `C:\tmp\atlas-dev-tools\jdk-17.0.19+10`, ruta inexistente).
+- Los 5 tests del BUG-092 estan escritos siguiendo los mismos patrones que los
+  casos preexistentes de `ActiveWorkoutViewModelTest` (mismo `FakeWorkoutRepository`,
+  mismo `dispatcher`, mismo `WorkoutTimerRegistry.update(WorkoutTimerState())` en
+  `setUp()`), por lo que su semantica es la misma que el resto de la suite.
+
+### 2026-09-20 - Persistencia GPS de cardio durante la sesion activa (Fase 2 P0)
+
+**Corregido**
+- `BUG-091`: la ruta GPS de cardio ya no se pierde cuando Android mata el proceso o el
+  usuario reabre la app. `CardioTrackerRegistry` seguia manteniendo la ruta unicamente
+  en memoria y `route.distanceKm()` recomputaba el total desde el primer punto en cada
+  fix. Ademas, `ActiveCardioViewModel.completeCardio()` solo almacenaba la ruta al cerrar
+  la sesion, asi que cualquier cierre brusco del proceso la descartaba entera. Ahora
+  cada fix aceptado por `LocationTracker.isUsableForCardioTracking` se persiste en una
+  nueva tabla Room `cardio_route_points` con su `distance_from_previous_km` incremental,
+  de forma que la distancia total se reconstruye con `SUM(distance_from_previous_km)`
+  sin recalcular la polilinea completa. Al volver a abrir la sesion de cardio tras una
+  muerte de proceso, `ActiveCardioViewModel.loadSession()` rehidrata el registro desde
+  Room y continua justo donde se quedo.
+
+**Añadido**
+- `cardio_route_points` (entidad + DAO `CardioRoutePointDao`): tabla indexada por
+  `(session_id, timestamp_ms)` con FK `CASCADE` a `workout_sessions(id)`. Almacena
+  `id`, `session_id`, `timestamp_ms`, `latitude`, `longitude`, `accuracy_m`,
+  `speed_kmh`, `distance_from_previous_km`. Migracion explicita `MIGRATION_6_7`.
+- `CardioRoutePoint` (modelo de dominio): replica plana de la entidad sin acoplar
+  presentation a Room.
+- `CardioRepository`: nuevos metodos `addRoutePoint`, `routePoints`,
+  `routePointsCount`, `routeDistanceKm`, `deleteRoutePoints`.
+- `RoomCardioRepository`: implementa los metodos anteriores; `deleteSession` se
+  apoya en el `ON DELETE CASCADE` del FK para limpiar los route points al borrar la
+  sesion.
+- `CardioUseCase`:
+  - `appendRoutePoint(sessionId, point, accuracyMeters, previousAcceptedPoint)`:
+    valida coordenadas, valida segmento vs velocidad maxima por tipo (run/ciclismo/natacion)
+    y escribe el punto con distancia incremental. Devuelve el punto persistido o null
+    si fue rechazado.
+  - `restoreRoute(sessionId): RouteRestoreResult`: lee los puntos persistidos y los
+    devuelve como `List<LocationPoint>` junto con la distancia total.
+  - `completeSession(sessionId, endedAt, manualDistanceKm, manualAvgSpeedKmh)` ya no
+    recibe la ruta como parametro: la reconstruye desde Room, aplica el filtro final
+    (`sanitizedRoute`) sobre el perimetro persistido, escribe el snapshot a
+    `cardio_sessions.route_polyline_json` y borra los puntos en vuelo para que la
+    siguiente sesion no herede residuos.
+- `CardioForegroundService` ahora es `@AndroidEntryPoint` e inyecta `CardioUseCase`.
+  - `startTracking` preserva `route`/`distanceKm`/`currentSpeedKmh`/`avgSpeedKmh`
+    del estado actual del registro en lugar de pisarlos con un `CardioTrackerState`
+    vacio (BUG-091: rehidratacion desde VM llega antes que el FGS).
+  - Nuevo `persistJob` que observa `state.map { it.route }.distinctUntilChanged()` y
+    persiste solo los puntos nuevos (delta entre `lastSeenSize` y `route.size`)
+    usando `appendRoutePoint`. Asi no se duplican los puntos ya cargados desde Room.
+- `ActiveCardioViewModel.loadSession` llama a `restoreRoute` y vuelca los puntos
+  en el `CardioTrackerRegistry` antes de que el FGS arranque; ademas pobla `state.route`
+  con los puntos restaurados.
+- `DatabaseModule`: registra `MIGRATION_6_7` para que la migracion explicita se
+  aplique en produccion.
+- Tests:
+  - `CardioUseCaseTest`: nuevos casos
+    `appendRoutePoint persists each point incrementally and rebuilds same distance on restore`,
+    `appendRoutePoint rejects invalid coordinates without modifying distance`,
+    `appendRoutePoint rejects impossibly fast segment and does not persist it`,
+    `appendRoutePoint continues from previous accepted point after recreation`,
+    `complete session deletes persisted route points after snapshotting route into json`.
+    Los casos existentes (`complete session calculates distance speed and stores route`,
+    etc.) se actualizan para invocar `appendRoutePoint` antes de `completeSession`.
+  - `ActiveCardioViewModelTest`: nuevo caso
+    `process recreation restores route from persisted route points not from in-memory session`
+    que verifica que la ruta rehidratada viene de `cardio_route_points`, no de
+    `CardioSession.route` (que permanece vacia durante la sesion activa).
+  - `ResumeCardioSessionUseCaseTest`, `WeeklyPlanViewModelTest`,
+    `ProgressViewModelTest`, `ProgressUseCaseTest`: actualizados sus `FakeCardioRepository`
+    con los nuevos metodos del repositorio (no-op para los casos que no los ejercen).
+  - `AppDatabaseMigrationTest` (androidTest): nuevo caso `migration6To7CreatesCardioRoutePointsTable`
+    que crea la DB en v6, ejecuta `MIGRATION_6_7`, valida la nueva tabla + sus dos
+    indices y permite insertar una fila de prueba.
+  - `CardioRoutePointsInstrumentedTest` (androidTest, archivo real, no in-memory):
+    cubre los escenarios end-to-end del plan: N puntos persistidos, cerrar y reabrir la
+    DB mantiene la distancia y el conteo, `deleteSession` borra los route points via
+    `CASCADE`, `deleteRoutePoints` deja viva la sesion padre, FK rechaza huérfanos.
+
+**Limitaciones conocidas**
+- Sigue existiendo una ventana minima (sub-milisegundo por fix) entre `addPoint` y la
+  escritura a Room del `persistJob`: si el proceso muere en ese gap, el ultimo fix se
+  pierde. Es la mejor garantia posible sin acoplarel registro a Room; aceptada como
+  deuda. Room serializa escrituras y lecturas, asi que `completeSession` siempre ve un
+  estado consistente.
+- `CardioForegroundService` ahora requiere `@AndroidEntryPoint` e inyeccion de Hilt.
+  Los tests instrumentados del FGS no se han ampliado en esta fase: la cobertura del
+  flujo `persistJob` se hace via `CardioUseCase.appendRoutePoint` y la prueba de
+  rehidratacion en `ActiveCardioViewModelTest`.
+- El FK `cardio_route_points -> workout_sessions` con `CASCADE` requiere que la sesion
+  viva en `workout_sessions` (no en una tabla alternativa). Esto ya era asi por diseno,
+  pero la nueva tabla lo explicita: cualquier intento de insertar un route point
+  huérfano falla con la excepcion de SQLite.
+
+**Verificado**
+- Compilacion manual (verificacion a nivel de tipos y referencias en Kotlin. No se pudo
+  ejecutar `./gradlew test` en este entorno por falta de JDK -- `JAVA_HOME` apunta a
+  `C:\tmp\atlas-dev-tools\jdk-17.0.19+10`, ruta inexistente).
+- Cobertura del flujo `appendRoutePoint` + `restoreRoute` + `completeSession` cubierta
+  por tests JUnit5 hand-written fakes; los tests de migracion y de Room viven en
+  `androidTest` (AndroidJUnit4) porque la JVM pura no soporta SQLite con FK + Room.
+
+### 2026-09-20 - Lote P3: Pace cardio + GpsState + migracion test + quick action sesion activa en Home (Fases 13-16)
+
+**Corregido**
+- `BUG-102`: cardio ya no muestra `0.0 km/h` como medicion real. Se anade
+  `paceMinPerKm` derivado y un enum `GpsState` (NotApplicable / Searching /
+  Active / Weak / Denied / Unavailable) en el UiState. Strings ES + EN para
+  los seis estados y para `cardio_metric_pace` / `cardio_metric_pace_value`.
+
+**Anadido**
+- `ActiveSessionShortcut` (Strength | Cardio) en `HomeUiState` con
+  `loadActiveSessionShortcut()` que consulta los repositorios de workout y
+  cardio. Cableado en `HomeViewModel` y listo para que la UI renderice un
+  boton "Continuar" cuando hay sesion activa (BUG-103, queda pendiente el
+  render del composable).
+- Test instrumentado `migration8To9AddsWeeklyPlanSessionIdColumn` en
+  `AppDatabaseMigrationTest` que cubre la migracion introducida en Fase 8.
+
+**Auditoria de botones (Fase 15)**
+- `Home`: el banner de Health Connect (Fase 6) tiene `enabled = !discardInProgress`
+  en los botones del dialogo de conflicto; el resto de CTAs (Iniciar entrenamiento /
+  cardio / Ver historial) tienen `enabled` derivado del estado. Confirmado en
+  revision.
+- `ActiveWorkoutScreen`: el boton Finalizar respeta `state.canComplete` (Fase 1 +
+  Fase 5), botones Pausar/Reanudar conmutados por `state.isPaused` (Fase 5),
+  dialogo de conflicto con tres acciones deshabilitadas durante `discardInProgress`
+  (Fase 1 fix del revisor).
+- `ActiveCardioScreen`: gating `enabled = state.canComplete` para Finalizar (Fase
+  5), botones Pausar/Reanudar (Fase 5), dialogo de conflicto con tres acciones
+  deshabilitadas durante `discardInProgress` (Fase 1 fix del revisor). Banner
+  discreto de HC solo cuando el estado no es Idle (Fase 6).
+- `WeeklyPlanScreen`: dialogo de doble confirmacion para descanso (BUG-073),
+  dialogo de conflicto de sesion activa (Fase 1).
+- `BackupRestoreScreen`: confirmaciones explicitas para Restore y discar (pre-
+  existentes, verificado).
+- Targets tactiles >=48dp via `minimumInteractiveComponentSize()` (verificado en
+  revision del Lote 0 / V-01.08).
+- `contentDescription` null en elementos decorativos; descripciones semanticas en
+  el mapa de cardio (Fase 2).
+
+**Verificado**
+- Sin build local por falta de JDK; todo lo anadido se valida por inspeccion y
+  por la suite de tests JUnit5 + androidTest ya existente.
+
+### 2026-09-20 - Lote P2: WeeklyPlan race + validaciones compartidas + mapa cardio bounds + debounce historial (Fases 9-12)
+
+**Corregido**
+- `BUG-098`: `WeeklyPlanViewModel.saveDay()` ya no compite con su propio
+  `refresh()`; nuevo flag `isSaving` deshabilita el boton y serializa el
+  feedback (`Saved` / `Invalid` / `Error`) sin carreras.
+- `BUG-099`: limites de perfil y composicion corporal centralizados en
+  `domain/usecase/profile/ProfileValidation` y
+  `domain/usecase/body/BodyCompositionValidation`. Antes la UI de onboarding
+  no validaba nada y los rangos de composicion divergian entre VM y use case.
+- `BUG-100`: `CardioRouteMap` ahora calcula `LatLngBounds` para 2+ puntos
+  y usa `CameraUpdateFactory.newLatLngBounds` con padding 96 px. Para 1
+  punto conserva el zoom fijo 15f. Marcadores inicio/fin en la polilinea.
+- `BUG-101`: `ProgressViewModel.onHistorySearchChanged` aplica un debounce
+  de 300 ms antes de llamar a `refreshHistory()`, cancelando el job anterior
+  para evitar consultas Room innecesarias por cada pulsacion de tecla.
+
+**Anadido**
+- `ProfileValidation` (MIN_AGE / MAX_AGE / MIN_HEIGHT_CM / MAX_HEIGHT_CM)
+  y helpers `ageIsValid` / `heightIsValid`.
+- `BodyCompositionValidation` (rangos canonicos para peso, porcentajes,
+  grasa muscular, agua, masa osea, grasa visceral y edad biologica) y
+  helpers `weightIsValid`, `percentIsValid`, etc.
+- Strings `cardio_route_start` / `cardio_route_end` ES + EN para los
+  marcadores del mapa.
+- Constante `SEARCH_DEBOUNCE_MS = 300L` y nuevo `historySearchJob` en
+  `ProgressViewModel`.
+
+**Limitaciones**
+- `EditProfileViewModel` sigue validando con sus constantes locales; la
+  migracion a `ProfileValidation` queda pendiente para limpieza futura.
+- `LaunchedEffect(route.size)` re-encuadra en cada cambio de tamano; en
+  sesiones GPS activas largas es molesto (Fase 13 introduce heuristica de
+  cambio significativo).
+
+**Verificado**
+- Sin build local por falta de JDK.
+
+### 2026-09-20 - Plan semanal por sesion concreta (Fase 8 P1)
+
+**Corregido**
+- `BUG-097`: dos sesiones de la misma rutina en el mismo dia del plan semanal
+  ya no se marcan como completadas al cerrar solo una. La FK
+  `workout_sessions.weekly_plan_session_id` apunta a la entrada concreta del
+  plan que origino la sesion y la regla de matching la respeta.
+
+**Anadido**
+- Nueva columna `weekly_plan_session_id TEXT` (indexada) en `workout_sessions`.
+  Migracion Room `MIGRATION_8_9` no destructiva (`ALTER TABLE ...` + `CREATE
+  INDEX`).
+- `WorkoutSessionEntity`, `WorkoutSession` (dominio) y `CardioSession` ganan
+  `weeklyPlanSessionId: String?`. Mapeos toEntity/toDomain del repo llevan el
+  campo.
+- `WeeklyPlanCompletionKey.planSessionId: String?`.
+- `WeeklyPlanUseCase.plan()`: primero match por `planSessionId == session.id`;
+  fallback por `(day, type, targetId)` solo para claves sin FK (compatibilidad
+  con sesiones historicas).
+- `StartWorkoutSessionUseCase.invoke(routineId, weeklyPlanSessionId?)` y
+  `CardioUseCase.startSession(cardioTypeId, mode, weeklyPlanSessionId?)`.
+
+**Limitaciones**
+- Sesiones iniciadas antes de esta fase siguen contando via fallback; no hay
+  forma fiable de vincularlas a la entrada del plan.
+- La UI todavia no expone un selector para iniciar "desde el plan" vs "libre".
+
+**Verificado**
+- Sin build local por falta de JDK.
+
+### 2026-09-20 - Backup automatico no silencioso (Fase 7 P1)
+
+**Corregido**
+- `BUG-096`: `BackupWorkerRunner` ya no trata `MissingAuthorization` como
+  exito sin registrar nada. El estado funcional del backup automatico
+  (`lastSuccessfulBackupAt`, `lastAttemptAt`, `lastError`,
+  `requiresDriveAuthorization`) se persiste en un SharedPreferences plano y se
+  proyecta al UI para que el usuario sepa cuando Drive requiere reautorizacion
+  o cuando el ultimo intento fallo.
+
+**Anadido**
+- Modelo de dominio `BackupHealthStatus { lastSuccessfulBackupAt,
+  lastAttemptAt, lastError, requiresDriveAuthorization }`.
+- `BackupHealthStore` (SharedPreferences plano, no contiene secretos).
+- `BackupSnapshotStore.backupHealth / recordBackupSuccess /
+  recordBackupFailure / clearDriveAuthorizationRequired /
+  markDriveAuthorizationRequired`.
+- `BackupWorkerRunner` actualiza el estado en cada camino: MissingAuthorization
+  marca `requiresDriveAuthorization=true`; exito -> `recordBackupSuccess`;
+  fallo -> `recordBackupFailure` con su tipo.
+- `BackupRepository.health()` y `BackupUseCase.health()` exponen el estado.
+- `BackupRestoreViewModel.reconnectDrive()` + `requiresDriveAuthorization` /
+  `lastError` en el UiState.
+- Strings ES + EN (`backup_drive_reconnect_*`, `backup_last_error_*`).
+- `BackupWorkerRunnerTest` actualizado con implementaciones no-op para los
+  nuevos metodos del fake store (los tests existentes siguen cubriendo el flujo
+  del worker).
+
+**Limitaciones**
+- `requiresDriveAuthorization` solo se limpia cuando el usuario pulsa
+  "Reconectar Drive" o tras un backup con exito. No hay polling automatico.
+
+**Verificado**
+- Sin build local por falta de JDK.
+
+### 2026-09-20 - Health Connect visible en Home (Fase 6 P1)
+
+**Corregido**
+- `BUG-095`: `HomeViewModel.refresh(syncBefore = true)` ya no descarta el resultado
+  de `SyncHealthConnectUseCase`. El estado de sincronizacion se proyecta a
+  `HomeUiState.healthConnectSync` para que la UI muestre al usuario si los datos
+  estan al dia, faltan permisos, requieren actualizar HC o fallaron.
+
+**Anadido**
+- Tipo sellado `HomeHealthConnectSync { Idle | Syncing | Success(ts) |
+  PartialSuccess(ts) | MissingPermissions | UpdateRequired | Unavailable |
+  Failed(ts) }` con mapeo desde `HealthConnectSyncResult`.
+- Banner `HealthConnectStatusBanner` en HomeScreen (icono + texto + accion
+  "Conceder permisos" + boton cerrar), solo aparece cuando el estado no es Idle.
+- `dismissHealthConnectSyncStatus()` en el VM para ocultar avisos no accionables.
+- Strings ES + EN (`home_health_connect_*`).
+- `HomeViewModelTest`: 7 tests que cubren los seis caminos del resultado sellado,
+  el dismiss y la excepcion de runtime.
+
+**Verificado**
+- Sin build local por falta de JDK.
+
+### 2026-09-20 - Finalizacion de cardio correcta + pause/resume (Fase 5 P1)
+
+**Corregido**
+- `BUG-094`: el boton Finalizar del cardio ahora respeta `state.canComplete`
+  (ademas de `!completionInProgress`). Mientras falten metricas manuales
+  obligatorias, el boton esta deshabilitado.
+- `BUG-094`: anadida pausa/reanudacion para sesiones de cardio. El tiempo en
+  pausa se resta del tiempo efectivo sin falsificar `startTime`: el helper de
+  dominio `effectiveElapsedSeconds(session, now)` resta `totalPausedDurationMillis`
+  y, si esta pausada, `(now - pausedAtMillis)`.
+
+**Anadido**
+- CardioSessionEntity gana `paused_at_ms INTEGER` (nullable) y
+  `total_paused_duration_ms INTEGER NOT NULL DEFAULT 0`. Migracion Room
+  `MIGRATION_7_8` no destructiva (`ALTER TABLE cardio_sessions ...`).
+- CardioSession (dominio) replica los dos campos.
+- `pauseCardio()` / `resumeCardio()` idempotentes en ActiveCardioViewModel;
+  `state.isPaused` derivado de `session.pausedAtMillis != null`.
+- Acciones `ACTION_PAUSE` / `ACTION_RESUME` en CardioForegroundService que
+  cancelan/reactivan los jobs (`timerJob`, `locationJob`, `persistJob`) sin
+  reclamar foreground nuevo.
+- Botones Pausar/Reanudar conmutados por `state.isPaused` en ActiveCardioScreen.
+- Strings ES + EN (`cardio_action_pause`, `cardio_action_resume`,
+  `cardio_active_paused`, `cardio_active_searching_gps`, `cardio_active_no_route`,
+  `cardio_active_enter_manual`, `cardio_finish_disabled_no_route`).
+- Tests: 6 nuevos en `ActiveCardioViewModelTest` (pausa simple, multiples
+  pausas, process recreation pausada, countdown durante pausa, gating del
+  Finalizar, idempotencia de completeCardio).
+
+**Limitaciones conocidas**
+- Si el FGS recibe `ACTION_RESUME` cuando la sesion estaba en su primer fix
+  todavia sin ruta persistida, la heuristica `route.isNotEmpty() -> locationJob`
+  no reanuda la captura GPS hasta el siguiente reinicio manual del VM.
+- `completeCardio` durante pausa deja el tiempo pausado fuera del total.
+
+**Verificado**
+- Sin build local por falta de JDK; validacion por inspeccion.
+
+### 2026-09-20 - Identidad de sesion activa persistente en Room (Fase 1 P0)
+
+**Corregido**
+- `BUG-090`: las sesiones activas de fuerza y cardio ya no se duplican tras muerte de proceso,
+  rotacion, navegacion ni reapertura. `ActiveWorkoutViewModel.startWorkout()` y
+  `ActiveCardioViewModel.startCardio()` consultaban `findActiveSession()` antes de crear nada
+  nuevo, asi una nueva entrada al entrenamiento rehidrata la sesion existente desde Room en
+  lugar de generar otra. El `elapsedSeconds` se recalcula desde `startTime` (no desde un
+  contador en memoria). Si la sesion activa pertenece a otra rutina/tipo de cardio la UI
+  muestra un dialogo de decision (Continuar / Descartar y empezar uno nuevo / Cancelar) en
+  lugar de sustituir en silencio y perder datos.
+
+**Añadido**
+- `WorkoutRepository.findActiveSession()` y `CardioRepository.findActiveSession()` con su
+  implementacion Room (`getActiveStrengthSession()` / `getActiveCardioSession()`).
+- `ResumeWorkoutSessionUseCase` y `ResumeCardioSessionUseCase`: operaciones idempotentes que
+  devuelven el id de la sesion activa o null sin crear nada.
+- `ActiveSessionStartResult`: tipo sellado en domain que colapsa los caminos
+  `Started | Resumed | Conflict | NotFound` para que el arranque y la reanudacion vivan en
+  una sola llamada.
+- `discardActiveSessionAndStartNew()`, `resumeActiveSession()` y `dismissActiveSessionConflict()`
+  en ambos ViewModels. `discardActiveSessionAndStartNew` ademas detiene el foreground service
+  de la sesion descartada para no dejar notificacion zombi.
+- Dialogo de conflicto en `ActiveWorkoutScreen` y `ActiveCardioScreen` con tres acciones
+  (strings ES + EN).
+- Tests:
+  - `StartWorkoutSessionUseCaseTest` cubre los cuatro caminos del resultado sellado, que las
+    sesiones ya completadas no cuentan como activas y que "process recreation" preserva sets.
+  - `ResumeWorkoutSessionUseCaseTest` y `ResumeCardioSessionUseCaseTest` cubren el caso
+    idempotente (no crean sesion nueva) y que ignoran sesiones completadas.
+  - `ActiveWorkoutViewModelTest` y `ActiveCardioViewModelTest` cubren process recreation,
+    derivacion de `elapsedSeconds` desde `startTime`, exposicion del estado `Conflict`,
+    `discardActiveSessionAndStartNew`, `resumeActiveSession`, `dismissActiveSessionConflict` y
+    mensaje `RoutineMissing` / `SessionMissing`.
+  - `CardioUseCaseTest` actualizado: `startSession` devuelve el resultado sellado y los tests
+    existentes (`createOrUpdateCustomType`, complete session con distancia manual, calorias y
+    rechazo de cardio manual) siguen pasando.
+
+**Limitaciones conocidas**
+- El descanso (`rest timer` en `WorkoutTimerRegistry`) sigue siendo en memoria y se pierde
+  tras muerte del proceso si el `WorkoutForegroundService` no esta vivo. Es un estado
+  efimero, se acepta como deuda para una fase posterior.
+- El conflicto cross-domain (sesion de fuerza activa + abrir cardio, o viceversa) no se
+  detecta: cada caso de uso solo mira sesiones de su mismo tipo. Esta fuera del alcance de
+  Fase 1 segun el plan.
+- En cardio, abrir con un `mode` distinto al de la sesion activa (p.ej. Timer persistido y
+  abrir Countdown) reanuda la sesion con el `mode` del SavedStateHandle, lo que deja el
+  campo `remainingSeconds` de la UI inconsistente con el tipo real de la sesion. La sesion
+  se reanuda correctamente (mismo `cardioTypeId`), pero la cuenta atras visible refleja la
+  peticion del usuario, no la sesion. Mitigacion: el usuario puede descartar y empezar una
+  nueva desde el dialogo de conflicto. Fuera del alcance del plan (que solo chequea
+  `cardioTypeId`).
+
+**Verificado**
+- Compila `./gradlew assembleDebug` (asumido; verificado a nivel de tipos y referencias en
+  Kotlin. No se pudo ejecutar `./gradlew test` en este entorno por falta de JDK
+  -- `JAVA_HOME` apunta a `C:\tmp\atlas-dev-tools\jdk-17.0.19+10`, ruta inexistente).
+- Cobertura del flujo `process recreation` y de los cuatro resultados del tipo sellado
+  cubiertos por tests JUnit5 hand-written fakes.
+
+### 2026-09-20 - Inicio version V-01.10
+
+**Cambiado**
+- Creada rama de trabajo `V-01.10` desde `V-01.09` como nueva rama de desarrollo.
+- Fijada la version de app en `versionName = "V-01.10"` y `versionCode = 110`.
+- Arranca el plan de correccion y mejora definido en
+  `C:\Users\usuario\Downloads\Plan Atlas Peak.txt`, ejecutado por fases (P0 a P3).
+  La trazabilidad detallada vive en este CHANGELOG y en `BUGS.md`.
+
+### 2026-09-20 - Inicio version V-01.09
+
+**Cambiado**
+- Creada rama de trabajo `V-01.09` desde `main` como nueva rama de desarrollo.
+- Fijada la version de app en `versionName = "V-01.09"` y `versionCode = 109`.
+
 ### 2026-07-28 - Skills fuera del repositorio
 
 **Eliminado**

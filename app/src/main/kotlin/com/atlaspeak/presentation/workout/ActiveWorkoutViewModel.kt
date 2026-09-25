@@ -14,8 +14,10 @@ import com.atlaspeak.domain.model.workout.completedVolumeKg
 import com.atlaspeak.domain.repository.ExerciseRepository
 import com.atlaspeak.domain.repository.WorkoutRepository
 import com.atlaspeak.domain.repository.WorkoutSettingsRepository
+import com.atlaspeak.domain.usecase.workout.ActiveSessionStartResult
 import com.atlaspeak.domain.usecase.workout.CompleteWorkoutSessionUseCase
 import com.atlaspeak.domain.usecase.workout.DiscardWorkoutSessionUseCase
+import com.atlaspeak.domain.usecase.workout.ResumeWorkoutSessionUseCase
 import com.atlaspeak.domain.usecase.workout.StartWorkoutSessionUseCase
 import com.atlaspeak.presentation.navigation.AppRoute
 import com.atlaspeak.service.WorkoutForegroundService
@@ -25,52 +27,187 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.UUID
 import javax.inject.Inject
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Job
 
 @HiltViewModel
-class ActiveWorkoutViewModel @Inject constructor(
+class ActiveWorkoutViewModel(
     savedStateHandle: SavedStateHandle,
     private val startWorkoutSessionUseCase: StartWorkoutSessionUseCase,
+    private val resumeWorkoutSessionUseCase: ResumeWorkoutSessionUseCase,
     private val completeWorkoutSessionUseCase: CompleteWorkoutSessionUseCase,
     private val discardWorkoutSessionUseCase: DiscardWorkoutSessionUseCase,
     private val workoutRepository: WorkoutRepository,
     private val workoutSettingsRepository: WorkoutSettingsRepository,
     private val exerciseRepository: ExerciseRepository,
     @ApplicationContext private val context: Context,
+    private val now: () -> Long,
 ) : ViewModel() {
+
+    @Inject
+    constructor(
+        savedStateHandle: SavedStateHandle,
+        startWorkoutSessionUseCase: StartWorkoutSessionUseCase,
+        resumeWorkoutSessionUseCase: ResumeWorkoutSessionUseCase,
+        completeWorkoutSessionUseCase: CompleteWorkoutSessionUseCase,
+        discardWorkoutSessionUseCase: DiscardWorkoutSessionUseCase,
+        workoutRepository: WorkoutRepository,
+        workoutSettingsRepository: WorkoutSettingsRepository,
+        exerciseRepository: ExerciseRepository,
+        @ApplicationContext context: Context,
+    ) : this(
+        savedStateHandle = savedStateHandle,
+        startWorkoutSessionUseCase = startWorkoutSessionUseCase,
+        resumeWorkoutSessionUseCase = resumeWorkoutSessionUseCase,
+        completeWorkoutSessionUseCase = completeWorkoutSessionUseCase,
+        discardWorkoutSessionUseCase = discardWorkoutSessionUseCase,
+        workoutRepository = workoutRepository,
+        workoutSettingsRepository = workoutSettingsRepository,
+        exerciseRepository = exerciseRepository,
+        context = context,
+        now = { System.currentTimeMillis() },
+    )
+
     private val routineId: String = requireNotNull(savedStateHandle[AppRoute.ActiveWorkout.ROUTINE_ID])
+    private val weeklyPlanSessionId: String? = savedStateHandle[AppRoute.ActiveWorkout.WEEKLY_PLAN_SESSION_ID]
     private val mutableState = MutableStateFlow(ActiveWorkoutUiState())
     val state: StateFlow<ActiveWorkoutUiState> = mutableState.asStateFlow()
     private var exerciseOrder: List<String> = emptyList()
+    // BUG-092: el cronometro visual debe seguir avanzando aunque el WorkoutForegroundService
+    // no este vivo (FGS no arranca por SecurityException, lo mata el OS o el permiso
+    // ACTIVITY_RECOGNITION es denegado). El job solo se lanza cuando el registry no tiene un
+    // timer sano para la sesion actual; cuando el FGS vuelve, se para.
+    private var localTimerJob: Job? = null
 
     init {
         startWorkout()
         loadRestFeedbackSettings()
         loadAvailableExercisesForQuickAdd()
         viewModelScope.launch {
-            WorkoutTimerRegistry.state.collect { timer ->
-                mutableState.update { current ->
-                    val currentSessionId = current.session?.id
-                    when {
-                        timer.failed && timer.sessionId == currentSessionId -> {
-                            current.copy(message = ActiveWorkoutMessage.TimerServiceUnavailable)
-                        }
-                        timer.sessionId == currentSessionId -> {
-                            current.copy(
-                                elapsedSeconds = timer.elapsedSeconds,
-                                restTimer = timer.restTimer?.toUiState(),
-                            )
-                        }
-                        timer.sessionId == null -> current.copy(restTimer = null)
-                        else -> current
-                    }
-                }
+            WorkoutTimerRegistry.state.collect { _ ->
+                reconcileTimerState()
             }
         }
+    }
+
+    /**
+     * Decide que hacer con el cronometro en funcion del estado del FGS y de la sesion
+     * cargada en la VM. El collector del registry lo invoca cuando el FGS cambia, y
+     * `loadSession` lo invoca tras cargar la sesion para cubrir la carrera en la que
+     * el registry ya emitio su valor inicial antes de que la sesion estuviera lista
+     * (en ese caso `startLocalTimerIfNeeded` arrancaria y saldria por `session == null`,
+     * y sin re-trigger el cronometro quedaria muerto hasta el siguiente cambio del FGS).
+     */
+    private fun reconcileTimerState() {
+        val timer = WorkoutTimerRegistry.state.value
+        val sessionId = mutableState.value.session?.id
+        when {
+            // FGS rechazo el arranque para esta sesion: el registry queda en failed=true.
+            // El collector es el unico que conoce el mensaje, pero el tiempo se deriva
+            // localmente desde session.startTime (mismo calculo que hace el FGS).
+            timer.failed && timer.sessionId == sessionId -> {
+                startLocalTimerIfNeeded()
+                mutableState.update {
+                    it.copy(
+                        message = ActiveWorkoutMessage.TimerServiceUnavailable,
+                        restTimer = null,
+                    )
+                }
+            }
+            // FGS sano para nuestra sesion: espejamos su tiempo y su rest timer.
+            timer.sessionId == sessionId && timer.running -> {
+                stopLocalTimer()
+                mutableState.update {
+                    it.copy(
+                        elapsedSeconds = timer.elapsedSeconds,
+                        restTimer = timer.restTimer?.toUiState(),
+                        // Solo retiramos el aviso de fallo del FGS; otros mensajes se conservan.
+                        message = it.message.takeUnless { m -> m == ActiveWorkoutMessage.TimerServiceUnavailable },
+                    )
+                }
+            }
+            // Registry vacio: el FGS aun no ha arrancado para esta sesion o ya cerro.
+            // Mientras tengamos sesion cargada en la VM, el fallback local mantiene
+            // el contador en movimiento.
+            timer.sessionId == null -> {
+                startLocalTimerIfNeeded()
+                mutableState.update { it.copy(restTimer = null) }
+            }
+            else -> { /* registry de otra sesion: no tocamos nada */ }
+        }
+    }
+
+    private fun startLocalTimerIfNeeded() {
+        if (localTimerJob?.isActive == true) return
+        localTimerJob = viewModelScope.launch {
+            while (isActive) {
+                val session = mutableState.value.session ?: break
+                val elapsed = ((now() - session.startTime) / 1000L).coerceAtLeast(0L)
+                mutableState.update { it.copy(elapsedSeconds = elapsed) }
+                delay(1000)
+            }
+        }
+    }
+
+    private fun stopLocalTimer() {
+        localTimerJob?.cancel()
+        localTimerJob = null
+    }
+
+    override fun onCleared() {
+        stopLocalTimer()
+        super.onCleared()
+    }
+
+    /**
+     * Continua con la sesion activa en curso ignorando la rutina solicitada.
+     * Usado por el boton "Continuar entrenamiento" del dialogo de conflicto.
+     */
+    fun resumeActiveSession() {
+        viewModelScope.launch {
+            val sessionId = resumeWorkoutSessionUseCase() ?: run {
+                startWorkout()
+                return@launch
+            }
+            loadSession(sessionId)
+        }
+    }
+
+    /**
+     * Borra la sesion activa actual y arranca una nueva con la rutina solicitada.
+     */
+    fun discardActiveSessionAndStartNew() {
+        if (mutableState.value.discardInProgress) return
+        mutableState.update { it.copy(discardInProgress = true) }
+        viewModelScope.launch {
+            val activeId = workoutRepository.findActiveSession()?.id
+            if (activeId != null) {
+                discardWorkoutSessionUseCase(activeId)
+                // El servicio de timer de la sesion anterior esta en primer plano;
+                // hay que pararlo para no dejar una notificacion zombi.
+                runCatching {
+                    ContextCompat.startForegroundService(
+                        context,
+                        WorkoutForegroundService.stopIntent(context),
+                    )
+                }
+            }
+            // Esperamos a que la nueva sesion se haya cargado para que el boton siga
+            // deshabilitado durante todo el ciclo y no se pueda re-disparar en una carrera.
+            startWorkout().join()
+            mutableState.update { it.copy(discardInProgress = false) }
+        }
+    }
+
+    /** Cierra el dialogo de conflicto sin tocar nada. */
+    fun dismissActiveSessionConflict() {
+        mutableState.update { it.copy(conflict = null) }
     }
 
     fun onSetCompleted(set: WorkoutSet, completed: Boolean, restSeconds: Int) {
@@ -316,17 +453,54 @@ class ActiveWorkoutViewModel @Inject constructor(
         }
     }
 
-    private fun startWorkout() {
-        viewModelScope.launch {
-            val sessionId = startWorkoutSessionUseCase(routineId)
-            if (sessionId == null) {
-                mutableState.update { it.copy(isLoading = false, message = ActiveWorkoutMessage.RoutineMissing) }
-                return@launch
+    private fun startWorkout(): Job {
+        return viewModelScope.launch {
+            when (val result = startWorkoutSessionUseCase(routineId, weeklyPlanSessionId)) {
+                is ActiveSessionStartResult.Started, is ActiveSessionStartResult.Resumed -> {
+                    loadSession(result.sessionId)
+                }
+                is ActiveSessionStartResult.Conflict -> {
+                    val active = workoutRepository.session(result.sessionId)
+                    mutableState.update {
+                        it.copy(
+                            isLoading = false,
+                            conflict = active?.let { session ->
+                                ActiveSessionConflictUi(
+                                    activeSessionId = session.id,
+                                    activeRoutineName = session.routineName.orEmpty(),
+                                )
+                            },
+                        )
+                    }
+                }
+                ActiveSessionStartResult.NotFound -> {
+                    mutableState.update {
+                        it.copy(isLoading = false, message = ActiveWorkoutMessage.RoutineMissing)
+                    }
+                }
             }
-            val session = workoutRepository.session(sessionId)
-            if (session != null) exerciseOrder = session.exercises.map { it.exerciseId }
-            mutableState.update { it.copy(isLoading = false, session = session?.withCurrentExerciseOrder()) }
         }
+    }
+
+    private suspend fun loadSession(sessionId: String) {
+        val session = workoutRepository.session(sessionId)
+        if (session != null) exerciseOrder = session.exercises.map { it.exerciseId }
+        val elapsedSeconds = session?.let { (now() - it.startTime) / 1000L } ?: 0L
+        mutableState.update {
+            it.copy(
+                isLoading = false,
+                conflict = null,
+                session = session?.withCurrentExerciseOrder(),
+                elapsedSeconds = elapsedSeconds.coerceAtLeast(0L),
+            )
+        }
+        // BUG-092: re-evaluamos el cronometro tras cargar la sesion. Si el collector
+        // del WorkoutTimerRegistry ya emitio su valor inicial antes de que la sesion
+        // estuviera cargada (carrera posible en produccion con el dispatcher Main),
+        // `startLocalTimerIfNeeded` habria arrancado el job y este habria salido por
+        // `session == null` sin re-arrancar; sin esta llamada el cronometro quedaria
+        // muerto hasta el siguiente cambio del FGS.
+        reconcileTimerState()
     }
 
     private fun loadRestFeedbackSettings() {
@@ -426,6 +600,8 @@ data class ActiveWorkoutUiState(
         soundEnabled = true,
         vibrationEnabled = true,
     ),
+    val conflict: ActiveSessionConflictUi? = null,
+    val discardInProgress: Boolean = false,
     val message: ActiveWorkoutMessage? = null,
 ) {
     val completedExerciseCount: Int = session?.exercises?.count { exercise ->
@@ -439,6 +615,11 @@ data class ActiveWorkoutUiState(
 
     val liveTotalVolumeKg: Double = session?.completedVolumeKg() ?: 0.0
 }
+
+data class ActiveSessionConflictUi(
+    val activeSessionId: String,
+    val activeRoutineName: String,
+)
 
 data class RestTimerUiState(
     val id: String,

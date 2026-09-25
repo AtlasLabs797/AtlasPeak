@@ -44,6 +44,8 @@ jobs:
           fi
       - name: Build debug
         run: ./gradlew assembleDebug
+      - name: Compile instrumented tests
+        run: ./gradlew assembleDebugAndroidTest
       - name: Unit tests
         run: ./gradlew test
       - name: Domain/data coverage

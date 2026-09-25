@@ -22,16 +22,20 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsBike
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,6 +44,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.health.connect.client.PermissionController
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
@@ -66,11 +71,16 @@ import kotlin.math.roundToInt
 
 @Composable
 fun HomeRoute(
-    onStartRoutine: (String) -> Unit,
-    onStartCardio: (String, Int) -> Unit,
+    onStartRoutine: (String, String?) -> Unit,
+    onStartCardio: (String, Int, String?) -> Unit,
     viewModel: HomeViewModel = hiltViewModel(),
 ) {
     val state = viewModel.state.collectAsStateWithLifecycle().value
+    val healthConnectPermissionLauncher = rememberLauncherForActivityResult(
+        PermissionController.createRequestPermissionResultContract(),
+    ) {
+        viewModel.refresh(syncBefore = true)
+    }
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         viewModel.refresh()
     }
@@ -80,6 +90,10 @@ fun HomeRoute(
         onRetry = { viewModel.refresh() },
         onStartRoutine = onStartRoutine,
         onStartCardio = onStartCardio,
+        onOpenHealthConnectPermissions = {
+            healthConnectPermissionLauncher.launch(viewModel.requiredHealthConnectPermissions())
+        },
+        onDismissHealthConnect = viewModel::dismissHealthConnectSyncStatus,
     )
 }
 
@@ -88,8 +102,10 @@ fun HomeScreen(
     state: HomeUiState,
     onPeriodSelected: (DashboardWidget, DashboardPeriod) -> Unit,
     onRetry: () -> Unit,
-    onStartRoutine: (String) -> Unit,
-    onStartCardio: (String, Int) -> Unit,
+    onStartRoutine: (String, String?) -> Unit,
+    onStartCardio: (String, Int, String?) -> Unit,
+    onOpenHealthConnectPermissions: () -> Unit,
+    onDismissHealthConnect: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val spacing = LocalSpacing.current
@@ -131,6 +147,9 @@ fun HomeScreen(
                     todayWorkouts = state.todayWorkouts,
                     filters = state.filters,
                     errorMessageRes = state.errorMessageRes,
+                    healthConnectSync = state.healthConnectSync,
+                    onOpenHealthConnectPermissions = onOpenHealthConnectPermissions,
+                    onDismissHealthConnect = onDismissHealthConnect,
                     onPeriodSelected = onPeriodSelected,
                     onRetry = onRetry,
                     onStartRoutine = onStartRoutine,
@@ -148,10 +167,13 @@ private fun DashboardContent(
     todayWorkouts: List<TodayWorkoutUiState>,
     filters: DashboardFilters,
     @StringRes errorMessageRes: Int?,
+    healthConnectSync: HomeHealthConnectSync,
+    onOpenHealthConnectPermissions: () -> Unit,
+    onDismissHealthConnect: () -> Unit,
     onPeriodSelected: (DashboardWidget, DashboardPeriod) -> Unit,
     onRetry: () -> Unit,
-    onStartRoutine: (String) -> Unit,
-    onStartCardio: (String, Int) -> Unit,
+    onStartRoutine: (String, String?) -> Unit,
+    onStartCardio: (String, Int, String?) -> Unit,
 ) {
     val spacing = LocalSpacing.current
     val atlasColors = LocalAtlasColors.current
@@ -167,6 +189,15 @@ private fun DashboardContent(
     ) {
         item {
             HomeHeader(greetingName = greetingName)
+        }
+        if (healthConnectSync !is HomeHealthConnectSync.Idle) {
+            item {
+                HealthConnectStatusBanner(
+                    status = healthConnectSync,
+                    onOpenPermissions = onOpenHealthConnectPermissions,
+                    onDismiss = onDismissHealthConnect,
+                )
+            }
         }
         errorMessageRes?.let { messageRes ->
             item {
@@ -209,10 +240,10 @@ private fun DashboardContent(
                     if (workout.type == TodayWorkoutType.Cardio) {
                         val cardioTypeId = workout.cardioTypeId ?: return@TodayWorkoutCard
                         val targetSeconds = workout.cardioTargetDurationSec ?: return@TodayWorkoutCard
-                        onStartCardio(cardioTypeId, targetSeconds)
+                        onStartCardio(cardioTypeId, targetSeconds, workout.weeklyPlanSessionId)
                     } else {
                         val routineId = workout.routineId ?: return@TodayWorkoutCard
-                        onStartRoutine(routineId)
+                        onStartRoutine(routineId, workout.weeklyPlanSessionId)
                     }
                 },
             )
@@ -616,6 +647,105 @@ private fun weeklyLoadBars(snapshot: DashboardSnapshot): List<Float> {
 
 private fun formatWhole(value: Double): String =
     "%,d".format(Locale.US, value.roundToInt()).replace(',', ' ')
+
+/**
+ * BUG-095 (Fase 6 P1): banner discreto que muestra al usuario el estado real de
+ * la sincronizacion con Health Connect. Solo aparece cuando hay algo que
+ * comunicar (Syncing/Success/Partial/MissingPermissions/UpdateRequired/
+ * Unavailable/Failed) y permite descartar el aviso cuando es accionable.
+ */
+@Composable
+private fun HealthConnectStatusBanner(
+    status: HomeHealthConnectSync,
+    onOpenPermissions: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val atlasColors = LocalAtlasColors.current
+    val (icon, text, actionRes) = when (status) {
+        HomeHealthConnectSync.Idle -> Triple(Icons.Default.CheckCircle, null, null)
+        HomeHealthConnectSync.Syncing -> Triple(
+            Icons.Default.Schedule,
+            stringResource(R.string.home_health_connect_syncing),
+            null,
+        )
+        is HomeHealthConnectSync.Success -> Triple(
+            Icons.Default.CheckCircle,
+            stringResource(R.string.home_health_connect_success, formatRelativeAgo(status.timestampMillis)),
+            null,
+        )
+        is HomeHealthConnectSync.PartialSuccess -> Triple(
+            Icons.Default.Warning,
+            stringResource(R.string.home_health_connect_partial),
+            null,
+        )
+        HomeHealthConnectSync.MissingPermissions -> Triple(
+            Icons.Default.Warning,
+            stringResource(R.string.home_health_connect_missing_permissions),
+            R.string.home_health_connect_missing_permissions_action,
+        )
+        HomeHealthConnectSync.UpdateRequired -> Triple(
+            Icons.Default.Warning,
+            stringResource(R.string.home_health_connect_update_required),
+            null,
+        )
+        HomeHealthConnectSync.Unavailable -> Triple(
+            Icons.Default.Error,
+            stringResource(R.string.home_health_connect_unavailable),
+            null,
+        )
+        is HomeHealthConnectSync.Failed -> Triple(
+            Icons.Default.Error,
+            stringResource(R.string.home_health_connect_failed),
+            null,
+        )
+    }
+    if (text == null) return
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(LocalSpacing.current.sm),
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = atlasColors.ink2,
+        )
+        Text(
+            modifier = Modifier.weight(1f),
+            text = text,
+            style = MaterialTheme.typography.bodySmall,
+            color = atlasColors.ink2,
+        )
+        if (actionRes != null) {
+            AtlasPrimaryButton(
+                onClick = onOpenPermissions,
+                text = stringResource(actionRes),
+            )
+        }
+        AtlasPrimaryButton(
+            onClick = onDismiss,
+            text = stringResource(R.string.home_health_connect_dismiss),
+        )
+    }
+}
+
+/**
+ * Formatea el tiempo transcurrido desde `timestampMillis` hasta ahora en
+ * formato corto ("instantes", "5 min", "2 h"). Solo se usa para mensajes
+ * discretos de la UI.
+ */
+@Composable
+private fun formatRelativeAgo(timestampMillis: Long): String {
+    val now = System.currentTimeMillis()
+    val diff = (now - timestampMillis).coerceAtLeast(0L)
+    val minutes = diff / 60_000L
+    val hours = minutes / 60L
+    return when {
+        minutes < 1L -> stringResource(R.string.home_health_connect_success_just_now)
+        minutes < 60L -> stringResource(R.string.home_health_connect_minutes_short, minutes.toInt())
+        else -> stringResource(R.string.home_health_connect_hours_short, hours.toInt())
+    }
+}
 
 private fun currentDateLabel(): String {
     val formatter = DateTimeFormatter.ofPattern("EEEE dd · MMMM", Locale.getDefault())

@@ -299,6 +299,12 @@ private fun StepBody(
                             onValueChange = onAgeChanged,
                             label = stringResource(R.string.onboarding_profile_age),
                             keyboardType = KeyboardType.Number,
+                            isError = state.ageInvalid,
+                            supportingText = if (state.ageInvalid) {
+                                stringResource(R.string.edit_profile_age_invalid)
+                            } else {
+                                null
+                            },
                         )
                         AtlasTextField(
                             modifier = Modifier.weight(1f),
@@ -306,6 +312,12 @@ private fun StepBody(
                             onValueChange = onHeightChanged,
                             label = stringResource(R.string.onboarding_profile_height),
                             keyboardType = KeyboardType.Decimal,
+                            isError = state.heightInvalid,
+                            supportingText = if (state.heightInvalid) {
+                                stringResource(R.string.edit_profile_height_invalid)
+                            } else {
+                                null
+                            },
                         )
                     }
                     ChoiceSelector(

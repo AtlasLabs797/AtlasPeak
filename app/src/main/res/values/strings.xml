@@ -108,6 +108,12 @@
     <string name="workout_notification_rest_done">Descanso terminado</string>
     <string name="workout_active_missing_routine">No se pudo iniciar esta rutina.</string>
     <string name="workout_timer_service_unavailable">El cronómetro persistente no pudo arrancar por permisos del dispositivo.</string>
+    <string name="workout_active_session_conflict_title">Entrenamiento en curso</string>
+    <string name="workout_active_session_conflict_body">Tienes un entrenamiento abierto de %1$s. ¿Qué quieres hacer?</string>
+    <string name="workout_active_session_conflict_continue">Continuar entrenamiento</string>
+    <string name="workout_active_session_conflict_discard">Descartar y empezar uno nuevo</string>
+    <string name="workout_active_session_conflict_unknown_routine">otra rutina</string>
+    <string name="cardio_active_session_conflict_unknown_type">otro cardio</string>
     <string name="workout_exit_dialog_title">¿Salir del entrenamiento?</string>
     <string name="workout_exit_dialog_body">Si sales ahora se descartará la sesión y se perderán las series registradas.</string>
     <string name="workout_exit_dialog_discard">Descartar entrenamiento</string>
@@ -181,6 +187,7 @@
     <string name="cardio_notification_title">Cardio activo</string>
     <string name="cardio_notification_text">%1$s - %2$.2f km</string>
     <string name="cardio_active_missing_session">No se pudo iniciar esta sesión de cardio.</string>
+    <string name="cardio_active_session_conflict_body">Tienes una sesión de cardio abierta de %1$s. ¿Qué quieres hacer?</string>
     <string name="cardio_finish_action">Finalizar cardio</string>
     <string name="cardio_cancel_dialog_title">¿Cancelar la sesión de cardio?</string>
     <string name="cardio_cancel_dialog_body">Si cancelas ahora se descartará la sesión y no se guardará ningún dato.</string>
@@ -189,12 +196,28 @@
     <string name="cardio_active_mode_timer">Timer</string>
     <string name="cardio_active_mode_countdown">Countdown</string>
     <string name="cardio_active_remaining">Restante: %1$s</string>
+    <string name="cardio_action_pause">Pausar</string>
+    <string name="cardio_action_resume">Reanudar</string>
+    <string name="cardio_active_paused">Cronómetro en pausa</string>
+    <string name="cardio_active_searching_gps">Buscando GPS…</string>
+    <string name="cardio_active_no_route">Aún no hay recorrido</string>
+    <string name="cardio_active_enter_manual">Introducir distancia manualmente</string>
+    <string name="cardio_finish_disabled_no_route">Empieza a moverte o introduce la distancia para poder finalizar.</string>
     <string name="cardio_metric_distance">Distancia</string>
     <string name="cardio_metric_current_speed">Velocidad actual</string>
     <string name="cardio_metric_avg_speed">Velocidad media</string>
     <string name="cardio_metric_points">Puntos GPS</string>
     <string name="cardio_metric_distance_value">%1$.2f km</string>
     <string name="cardio_metric_speed_value">%1$.1f km/h</string>
+    <string name="cardio_metric_pace">Ritmo</string>
+    <string name="cardio_metric_pace_value">%1$d:%2$02d /km</string>
+    <string name="cardio_gps_state_searching">Buscando GPS…</string>
+    <string name="cardio_gps_state_active">GPS conectado</string>
+    <string name="cardio_gps_state_weak">Señal GPS débil</string>
+    <string name="cardio_gps_state_unavailable">GPS no disponible</string>
+    <string name="cardio_gps_state_denied">Ubicación denegada</string>
+    <string name="cardio_gps_state_na">Sesión sin GPS</string>
+    <string name="cardio_gps_speed_unknown">—</string>
     <string name="cardio_manual_distance_title">Entrada manual</string>
     <string name="cardio_manual_distance_body">Usa estos campos para máquinas sin GPS o si deniegas ubicación.</string>
     <string name="cardio_manual_distance_label">Distancia km</string>
@@ -211,6 +234,8 @@
     <string name="cardio_route_saved">Ruta guardada</string>
     <string name="cardio_route_not_saved">Sin ruta GPS guardada.</string>
     <string name="cardio_route_map_summary">Mapa de ruta GPS con %1$d puntos y %2$.2f km.</string>
+    <string name="cardio_route_start">Inicio</string>
+    <string name="cardio_route_end">Fin</string>
 
     <!-- Errores genéricos -->
     <!-- Progreso -->
@@ -272,6 +297,18 @@
     <string name="home_today_cardio_start">Iniciar cardio</string>
     <string name="home_today_workout_completed">Completado hoy</string>
     <string name="home_today_cardio_incomplete">Plan incompleto: falta duracion objetivo.</string>
+    <string name="home_health_connect_syncing">Health Connect · sincronizando…</string>
+    <string name="home_health_connect_success">Health Connect · actualizado hace %1$s</string>
+    <string name="home_health_connect_success_just_now">Health Connect · actualizado hace instantes</string>
+    <string name="home_health_connect_partial">Health Connect · sincronización parcial</string>
+    <string name="home_health_connect_missing_permissions">Health Connect · faltan permisos</string>
+    <string name="home_health_connect_missing_permissions_action">Conceder permisos</string>
+    <string name="home_health_connect_update_required">Health Connect · actualiza la app de Health Connect</string>
+    <string name="home_health_connect_unavailable">Health Connect · no disponible en este dispositivo</string>
+    <string name="home_health_connect_failed">Health Connect · última sincronización falló</string>
+    <string name="home_health_connect_dismiss">Cerrar aviso</string>
+    <string name="home_health_connect_minutes_short">%1$d min</string>
+    <string name="home_health_connect_hours_short">%1$d h</string>
     <string name="home_widget_volume_title">Volumen total</string>
     <string name="home_widget_consistency_title">Consistencia</string>
     <string name="home_widget_activity_title">Tiempo total de actividad</string>
@@ -376,6 +413,15 @@
     <string name="backup_last_never">nunca</string>
     <string name="backup_drive_title">Google Drive</string>
     <string name="backup_drive_body">Usa el scope drive.appdata. Google solo recibe el archivo cifrado.</string>
+    <string name="backup_drive_reconnect_title">Backup automático detenido</string>
+    <string name="backup_drive_reconnect_body">Vuelve a conectar Google Drive para reanudar las copias automáticas.</string>
+    <string name="backup_drive_reconnect_action">Reconectar Drive</string>
+    <string name="backup_drive_reconnect_attempting">Reintentando conexión con Drive…</string>
+    <string name="backup_last_error_title">El último intento de backup falló</string>
+    <string name="backup_last_error_network">Sin conexión de red.</string>
+    <string name="backup_last_error_crypto">Error al cifrar el backup.</string>
+    <string name="backup_last_error_invalid">Backup inválido o corrupto.</string>
+    <string name="backup_last_error_unknown">Error desconocido.</string>
     <string name="backup_drive_create">Crear en Drive</string>
     <string name="backup_drive_refresh">Listar</string>
     <string name="backup_drive_empty">No hay copias en Drive.</string>

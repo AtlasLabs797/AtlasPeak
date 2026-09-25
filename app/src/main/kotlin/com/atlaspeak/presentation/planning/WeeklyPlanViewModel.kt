@@ -16,6 +16,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -35,8 +36,8 @@ class WeeklyPlanViewModel @Inject constructor(
         refresh()
     }
 
-    fun refresh() {
-        viewModelScope.launch {
+    fun refresh(): Job {
+        return viewModelScope.launch {
             mutableState.update { it.copy(isLoading = true, messageRes = null) }
             try {
                 val routines = routineUseCase.routines().map { it.toOption() }
@@ -185,32 +186,63 @@ class WeeklyPlanViewModel @Inject constructor(
     }
 
     fun saveDay(dayOfWeek: Int) {
+        // BUG-098 (Fase 9 P2): antes `saveDay()` lanzaba `refresh()` y justo
+        // despues cambiaba `messageRes`. Como `refresh()` corre su propio
+        // job y tambien escribe en `messageRes`, podia sobrescribir el
+        // feedback de "Guardado" o reentregar el mensaje de error. Ahora:
+        //   1) marcamos isSaving=true para deshabilitar el boton.
+        //   2) esperamos a que el use case termine ANTES de recargar.
+        //   3) emitimos el evento one-shot Saved/Invalid/Error y limpiamos
+        //      isSaving solo cuando la pantalla ya esta sincronizada.
         val draft = mutableState.value.days.firstOrNull { it.dayOfWeek == dayOfWeek } ?: return
+        if (mutableState.value.isSaving) return
+        mutableState.update { it.copy(isSaving = true, messageRes = null) }
         viewModelScope.launch {
-            val saved = weeklyPlanUseCase.updateDay(
-                WeeklyPlanUpdate(
-                    dayOfWeek = draft.dayOfWeek,
-                    isRestDay = draft.isRestDay,
-                    sessions = draft.sessions.map { session ->
-                        WeeklyPlanSessionUpdate(
-                            id = session.id.takeUnless { it.startsWith("draft_") },
-                            type = session.type,
-                            routineId = session.routineId,
-                            cardioTypeId = session.cardioTypeId,
-                            cardioTargetDurationSec = session.cardioTargetSeconds,
-                            notificationEnabled = session.notificationEnabled,
-                            notificationTime = session.notificationTime,
+            try {
+                val saved = weeklyPlanUseCase.updateDay(
+                    WeeklyPlanUpdate(
+                        dayOfWeek = draft.dayOfWeek,
+                        isRestDay = draft.isRestDay,
+                        sessions = draft.sessions.map { session ->
+                            WeeklyPlanSessionUpdate(
+                                id = session.id.takeUnless { it.startsWith("draft_") },
+                                type = session.type,
+                                routineId = session.routineId,
+                                cardioTypeId = session.cardioTypeId,
+                                cardioTargetDurationSec = session.cardioTargetSeconds,
+                                notificationEnabled = session.notificationEnabled,
+                                notificationTime = session.notificationTime,
+                            )
+                        },
+                        notificationEnabled = false,
+                        notificationTime = null,
+                    ),
+                )
+                if (saved) {
+                    refresh().join()
+                    mutableState.update {
+                        it.copy(
+                            messageRes = R.string.weekly_plan_saved,
+                            isSaving = false,
                         )
-                    },
-                    notificationEnabled = false,
-                    notificationTime = null,
-                ),
-            )
-            if (saved) {
-                refresh()
-                mutableState.update { it.copy(messageRes = R.string.weekly_plan_saved) }
-            } else {
-                mutableState.update { it.copy(messageRes = R.string.weekly_plan_invalid_time) }
+                    }
+                } else {
+                    mutableState.update {
+                        it.copy(
+                            messageRes = R.string.weekly_plan_invalid_time,
+                            isSaving = false,
+                        )
+                    }
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) {
+                mutableState.update {
+                    it.copy(
+                        messageRes = R.string.weekly_plan_invalid_time,
+                        isSaving = false,
+                    )
+                }
             }
         }
     }
@@ -251,6 +283,7 @@ class WeeklyPlanViewModel @Inject constructor(
 
 data class WeeklyPlanUiState(
     val isLoading: Boolean = true,
+    val isSaving: Boolean = false,
     val routines: List<RoutineOption> = emptyList(),
     val cardioTypes: List<CardioTypeOption> = emptyList(),
     val days: List<WeeklyPlanDayDraft> = emptyList(),

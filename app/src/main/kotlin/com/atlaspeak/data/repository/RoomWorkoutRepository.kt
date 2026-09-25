@@ -39,6 +39,26 @@ class RoomWorkoutRepository @Inject constructor(
         }
     }
 
+    override suspend fun findActiveSession(): WorkoutSession? {
+        val entity = database.workoutDao().getActiveStrengthSession() ?: return null
+        return entity.toDomain(database.workoutDao().getSets(entity.id))
+    }
+
+    override suspend fun findActiveOrCreateSession(session: WorkoutSession): WorkoutSession {
+        return database.withTransaction {
+            val active = database.workoutDao().getActiveStrengthSession()
+            if (active != null) {
+                active.toDomain(database.workoutDao().getSets(active.id))
+            } else {
+                database.workoutDao().upsertSession(session.toEntity())
+                database.workoutDao().upsertSets(
+                    session.exercises.flatMap { exercise -> exercise.sets.map { it.toEntity() } },
+                )
+                session
+            }
+        }
+    }
+
     override suspend fun deleteSession(id: String) {
         database.workoutDao().deleteSession(id)
     }
@@ -82,6 +102,7 @@ class RoomWorkoutRepository @Inject constructor(
             durationSeconds = durationSeconds,
             completed = completed,
             totalVolumeKg = totalVolumeKg,
+            weeklyPlanSessionId = weeklyPlanSessionId,
             exercises = sets.groupBy { it.exerciseId }.map { (exerciseId, exerciseSets) ->
                 val routineEntry = routineEntries[exerciseId]
                 ActiveWorkoutExercise(
@@ -109,6 +130,7 @@ class RoomWorkoutRepository @Inject constructor(
         completed = completed,
         caloriesBurned = null,
         totalVolumeKg = totalVolumeKg,
+        weeklyPlanSessionId = weeklyPlanSessionId,
     )
 
     private fun WorkoutSet.toEntity() = WorkoutSetEntity(

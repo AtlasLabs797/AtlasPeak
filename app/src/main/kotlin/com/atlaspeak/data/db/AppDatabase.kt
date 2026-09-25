@@ -7,6 +7,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.atlaspeak.data.db.dao.AuthSecurityDao
 import com.atlaspeak.data.db.dao.BodyCompositionDao
 import com.atlaspeak.data.db.dao.CardioDao
+import com.atlaspeak.data.db.dao.CardioRoutePointDao
 import com.atlaspeak.data.db.dao.DashboardDao
 import com.atlaspeak.data.db.dao.ExerciseDao
 import com.atlaspeak.data.db.dao.HealthConnectDao
@@ -20,6 +21,7 @@ import com.atlaspeak.data.db.dao.WorkoutDao
 import com.atlaspeak.data.db.entity.AppSettingsEntity
 import com.atlaspeak.data.db.entity.AuthSecurityEntity
 import com.atlaspeak.data.db.entity.BodyCompositionEntity
+import com.atlaspeak.data.db.entity.CardioRoutePointEntity
 import com.atlaspeak.data.db.entity.CardioSessionEntity
 import com.atlaspeak.data.db.entity.CardioTypeEntity
 import com.atlaspeak.data.db.entity.ExerciseEntity
@@ -50,6 +52,7 @@ import com.atlaspeak.data.db.entity.WorkoutSetEntity
         WorkoutSetEntity::class,
         CardioTypeEntity::class,
         CardioSessionEntity::class,
+        CardioRoutePointEntity::class,
         BodyCompositionEntity::class,
         WeeklyPlanEntity::class,
         HcSyncLogEntity::class,
@@ -61,7 +64,7 @@ import com.atlaspeak.data.db.entity.WorkoutSetEntity
         HcSleepStageEntity::class,
         HcHeartRateSampleEntity::class,
     ],
-    version = 6,
+    version = 9,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -72,6 +75,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun routineDao(): RoutineDao
     abstract fun workoutDao(): WorkoutDao
     abstract fun cardioDao(): CardioDao
+    abstract fun cardioRoutePointDao(): CardioRoutePointDao
     abstract fun settingsDao(): SettingsDao
     abstract fun authSecurityDao(): AuthSecurityDao
     abstract fun bodyCompositionDao(): BodyCompositionDao
@@ -353,6 +357,69 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    """
+                    CREATE TABLE IF NOT EXISTS cardio_route_points (
+                        id TEXT NOT NULL,
+                        session_id TEXT NOT NULL,
+                        timestamp_ms INTEGER NOT NULL,
+                        latitude REAL NOT NULL,
+                        longitude REAL NOT NULL,
+                        accuracy_m REAL,
+                        speed_kmh REAL,
+                        distance_from_previous_km REAL NOT NULL DEFAULT 0.0,
+                        PRIMARY KEY(id),
+                        FOREIGN KEY(session_id) REFERENCES workout_sessions(id) ON UPDATE NO ACTION ON DELETE CASCADE
+                    )
+                    """.trimIndent(),
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_cardio_route_points_session_id " +
+                        "ON cardio_route_points(session_id)",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_cardio_route_points_session_id_timestamp_ms " +
+                        "ON cardio_route_points(session_id, timestamp_ms)",
+                )
+            }
+        }
+
+        // BUG-094 (Fase 5 P1): soporte de pausa/reanudacion para sesiones de
+        // cardio activas. Anadimos `paused_at_ms` (INTEGER nullable, ausente =>
+        // sesion no pausada) y `total_paused_duration_ms` (INTEGER NOT NULL
+        // con DEFAULT 0 para que las filas existentes la rellenen sin rewrite
+        // de la tabla). No alteramos `start_time`: la pausa se descuenta en
+        // lectura (`effectiveElapsedSeconds`) sin falsificar el origen.
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE cardio_sessions ADD COLUMN paused_at_ms INTEGER")
+                db.execSQL(
+                    "ALTER TABLE cardio_sessions ADD COLUMN total_paused_duration_ms " +
+                        "INTEGER NOT NULL DEFAULT 0",
+                )
+            }
+        }
+
+        // BUG-097 (Fase 8 P1): anadimos `weekly_plan_session_id` a
+        // `workout_sessions` para que las sesiones iniciadas desde el plan
+        // semanal apunten al row concreto de `weekly_plan` que las origino.
+        // Asi, la regla "completar" se aplica por entrada individual y no
+        // por (day, type, targetId), que es lo que producia el bug de las dos
+        // sesiones del mismo dia marcadas a la vez.
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE workout_sessions ADD COLUMN weekly_plan_session_id TEXT",
+                )
+                db.execSQL(
+                    "CREATE INDEX IF NOT EXISTS index_workout_sessions_weekly_plan_session_id " +
+                        "ON workout_sessions(weekly_plan_session_id)",
+                )
+            }
+        }
+
         val TABLE_ORDER = listOf(
             "users",
             "user_profile",
@@ -364,6 +431,7 @@ abstract class AppDatabase : RoomDatabase() {
             "workout_sets",
             "cardio_types",
             "cardio_sessions",
+            "cardio_route_points",
             "body_composition",
             "weekly_plan",
             "hc_sync_log",

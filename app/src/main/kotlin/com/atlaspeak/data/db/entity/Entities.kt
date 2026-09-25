@@ -151,6 +151,11 @@ data class WorkoutSessionEntity(
     val completed: Boolean = false,
     @ColumnInfo(name = "calories_burned") val caloriesBurned: Int? = null,
     @ColumnInfo(name = "total_volume_kg") val totalVolumeKg: Double? = null,
+    // BUG-097 (Fase 8 P1): referencia opcional a la entrada concreta del plan
+    // semanal. Cuando la sesion se inicia desde el plan, este campo lleva el id
+    // del row `weekly_plan` correspondiente, asi "completar" se refiere a esa
+    // entrada y no a "cualquier sesion del mismo tipo/rutina ese dia".
+    @ColumnInfo(name = "weekly_plan_session_id", index = true) val weeklyPlanSessionId: String? = null,
 )
 
 @Entity(
@@ -234,6 +239,44 @@ data class CardioSessionEntity(
     @ColumnInfo(name = "has_gps") val hasGps: Boolean = false,
     @ColumnInfo(name = "route_polyline_json") val routePolylineJson: String? = null,
     val source: String,
+    // BUG-094 (Fase 5 P1): campos para pausar/reanudar la sesion activa sin
+    // falsificar `startTime`. `paused_at_ms` es null mientras la sesion esta
+    // corriendo; al pausar toma la hora actual (epoch ms) y al reanudar se
+    // acumula `(now - paused_at_ms)` en `total_paused_duration_ms` y se vuelve
+    // a null. El tiempo efectivo excluye ambos tramos.
+    @ColumnInfo(name = "paused_at_ms") val pausedAtMs: Long? = null,
+    @ColumnInfo(name = "total_paused_duration_ms", defaultValue = "0") val totalPausedDurationMs: Long = 0L,
+)
+
+/**
+ * Punto GPS aceptado durante una sesion de cardio activa. Se inserta incrementalmente
+ * (no se serializa la ruta completa en cada fix) para que la ruta sobreviva a la
+ * muerte del proceso. BUG-091 / Fase 2 P0.
+ */
+@Entity(
+    tableName = "cardio_route_points",
+    foreignKeys = [
+        ForeignKey(
+            entity = WorkoutSessionEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["session_id"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [
+        Index(value = ["session_id"]),
+        Index(value = ["session_id", "timestamp_ms"]),
+    ],
+)
+data class CardioRoutePointEntity(
+    @PrimaryKey val id: String,
+    @ColumnInfo(name = "session_id") val sessionId: String,
+    @ColumnInfo(name = "timestamp_ms") val timestampMs: Long,
+    val latitude: Double,
+    val longitude: Double,
+    @ColumnInfo(name = "accuracy_m") val accuracyM: Float? = null,
+    @ColumnInfo(name = "speed_kmh") val speedKmh: Double? = null,
+    @ColumnInfo(name = "distance_from_previous_km", defaultValue = "0.0") val distanceFromPreviousKm: Double = 0.0,
 )
 
 @Entity(tableName = "body_composition", indices = [Index(value = ["measured_at"]), Index(value = ["source"])])

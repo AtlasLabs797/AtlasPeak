@@ -36,7 +36,10 @@ class RoomBackupSnapshotStoreInstrumentedTest {
             ApplicationProvider.getApplicationContext(),
             AppDatabase::class.java,
         ).build()
-        store = RoomBackupSnapshotStore(database)
+        store = RoomBackupSnapshotStore(
+            database = database,
+            healthStore = BackupHealthStore(ApplicationProvider.getApplicationContext()),
+        )
     }
 
     @After

@@ -10,6 +10,7 @@ import com.atlaspeak.domain.model.body.BodyCompositionSnapshot
 import com.atlaspeak.domain.model.body.BodyMetric
 import com.atlaspeak.domain.model.healthconnect.HealthConnectAvailability
 import com.atlaspeak.domain.usecase.body.BodyCompositionUseCase
+import com.atlaspeak.domain.usecase.body.BodyCompositionValidation
 import com.atlaspeak.domain.usecase.healthconnect.SyncHealthConnectUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -211,20 +212,31 @@ data class BodyCompositionDraft(
     }
 
     fun isValidRaw(): Boolean {
+        // BUG-099 (Fase 10 P2): estos rangos vivian duplicados aqui (bodyAge
+        // hasta 130, muscle/water/bone mass hasta 500) y divergian de los
+        // que usa `BodyCompositionUseCase`. Ahora ambos pasan por
+        // `BodyCompositionValidation`, la fuente de verdad unica.
         val rawValues = BodyMetric.entries.map { value(it).trim() }
         if (rawValues.none { it.isNotBlank() }) return false
         return BodyMetric.entries.all { metric ->
             val value = value(metric).trim()
             value.isBlank() || when (metric) {
-                BodyMetric.VisceralFat -> value.toIntOrNullFlexible()?.let { it in 1..100 } == true
-                BodyMetric.BodyAge -> value.toIntOrNullFlexible()?.let { it in 1..130 } == true
-                BodyMetric.Weight -> value.toDoubleOrNullFlexible()?.let { it in 1.0..500.0 } == true
+                BodyMetric.VisceralFat ->
+                    BodyCompositionValidation.visceralFatIsValid(value.toIntOrNullFlexible())
+                BodyMetric.BodyAge ->
+                    BodyCompositionValidation.bodyAgeIsValid(value.toIntOrNullFlexible())
+                BodyMetric.Weight ->
+                    BodyCompositionValidation.weightIsValid(value.toDoubleOrNullFlexible())
                 BodyMetric.BodyFat,
                 BodyMetric.Water,
-                BodyMetric.Protein -> value.toDoubleOrNullFlexible()?.let { it in 0.0..100.0 } == true
-                BodyMetric.MuscleMass,
-                BodyMetric.BodyWaterMass,
-                BodyMetric.BoneMass -> value.toDoubleOrNullFlexible()?.let { it in 0.0..500.0 } == true
+                BodyMetric.Protein ->
+                    BodyCompositionValidation.percentIsValid(value.toDoubleOrNullFlexible())
+                BodyMetric.MuscleMass ->
+                    BodyCompositionValidation.muscleMassIsValid(value.toDoubleOrNullFlexible())
+                BodyMetric.BodyWaterMass ->
+                    BodyCompositionValidation.bodyWaterMassIsValid(value.toDoubleOrNullFlexible())
+                BodyMetric.BoneMass ->
+                    BodyCompositionValidation.boneMassIsValid(value.toDoubleOrNullFlexible())
             }
         }
     }
