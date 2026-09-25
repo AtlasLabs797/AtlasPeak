@@ -245,7 +245,7 @@ data class CardioSessionEntity(
     // acumula `(now - paused_at_ms)` en `total_paused_duration_ms` y se vuelve
     // a null. El tiempo efectivo excluye ambos tramos.
     @ColumnInfo(name = "paused_at_ms") val pausedAtMs: Long? = null,
-    @ColumnInfo(name = "total_paused_duration_ms") val totalPausedDurationMs: Long = 0L,
+    @ColumnInfo(name = "total_paused_duration_ms", defaultValue = "0") val totalPausedDurationMs: Long = 0L,
 )
 
 /**
@@ -276,7 +276,7 @@ data class CardioRoutePointEntity(
     val longitude: Double,
     @ColumnInfo(name = "accuracy_m") val accuracyM: Float? = null,
     @ColumnInfo(name = "speed_kmh") val speedKmh: Double? = null,
-    @ColumnInfo(name = "distance_from_previous_km") val distanceFromPreviousKm: Double = 0.0,
+    @ColumnInfo(name = "distance_from_previous_km", defaultValue = "0.0") val distanceFromPreviousKm: Double = 0.0,
 )
 
 @Entity(tableName = "body_composition", indices = [Index(value = ["measured_at"]), Index(value = ["source"])])
