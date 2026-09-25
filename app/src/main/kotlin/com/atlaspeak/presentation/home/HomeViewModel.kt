@@ -147,6 +147,7 @@ class HomeViewModel @Inject constructor(
                 val cardioTypeName = session.cardioTypeName ?: return@mapNotNull null
                 val targetSeconds = session.cardioTargetDurationSec
                 TodayWorkoutUiState(
+                    weeklyPlanSessionId = session.id,
                     orderIndex = session.orderIndex,
                     type = TodayWorkoutType.Cardio,
                     routineId = null,
@@ -165,6 +166,7 @@ class HomeViewModel @Inject constructor(
             } else {
                 if (session.routineId == null || session.routineName == null) return@mapNotNull null
                 TodayWorkoutUiState(
+                    weeklyPlanSessionId = session.id,
                     orderIndex = session.orderIndex,
                     type = TodayWorkoutType.Strength,
                     routineId = session.routineId,
@@ -247,6 +249,7 @@ private fun HealthConnectSyncResult?.toHomeSyncStatus(now: Long): HomeHealthConn
 
 data class TodayWorkoutUiState(
     val orderIndex: Int,
+    val weeklyPlanSessionId: String? = null,
     val type: TodayWorkoutType,
     val routineId: String?,
     val routineName: String?,
