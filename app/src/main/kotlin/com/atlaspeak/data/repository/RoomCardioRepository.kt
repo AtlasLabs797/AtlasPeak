@@ -76,6 +76,20 @@ class RoomCardioRepository @Inject constructor(
         return cardio.toDomain(workout)
     }
 
+    override suspend fun findActiveOrCreateSession(session: CardioSession): CardioSession {
+        return database.withTransaction {
+            val active = database.cardioDao().getActiveCardioSession()
+            if (active != null) {
+                val workout = database.workoutDao().getSession(active.sessionId)
+                if (workout != null) active.toDomain(workout) else session
+            } else {
+                database.workoutDao().upsertSession(session.toWorkoutSessionEntity())
+                database.cardioDao().upsertCardioSession(session.toEntity())
+                session
+            }
+        }
+    }
+
     override suspend fun updateSession(session: CardioSession) {
         database.withTransaction {
             database.workoutDao().upsertSession(session.toWorkoutSessionEntity())
