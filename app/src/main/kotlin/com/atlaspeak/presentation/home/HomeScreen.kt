@@ -147,7 +147,7 @@ fun HomeScreen(
                     todayWorkouts = state.todayWorkouts,
                     filters = state.filters,
                     errorMessageRes = state.errorMessageRes,
-                    healthConnectSync = healthConnectSync,
+                    healthConnectSync = state.healthConnectSync,
                     onOpenHealthConnectPermissions = onOpenHealthConnectPermissions,
                     onDismissHealthConnect = onDismissHealthConnect,
                     onPeriodSelected = onPeriodSelected,
