@@ -28,6 +28,24 @@ class BackupJsonCodecTest {
     }
 
     @Test
+    fun `decode upgrades previous release backup before validating table set`() {
+        val previousTables = AppDatabase.TABLES
+            .minus("cardio_route_points")
+            .associateWith { emptyList<Map<String, kotlinx.serialization.json.JsonElement>>() }
+        val snapshot = DatabaseBackupSnapshot(
+            schemaVersion = 5,
+            exportedAt = 1_800_000_000_000,
+            tables = previousTables,
+        )
+
+        val restored = codec.decode(codec.encode(snapshot))
+
+        assertEquals(BackupJsonCodec.CURRENT_SCHEMA_VERSION, restored.schemaVersion)
+        assertEquals(AppDatabase.TABLES, restored.tables.keys)
+        assertTrue(restored.tables.getValue("cardio_route_points").isEmpty())
+    }
+
+    @Test
     fun `decode rejects unsupported future schema versions`() {
         val snapshot = DatabaseBackupSnapshot(
             schemaVersion = 999,
