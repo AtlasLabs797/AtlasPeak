@@ -268,7 +268,7 @@ class ActiveCardioViewModel(
 
     /**
      * Pausa la sesion activa: congela el cronometro guardando `pausedAtMillis`
-     * (no falsificamos `startTime`) y detiene los jobs del FGS. BUG-094.
+     * (no falsificamos `startTime`) y detiene los jobs del FGS. BUG-105.
      *
      * Idempotente: si la sesion ya esta pausada, sale sin tocar Room.
      */
@@ -288,8 +288,16 @@ class ActiveCardioViewModel(
         viewModelScope.launch {
             cardioRepository.updateSession(updated)
         }
-        runCatching {
-            context.startService(CardioForegroundService.pauseIntent(context, session.id))
+        // BUG-105: solo reenviamos la accion al FGS si realmente hay uno en marcha
+        // (fgsMode != None). En modo local (sin FGS legal) no se arranco ningun
+        // servicio; llamar aqui a startService() lanzaria un servicio ordinario
+        // que nunca promociona a foreground y que el sistema puede matar,
+        // dejando el registro marcado como running sin que el cronometro local
+        // (el unico que realmente cuenta el tiempo en este modo) se entere.
+        if (mutableState.value.fgsMode != CardioFgsMode.None) {
+            runCatching {
+                context.startService(CardioForegroundService.pauseIntent(context, session.id))
+            }
         }
         stopLocalTimer()
     }
@@ -297,7 +305,7 @@ class ActiveCardioViewModel(
     /**
      * Reanuda la sesion pausada: acumula el tiempo en pausa en
      * `totalPausedDurationMillis`, vacia `pausedAtMillis` y reactiva los jobs
-     * del FGS. BUG-094.
+     * del FGS. BUG-105.
      *
      * Idempotente: si la sesion no estaba pausada, sale sin tocar Room.
      */
@@ -326,8 +334,12 @@ class ActiveCardioViewModel(
         viewModelScope.launch {
             cardioRepository.updateSession(updated)
         }
-        runCatching {
-            context.startService(CardioForegroundService.resumeIntent(context, session.id))
+        // BUG-105: idem pauseCardio(). Sin FGS en marcha no hay nada que
+        // reanudar en el servicio; seguimos con el cronometro local.
+        if (mutableState.value.fgsMode != CardioFgsMode.None) {
+            runCatching {
+                context.startService(CardioForegroundService.resumeIntent(context, session.id))
+            }
         }
         startLocalTimerIfNeeded()
     }
@@ -370,7 +382,7 @@ class ActiveCardioViewModel(
         // al CardioTrackerRegistry ANTES de que el FGS arranque su persistJob, para
         // que la sesion continue justo donde se quedo tras una muerte de proceso.
         val restore = cardioUseCase.restoreRoute(sessionId)
-        // BUG-094 (Fase 5 P1): si la sesion quedo pausada antes de la muerte
+        // BUG-105 (Fase 5 P1): si la sesion quedo pausada antes de la muerte
         // del proceso, `state.startedAt` sigue siendo `session.startTime` (no
         // lo falsificamos) y el contador efectivo se calcula con el helper
         // comun (`effectiveElapsedSeconds`) que ya excluye el tiempo en pausa.
@@ -416,7 +428,7 @@ class ActiveCardioViewModel(
 
     private fun startLocalTimerIfNeeded() {
         val session = mutableState.value.session ?: return
-        // BUG-094 (Fase 5 P1): no arrancamos cronometro local mientras la
+        // BUG-105 (Fase 5 P1): no arrancamos cronometro local mientras la
         // sesion este pausada. Si arrancase, contariamos tiempo en pausa
         // como tiempo activo por culpa de un tick que ignora el flag.
         if (session.pausedAtMillis != null) return
@@ -425,7 +437,7 @@ class ActiveCardioViewModel(
             while (true) {
                 val snapshot = mutableState.value
                 val current = snapshot.session ?: break
-                // BUG-094: si el usuario pulsa Pausar mientras el job ya
+                // BUG-105: si el usuario pulsa Pausar mientras el job ya
                 // estaba corriendo, salimos del bucle para no introducir
                 // ticks espurios. La salida se reconcilia al reanudar, que
                 // vuelve a llamar a este metodo.
@@ -485,7 +497,14 @@ data class ActiveCardioUiState(
         completedSessionId == null &&
         (!requiresManualMetrics || hasValidManualMetrics)
     val isPaused: Boolean = session?.pausedAtMillis != null
+    // BUG-104: un GPS sin fix aceptado todavia (route vacia) ya exige metricas
+    // manuales via `requiresManualMetrics`, pero antes solo se revelaba el
+    // formulario cuando ya habia un `message` de error. Con boton "Finalizar"
+    // habilitado (ver `canComplete`) y formulario oculto, la sesion quedaba
+    // sin forma de completarse. Mostramos el formulario en cuanto la ruta GPS
+    // sigue vacia, sin esperar a un mensaje de error.
     val shouldShowManualMetrics: Boolean = session?.hasGps != true ||
+        route.isEmpty() ||
         message == ActiveCardioMessage.LocationPermissionDenied ||
         message == ActiveCardioMessage.TrackerUnavailable ||
         message == ActiveCardioMessage.ManualMetricsRequired

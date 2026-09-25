@@ -591,6 +591,63 @@ class ActiveCardioViewModelTest {
     }
 
     @Test
+    fun `pause and resume in local-only mode never call startService on the FGS`() = runTest(dispatcher) {
+        // BUG-105: sin FGS legal (fgsMode None), pause/resume no deben tocar
+        // el servicio. AllowingContext registra cada intent (la llamada va dentro
+        // de runCatching, asi que un context que lanza no detectaria la regresion).
+        val context = AllowingContext()
+        val viewModel = newViewModel("run", context = context)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(CardioFgsMode.None, viewModel.state.value.fgsMode)
+        val intentsBefore = context.startedIntents.size
+
+        viewModel.pauseCardio()
+        assertEquals(true, viewModel.state.value.isPaused)
+
+        viewModel.resumeCardio()
+        assertEquals(false, viewModel.state.value.isPaused)
+        assertEquals(intentsBefore, context.startedIntents.size)
+    }
+
+    @Test
+    fun `pause and resume forward the intent to the FGS when it is running`() = runTest(dispatcher) {
+        // Con fgsMode distinto de None (FGS realmente arrancado), pause/resume
+        // si deben reenviar la accion al servicio.
+        val context = AllowingContext()
+        val viewModel = newViewModel("run", context = context)
+        dispatcher.scheduler.advanceUntilIdle()
+        viewModel.startTrackingService(locationAllowed = true)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(CardioFgsMode.Location, viewModel.state.value.fgsMode)
+        val intentsAfterStart = context.startedIntents.size
+
+        viewModel.pauseCardio()
+        assertEquals(intentsAfterStart + 1, context.startedIntents.size)
+
+        viewModel.resumeCardio()
+        assertEquals(intentsAfterStart + 2, context.startedIntents.size)
+    }
+
+    @Test
+    fun `manual metrics form shows and completion is possible when GPS has no fix yet`() = runTest(dispatcher) {
+        // BUG-104: sesion GPS sin ningun fix
+        // aceptado (route vacia) y sin mensaje de error todavia. El formulario
+        // manual debe revelarse igualmente para que la sesion se pueda cerrar.
+        val viewModel = newViewModel("run")
+        dispatcher.scheduler.advanceUntilIdle()
+        val state = viewModel.state.value
+        assertEquals(true, state.session?.hasGps)
+        assertTrue(state.route.isEmpty())
+        assertNull(state.message)
+        assertTrue(state.requiresManualMetrics)
+        assertTrue(state.shouldShowManualMetrics)
+        assertEquals(false, state.canComplete)
+
+        viewModel.onManualDistanceChanged("3.1")
+        assertEquals(true, viewModel.state.value.canComplete)
+    }
+
+    @Test
     fun `completeCardio is idempotent and second call is a no-op`() = runTest(dispatcher) {
         val viewModel = newViewModel("run")
         viewModel.onManualDistanceChanged("5.2")
