@@ -36,8 +36,10 @@ class AppUserDataEraser @Inject constructor(
     private val backupHealthStore: BackupHealthStore,
 ) : UserDataEraser {
 
-    override suspend fun cancelBackgroundWork() = withContext(Dispatchers.IO) {
-        WorkManager.getInstance(context).cancelAllWork()
+    override suspend fun cancelBackgroundWork() {
+        withContext(Dispatchers.IO) {
+            WorkManager.getInstance(context).cancelAllWork()
+        }
     }
 
     override suspend fun deleteDriveBackups(): Boolean = withContext(Dispatchers.IO) {
@@ -53,7 +55,7 @@ class AppUserDataEraser @Inject constructor(
         }
     }
 
-    override suspend fun eraseLocalData() = withContext(Dispatchers.IO) {
+    override suspend fun eraseLocalData(): Unit = withContext(Dispatchers.IO) {
         // Preferencias/DataStore fuera de Room primero: si algo falla despues, es
         // preferible que el usuario vuelva a pasar por onboarding a que quede
         // credenciales de backup huerfanas.
