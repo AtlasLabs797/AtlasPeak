@@ -25,6 +25,12 @@ interface CardioRepository {
      */
     suspend fun addRoutePoint(point: CardioRoutePoint)
 
+    suspend fun addRoutePointIfSessionActive(point: CardioRoutePoint): Boolean {
+        val active = session(point.sessionId)?.completed == false
+        if (active) addRoutePoint(point)
+        return active
+    }
+
     /** Puntos GPS de una sesion ordenados por timestamp ascendente. */
     suspend fun routePoints(sessionId: String): List<CardioRoutePoint>
 
