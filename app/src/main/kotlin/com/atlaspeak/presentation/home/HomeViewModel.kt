@@ -132,6 +132,8 @@ class HomeViewModel @Inject constructor(
         mutableState.update { it.copy(healthConnectSync = HomeHealthConnectSync.Idle) }
     }
 
+    fun requiredHealthConnectPermissions(): Set<String> = syncHealthConnectUseCase.requiredPermissions()
+
     private suspend fun todayWorkouts(): List<TodayWorkoutUiState> {
         val today = Instant.ofEpochMilli(System.currentTimeMillis())
             .atZone(ZoneId.systemDefault())
@@ -236,8 +238,8 @@ private fun HealthConnectSyncResult?.toHomeSyncStatus(now: Long): HomeHealthConn
         availability == HealthConnectAvailability.Unavailable -> HomeHealthConnectSync.Unavailable
         availability == HealthConnectAvailability.UpdateRequired -> HomeHealthConnectSync.UpdateRequired
         missingPermissions -> HomeHealthConnectSync.MissingPermissions
-        successful -> HomeHealthConnectSync.Success(now)
         partiallySuccessful -> HomeHealthConnectSync.PartialSuccess(now)
+        successful -> HomeHealthConnectSync.Success(now)
         failed -> HomeHealthConnectSync.Failed(now)
         else -> HomeHealthConnectSync.Idle
     }
