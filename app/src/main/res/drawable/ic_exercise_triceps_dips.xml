@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fondos en banco: manos en el banco detras del cuerpo, piernas extendidas al frente, caderas bajas. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- suelo -->
+    <path
+        android:pathData="M6,43 L42,43"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeAlpha="0.45"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+    <!-- cabeza -->
+    <path
+        android:pathData="M30,10 m-3.5,0 a3.5,3.5 0 1,1 7,0 a3.5,3.5 0 1,1 -7,0"
+        android:fillColor="#FFFFFFFF" />
+    <!-- tronco -->
+    <path
+        android:pathData="M28,14 L26,26"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round" />
+    <!-- brazo apoyado atras en el banco -->
+    <path
+        android:pathData="M28,15 L20,24"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round" />
+    <!-- pierna extendida al frente, talon en el suelo -->
+    <path
+        android:pathData="M26,26 L35,29 L43,33"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- banco: superficie y patas -->
+    <path
+        android:pathData="M13,24 L25,24 M15,24 L15,32 M23,24 L23,32"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+</vector>

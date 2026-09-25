@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Prensa de piernas: sentado reclinado en la maquina, empujando la plataforma angulada por un riel diagonal. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- asiento -->
+    <path
+        android:pathData="M10,38 L22,38"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+    <!-- respaldo reclinado -->
+    <path
+        android:pathData="M9,38 L13,19"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+    <!-- cabeza -->
+    <path
+        android:pathData="M15,17 m-3.5,0 a3.5,3.5 0 1,1 7,0 a3.5,3.5 0 1,1 -7,0"
+        android:fillColor="#FFFFFFFF" />
+    <!-- tronco, muslo y pierna hacia la plataforma -->
+    <path
+        android:pathData="M15,20 L18,37 L30,34 L41,26"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- plataforma angulada para los pies -->
+    <path
+        android:pathData="M39,22 L44,30"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round" />
+    <!-- riel diagonal de la maquina -->
+    <path
+        android:pathData="M28,32 L44,22"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeAlpha="0.6"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round" />
+    <!-- brazo sujetando el agarre lateral -->
+    <path
+        android:pathData="M15,22 L10,26"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round" />
+</vector>

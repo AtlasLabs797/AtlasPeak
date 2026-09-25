@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Extension de triceps en polea por encima de la cabeza: torso inclinado, cuerda tirada hacia arriba al frente. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- suelo -->
+    <path
+        android:pathData="M6,43 L42,43"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeAlpha="0.45"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+    <!-- cabeza -->
+    <path
+        android:pathData="M26,10 m-3.5,0 a3.5,3.5 0 1,1 7,0 a3.5,3.5 0 1,1 -7,0"
+        android:fillColor="#FFFFFFFF" />
+    <!-- tronco inclinado y pierna -->
+    <path
+        android:pathData="M25,13 L22,28 L20,42"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- brazo extendido hacia arriba y al frente -->
+    <path
+        android:pathData="M24,15 L34,8"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round" />
+    <!-- extremos de la cuerda -->
+    <path
+        android:pathData="M33,6 L33,10 M36,6 L36,10"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+    <!-- cable desde la polea baja y detras -->
+    <path
+        android:pathData="M9,41 L34,8"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeAlpha="0.6"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round" />
+</vector>

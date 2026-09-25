@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Peso muerto: posicion inicial con cadera en bisagra, rodillas flexionadas, espalda recta ~45 grados, barra en el suelo. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- suelo -->
+    <path
+        android:pathData="M6,43 L42,43"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeAlpha="0.45"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+    <!-- cabeza -->
+    <path
+        android:pathData="M16,14 m-3.5,0 a3.5,3.5 0 1,1 7,0 a3.5,3.5 0 1,1 -7,0"
+        android:fillColor="#FFFFFFFF" />
+    <!-- tronco inclinado, muslo, pierna y pie -->
+    <path
+        android:pathData="M18,17 L28,26 L30,34 L27,41 L32,41"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- brazo recto hacia la barra -->
+    <path
+        android:pathData="M18,17 L20,41"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round" />
+    <!-- barra apoyada en el suelo -->
+    <path
+        android:pathData="M14,41 L34,41"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+    <!-- discos tocando el suelo -->
+    <path
+        android:pathData="M14,37 L14,44 M34,37 L34,44"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round" />
+</vector>

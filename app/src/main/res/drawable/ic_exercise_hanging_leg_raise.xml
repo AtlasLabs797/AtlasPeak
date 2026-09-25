@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Elevacion de piernas colgado: brazos rectos sujetos a una barra fija, piernas rectas al frente en horizontal. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- barra fija -->
+    <path
+        android:pathData="M12,6 L36,6"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+    <!-- cabeza -->
+    <path
+        android:pathData="M25,11 m-3.5,0 a3.5,3.5 0 1,1 7,0 a3.5,3.5 0 1,1 -7,0"
+        android:fillColor="#FFFFFFFF" />
+    <!-- brazos rectos hasta la barra -->
+    <path
+        android:pathData="M25,7 L24,17"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round" />
+    <!-- tronco y piernas rectas al frente -->
+    <path
+        android:pathData="M24,17 L23,28 L38,26"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- punta del pie -->
+    <path
+        android:pathData="M38,26 L40,27"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round" />
+</vector>

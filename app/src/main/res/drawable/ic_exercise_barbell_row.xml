@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Remo con barra: tronco inclinado 45 grados, tirando de la barra hacia el vientre. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- suelo -->
+    <path
+        android:pathData="M6,43 L42,43"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeAlpha="0.45"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+    <!-- cabeza -->
+    <path
+        android:pathData="M14,15 m-3.5,0 a3.5,3.5 0 1,1 7,0 a3.5,3.5 0 1,1 -7,0"
+        android:fillColor="#FFFFFFFF" />
+    <!-- tronco inclinado -->
+    <path
+        android:pathData="M16,17 L25,29"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round" />
+    <!-- pierna con rodilla flexionada -->
+    <path
+        android:pathData="M25,29 L24,36 L28,42"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- brazo tirando: codo flexionado hacia atras -->
+    <path
+        android:pathData="M17,18 L23,23 L16,25"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- barra -->
+    <path
+        android:pathData="M9,25 L19,25"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+    <!-- discos -->
+    <path
+        android:pathData="M9,22 L9,28 M19,22 L19,28"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round" />
+</vector>

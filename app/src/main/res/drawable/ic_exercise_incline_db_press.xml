@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Press inclinado con mancuernas: banco a 35 grados, dos mancuernas separadas. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- suelo -->
+    <path
+        android:pathData="M6,43 L42,43"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeAlpha="0.45"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+    <!-- banco inclinado: respaldo, asiento y pata -->
+    <path
+        android:pathData="M9,41 L21,28 M9,41 L27,41 M15,41 L15,36"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+    <!-- cabeza -->
+    <path
+        android:pathData="M19,25 m-3.5,0 a3.5,3.5 0 1,1 7,0 a3.5,3.5 0 1,1 -7,0"
+        android:fillColor="#FFFFFFFF" />
+    <!-- tronco, muslo y pie -->
+    <path
+        android:pathData="M18,27 L12,38 L16,42 L22,41"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- dos brazos separados, uno por mancuerna -->
+    <path
+        android:pathData="M18,27 L21,14 M18,27 L27,16"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round" />
+    <!-- mancuerna delantera -->
+    <path
+        android:pathData="M19,14 L23,14 M19,12 L19,16 M23,12 L23,16"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round" />
+    <!-- mancuerna trasera -->
+    <path
+        android:pathData="M25,16 L29,16 M25,14 L25,18 M29,14 L29,18"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round" />
+</vector>

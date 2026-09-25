@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Curl femoral tumbado: boca abajo en el banco de la maquina, piernas curvadas hacia arriba contra el rodillo. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- cabeza -->
+    <path
+        android:pathData="M8,20.5 m-3.5,0 a3.5,3.5 0 1,1 7,0 a3.5,3.5 0 1,1 -7,0"
+        android:fillColor="#FFFFFFFF" />
+    <!-- tronco horizontal, muslo apoyado y pierna curvada hacia el rodillo -->
+    <path
+        android:pathData="M11,25 L23,27 L29,27 L25,17"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- brazo pegado al torso -->
+    <path
+        android:pathData="M12,25 L14,30"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round" />
+    <!-- banco de la maquina -->
+    <path
+        android:pathData="M7,29 L32,29 M10,29 L10,33 M27,29 L27,33"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+    <!-- rodillo -->
+    <path
+        android:pathData="M22,15 L28,15"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round" />
+</vector>

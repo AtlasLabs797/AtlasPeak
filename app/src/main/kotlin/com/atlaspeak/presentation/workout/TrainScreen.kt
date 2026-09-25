@@ -69,6 +69,7 @@ import com.atlaspeak.presentation.component.AtlasChip
 import com.atlaspeak.presentation.component.AtlasPrimaryButton
 import com.atlaspeak.presentation.component.AtlasSecondaryButton
 import com.atlaspeak.presentation.component.AtlasTextField
+import com.atlaspeak.presentation.component.ExerciseIcon
 import com.atlaspeak.presentation.component.PremiumBackground
 import com.atlaspeak.presentation.component.PremiumCard
 import com.atlaspeak.presentation.component.PremiumIconBadge
@@ -865,13 +866,7 @@ private fun ExerciseCard(
             horizontalArrangement = Arrangement.spacedBy(spacing.sm),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            PremiumIconBadge(filled = false) {
-                Icon(
-                    imageVector = Icons.Filled.FitnessCenter,
-                    contentDescription = null,
-                    modifier = Modifier.size(22.dp),
-                )
-            }
+            ExerciseIcon(exerciseId = exercise.id, exerciseName = exercise.name)
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(spacing.xxs),
@@ -1065,6 +1060,11 @@ private fun DraftExerciseCard(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(spacing.xs),
             ) {
+                ExerciseIcon(
+                    exerciseId = item.exerciseId,
+                    exerciseName = item.exerciseName,
+                    size = 36.dp,
+                )
                 Text(
                     modifier = Modifier.weight(1f),
                     text = stringResource(R.string.workout_ordered_exercise, index + 1, item.exerciseName),
@@ -1232,24 +1232,34 @@ private fun RoutineDetailCard(
                 EmptyState(R.string.workout_routine_draft_empty)
             } else {
                 routine.exercises.forEach { exercise ->
-                    Column(verticalArrangement = Arrangement.spacedBy(spacing.xxs)) {
-                        Text(
-                            text = stringResource(
-                                R.string.workout_routine_exercise_line,
-                                exercise.orderIndex + 1,
-                                exercise.exerciseName,
-                                exercise.sets,
-                                exercise.reps,
-                                exercise.restSeconds,
-                            ),
-                            style = MaterialTheme.typography.bodyMedium,
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        ExerciseIcon(
+                            exerciseId = exercise.exerciseId,
+                            exerciseName = exercise.exerciseName,
+                            size = 36.dp,
                         )
-                        exercise.notes?.let { notes ->
+                        Column(verticalArrangement = Arrangement.spacedBy(spacing.xxs)) {
                             Text(
-                                text = notes,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = atlasColors.ink3,
+                                text = stringResource(
+                                    R.string.workout_routine_exercise_line,
+                                    exercise.orderIndex + 1,
+                                    exercise.exerciseName,
+                                    exercise.sets,
+                                    exercise.reps,
+                                    exercise.restSeconds,
+                                ),
+                                style = MaterialTheme.typography.bodyMedium,
                             )
+                            exercise.notes?.let { notes ->
+                                Text(
+                                    text = notes,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = atlasColors.ink3,
+                                )
+                            }
                         }
                     }
                 }
@@ -1311,10 +1321,20 @@ private fun WorkoutSessionDetailCard(session: com.atlaspeak.domain.model.workout
         ) {
             SectionTitle(R.string.workout_history_detail_title)
             session.exercises.forEach { exercise ->
-                Text(
-                    text = exercise.exerciseName,
-                    style = MaterialTheme.typography.titleSmall,
-                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(spacing.sm),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    ExerciseIcon(
+                        exerciseId = exercise.exerciseId,
+                        exerciseName = exercise.exerciseName,
+                        size = 36.dp,
+                    )
+                    Text(
+                        text = exercise.exerciseName,
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                }
                 exercise.sets.forEach { set ->
                     Text(
                         text = stringResource(

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Jalon al pecho: sentado, tirando de una barra ancha hacia el pecho desde una polea alta. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- asiento y muslo -->
+    <path
+        android:pathData="M16,37 L18,35 L28,33"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+    <!-- tronco -->
+    <path
+        android:pathData="M18,35 L18,22"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round" />
+    <!-- cabeza -->
+    <path
+        android:pathData="M18,18 m-3.5,0 a3.5,3.5 0 1,1 7,0 a3.5,3.5 0 1,1 -7,0"
+        android:fillColor="#FFFFFFFF" />
+    <!-- polea alta -->
+    <path
+        android:pathData="M22,7 m-2,0 a2,2 0 1,1 4,0 a2,2 0 1,1 -4,0"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2" />
+    <!-- cable hasta el centro de la barra -->
+    <path
+        android:pathData="M22,9 L22,13"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round" />
+    <!-- barra ancha -->
+    <path
+        android:pathData="M10,13 L34,13"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+    <!-- brazos muy abiertos hasta los extremos de la barra -->
+    <path
+        android:pathData="M19,22 L11,14 M19,22 L33,14"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round" />
+</vector>

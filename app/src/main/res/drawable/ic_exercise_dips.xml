@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Fondos en paralelas: brazos apoyados en las barras, torso inclinado al frente, rodillas dobladas atras. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- cabeza -->
+    <path
+        android:pathData="M27,10 m-3.5,0 a3.5,3.5 0 1,1 7,0 a3.5,3.5 0 1,1 -7,0"
+        android:fillColor="#FFFFFFFF" />
+    <!-- tronco inclinado -->
+    <path
+        android:pathData="M26,13 L24,26"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round" />
+    <!-- brazo apoyado en la barra -->
+    <path
+        android:pathData="M25,14 L18,27"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round" />
+    <!-- pierna doblada atras -->
+    <path
+        android:pathData="M24,26 L31,29 L35,22"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- barras de agarre, cercana y lejana -->
+    <path
+        android:pathData="M14,27 L22,27 M26,27 L34,27"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+    <!-- postes de soporte -->
+    <path
+        android:pathData="M18,27 L18,43 M30,27 L30,43"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+</vector>

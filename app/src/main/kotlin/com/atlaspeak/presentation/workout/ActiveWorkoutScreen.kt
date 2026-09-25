@@ -93,6 +93,7 @@ import com.atlaspeak.presentation.component.AtlasBottomSheet
 import com.atlaspeak.presentation.component.AtlasDialog
 import com.atlaspeak.presentation.component.AtlasPrimaryButton
 import com.atlaspeak.presentation.component.AtlasSecondaryButton
+import com.atlaspeak.presentation.component.ExerciseIcon
 import com.atlaspeak.presentation.component.PremiumBackground
 import com.atlaspeak.presentation.component.PremiumCard
 import com.atlaspeak.presentation.theme.LocalAtlasColors
@@ -600,6 +601,7 @@ private fun ExercisePage(
                         horizontalArrangement = Arrangement.spacedBy(spacing.sm),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
+                        ExerciseIcon(exerciseId = exercise.exerciseId, exerciseName = exercise.exerciseName)
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = exercise.exerciseName,
@@ -1059,8 +1061,10 @@ private fun AddExerciseDialog(
                             .background(if (alreadyAdded) atlasColors.fillSoft else atlasColors.surface2)
                             .clickable(enabled = !alreadyAdded) { onPick(exercise.id) }
                             .padding(spacing.sm),
+                        horizontalArrangement = Arrangement.spacedBy(spacing.sm),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
+                        ExerciseIcon(exerciseId = exercise.id, exerciseName = exercise.name)
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
                                 text = exercise.name,

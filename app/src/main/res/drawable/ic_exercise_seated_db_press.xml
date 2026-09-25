@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Press de hombros sentado: en banco con respaldo, dos mancuernas por encima de la cabeza. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- suelo -->
+    <path
+        android:pathData="M6,43 L42,43"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeAlpha="0.45"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+    <!-- cabeza -->
+    <path
+        android:pathData="M24,9.5 m-3.5,0 a3.5,3.5 0 1,1 7,0 a3.5,3.5 0 1,1 -7,0"
+        android:fillColor="#FFFFFFFF" />
+    <!-- tronco -->
+    <path
+        android:pathData="M24,13 L24,29"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round" />
+    <!-- banco: asiento y respaldo -->
+    <path
+        android:pathData="M14,41 L34,41 M27,41 L27,16"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+    <!-- piernas sentado -->
+    <path
+        android:pathData="M15,41 L18,34 L24,29 L30,34 L33,41"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- brazos presionando hacia arriba -->
+    <path
+        android:pathData="M24,16 L16,22 L15,10 M24,16 L32,22 L33,10"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- barras de las mancuernas -->
+    <path
+        android:pathData="M12,10 L18,10 M30,10 L36,10"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+    <!-- discos de las mancuernas -->
+    <path
+        android:pathData="M12,7.5 L12,12.5 M18,7.5 L18,12.5 M30,7.5 L30,12.5 M36,7.5 L36,12.5"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round" />
+</vector>

@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Hack squat en maquina: riel diagonal para la espalda, figura sentadilla con espalda apoyada, pies en plataforma inclinada. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <!-- riel diagonal de la maquina, pegado a la espalda -->
+    <path
+        android:pathData="M18,32 L29,13"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeAlpha="0.6"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+    <!-- plataforma inclinada para los pies -->
+    <path
+        android:pathData="M26,39 L35,37"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+    <!-- cabeza -->
+    <path
+        android:pathData="M26,11.5 m-3.5,0 a3.5,3.5 0 1,1 7,0 a3.5,3.5 0 1,1 -7,0"
+        android:fillColor="#FFFFFFFF" />
+    <!-- tronco, muslo (paralelo al suelo), pierna y pie (espalda contra el riel) -->
+    <path
+        android:pathData="M25,16 L20,26 L29,28 L27,39 L32,39"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- indicio de la almohadilla de hombro -->
+    <path
+        android:pathData="M24,14 L27,16"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round" />
+    <!-- brazos sujetando las asas -->
+    <path
+        android:pathData="M23,19 L18,21"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round" />
+</vector>
