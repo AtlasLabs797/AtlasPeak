@@ -63,10 +63,10 @@ reflejados en `SPEC.md v2.2`, `AGENTS.md §8-9`, el manifest y el catálogo de v
 - **Prevencion:** no reintroducir EncryptedSharedPreferences; cualquier fallo de clave debe acabar en Recovery, no en una clave nueva.
 
 ### SEC-042 - SQLCipher con baseline antiguo de SQLite
-- **Estado:** Resuelto (requiere verificacion en dispositivo)
+- **Estado:** Abierto (bloqueado: la subida requiere actualizar `gradle/verification-metadata.xml`)
 - **Fecha:** 2026-09-25
 - **Severidad:** Media
-- **Solucion:** `sqlcipher-android` 4.6.1 -> 4.11.0 (ultima serie con `androidx.sqlite` 2.2.0, compatible con Room 2.6.1).
+- **Solucion prevista:** `sqlcipher-android` 4.6.1 -> 4.11.0 (ultima serie con `androidx.sqlite` 2.2.0, compatible con Room 2.6.1). El CI fallo por verificacion de dependencias; se revirtio a 4.6.1 hasta que el propietario regenere los checksums (`./gradlew --write-verification-metadata sha256 help`) y revise el diff.
 - **Prevencion:** Dependabot + revisar el POM (dependencias transitivas) antes de cada subida de SQLCipher.
 
 ### SEC-041 - Release firmado podia salir sin secretos reales

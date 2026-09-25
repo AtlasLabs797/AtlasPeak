@@ -27,10 +27,9 @@ hiltWork = "1.2.0"
 
 # Persistencia
 room = "2.6.1"
-# 4.11.0: última serie cuyo POM sigue pidiendo androidx.sqlite 2.2.0 (compatible con
-# Room 2.6.1 / sqlite-ktx 2.4.0 de este proyecto). 4.14+ sube a androidx.sqlite 2.6/2.7
-# y 4.18+ a kotlin-stdlib 2.2.10, ambos fuera de lo que este stack soporta hoy.
-sqlcipher = "4.11.0"
+# Pendiente SEC-042: subir a 4.11.0 (ultima serie con androidx.sqlite 2.2.0) requiere
+# actualizar gradle/verification-metadata.xml con sus checksums; hasta entonces, 4.6.1.
+sqlcipher = "4.6.1"
 sqlite = "2.4.0"
 
 # Seguridad
