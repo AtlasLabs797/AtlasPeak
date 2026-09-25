@@ -11,18 +11,24 @@ import com.atlaspeak.domain.repository.CardioRepository
 import com.atlaspeak.domain.usecase.workout.ActiveSessionStartResult
 import java.util.UUID
 import javax.inject.Inject
+import javax.inject.Singleton
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.math.sqrt
 
+@Singleton
 class CardioUseCase(
     private val repository: CardioRepository,
     private val bodyCompositionRepository: BodyCompositionRepository,
     private val now: () -> Long,
     private val idProvider: () -> String = { UUID.randomUUID().toString() },
 ) {
+    private val routeMutationMutex = Mutex()
+
     @Inject
     constructor(
         repository: CardioRepository,
@@ -101,18 +107,18 @@ class CardioUseCase(
         point: LocationPoint,
         accuracyMeters: Float?,
         previousAcceptedPoint: LocationPoint?,
-    ): CardioRoutePoint? {
-        val session = repository.session(sessionId) ?: return null
+    ): CardioRoutePoint? = routeMutationMutex.withLock {
+        val session = repository.session(sessionId) ?: return@withLock null
         val maxSpeedKmh = session.reasonableMaxSpeedKmh()
-        if (!point.isValidCoordinate()) return null
-        if (accuracyMeters != null && accuracyMeters <= 0f) return null
+        if (!point.isValidCoordinate()) return@withLock null
+        if (accuracyMeters != null && accuracyMeters <= 0f) return@withLock null
         val previous = previousAcceptedPoint
             ?: repository.routePoints(sessionId)
                 .maxByOrNull { it.timestampMs }
                 ?.toLocationPoint()
         if (previous != null) {
-            if (point.timestamp <= previous.timestamp) return null
-            if (previous.segmentSpeedKmh(point) > maxSpeedKmh) return null
+            if (point.timestamp <= previous.timestamp) return@withLock null
+            if (previous.segmentSpeedKmh(point) > maxSpeedKmh) return@withLock null
         }
         val incrementalKm = previous?.let { it.distanceTo(point) } ?: 0.0
         val persisted = CardioRoutePoint(
@@ -125,7 +131,7 @@ class CardioUseCase(
             speedKmh = null,
             distanceFromPreviousKm = incrementalKm,
         )
-        return if (repository.addRoutePointIfSessionActive(persisted)) persisted else null
+        if (repository.addRoutePointIfSessionActive(persisted)) persisted else null
     }
 
     /**
@@ -144,8 +150,8 @@ class CardioUseCase(
         endedAt: Long = System.currentTimeMillis(),
         manualDistanceKm: Double?,
         manualAvgSpeedKmh: Double? = null,
-    ): CardioSession? {
-        val session = repository.session(sessionId) ?: return null
+    ): CardioSession? = routeMutationMutex.withLock {
+        val session = repository.session(sessionId) ?: return@withLock null
         val restored = restoreRoute(sessionId)
         // BUG-094 (Fase 5 P1): la duracion efectiva sale del helper de
         // dominio (`effectiveElapsedSeconds`) que ya resta el tiempo en
@@ -164,7 +170,7 @@ class CardioUseCase(
         } else {
             null
         }
-        if (distanceKm == null || avgSpeed == null || avgSpeed > maxSpeedKmh) return null
+        if (distanceKm == null || avgSpeed == null || avgSpeed > maxSpeedKmh) return@withLock null
         val weightKg = latestBodyWeightKg() ?: FALLBACK_WEIGHT_KG
         val completed = session.copy(
             endTime = endedAt,
@@ -180,7 +186,7 @@ class CardioUseCase(
         // y los puntos en vuelo se borran, todo dentro de una sola transaccion de
         // base de datos. BUG-091 / Fase 2 P0.
         repository.finalizeCardioSessionRoute(completed)
-        return completed
+        completed
     }
 
     private suspend fun latestBodyWeightKg(): Double? {
