@@ -80,8 +80,8 @@ class RoomCardioRepository @Inject constructor(
         return database.withTransaction {
             val active = database.cardioDao().getActiveCardioSession()
             if (active != null) {
-                val workout = database.workoutDao().getSession(active.sessionId)
-                if (workout != null) active.toDomain(workout) else session
+                val workout = requireNotNull(database.workoutDao().getSession(active.sessionId))
+                active.toDomain(workout)
             } else {
                 database.workoutDao().upsertSession(session.toWorkoutSessionEntity())
                 database.cardioDao().upsertCardioSession(session.toEntity())
@@ -106,6 +106,18 @@ class RoomCardioRepository @Inject constructor(
 
     override suspend fun addRoutePoint(point: CardioRoutePoint) {
         database.cardioRoutePointDao().upsert(point.toEntity())
+    }
+
+    override suspend fun addRoutePointIfSessionActive(point: CardioRoutePoint): Boolean {
+        return database.withTransaction {
+            val session = database.workoutDao().getSession(point.sessionId)
+            if (session == null || session.completed) {
+                false
+            } else {
+                database.cardioRoutePointDao().upsert(point.toEntity())
+                true
+            }
+        }
     }
 
     override suspend fun routePoints(sessionId: String): List<CardioRoutePoint> {
