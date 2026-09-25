@@ -1,6 +1,7 @@
 package com.atlaspeak.data.db
 
 import androidx.room.Room
+import androidx.room.withTransaction
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.atlaspeak.data.db.entity.CardioRoutePointEntity
@@ -8,6 +9,7 @@ import com.atlaspeak.data.db.entity.CardioSessionEntity
 import com.atlaspeak.data.db.entity.CardioTypeEntity
 import com.atlaspeak.data.db.entity.WorkoutSessionEntity
 import com.atlaspeak.data.repository.RoomCardioRepository
+import com.atlaspeak.domain.model.cardio.CardioRoutePoint
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -127,31 +129,31 @@ class CardioRoutePointsInstrumentedTest {
     }
 
     private fun point(id: String, timestampMs: Long, lat: Double, lon: Double, distKm: Double) =
-        CardioRoutePointEntity(
+        CardioRoutePoint(
             id = id,
             sessionId = sessionId,
             timestampMs = timestampMs,
             latitude = lat,
             longitude = lon,
-            accuracyM = 5f,
+            accuracyMeters = 5f,
             speedKmh = null,
             distanceFromPreviousKm = distKm,
         )
 
     private fun seedSession(database: AppDatabase, sessionId: String) {
-        database.cardioDao().upsertCardioType(
-            CardioTypeEntity(
-                id = "run",
-                nameEs = "Run",
-                nameEn = "Run",
-                hasGps = true,
-                iconName = "directions_run",
-                isPreset = true,
-                isArchived = false,
-            ),
-        )
         runBlocking {
             database.withTransaction {
+                database.cardioDao().upsertCardioType(
+                    CardioTypeEntity(
+                        id = "run",
+                        nameEs = "Run",
+                        nameEn = "Run",
+                        hasGps = true,
+                        iconName = "directions_run",
+                        isPreset = true,
+                        isArchived = false,
+                    ),
+                )
                 database.workoutDao().upsertSession(
                     WorkoutSessionEntity(
                         id = sessionId,
