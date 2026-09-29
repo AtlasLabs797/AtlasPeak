@@ -10,6 +10,31 @@
 
 ## [Unreleased]
 
+### 2026-09-29 - Merge PRs #19 y #18 (bumps Dependabot con verification-metadata)
+
+**Cambiado**
+- PR #19: `androidx.security:security-crypto` 1.1.0-alpha06 → 1.1.0 (estable Jul-2025).
+  Uso en app: `DatabasePassphraseProvider` (MasterKey + EncryptedSharedPreferences), sin
+  cambios de API. Arrastra `collection-jvm` 1.4.2 como transitivo.
+- PR #18: `androidx.work` 2.10.0 → 2.12.0 (runtime-ktx + testing). OJO: por resolución
+  transitiva el runtime efectivo de Room sube 2.6.1 → 2.7.0 y sqlite 2.4.0 → 2.5.0
+  (incluye el split KMP `-android` + identidades `-release.aar`, y `room-testing` /
+  `room-migration` 2.7.0 en el grafo androidTest); el catálogo (`room`, `sqlite`, `ksp`)
+  se deja intacto a propósito — cambio quirúrgico, sin scope creep.
+- `gradle/verification-metadata.xml`: añadidos los checksums de todos los artefactos
+  nuevos que el CI fue pidiendo por oleadas (4 en total). Cada hash se cruzó contra el
+  `.sha1` publicado en Google Maven / Maven Central antes de añadirlo.
+
+**Verificado**
+- CI en verde en ambos PRs tras los checksums: `assembleDebug`,
+  `assembleDebugAndroidTest`, `test`, cobertura domain+data y `lint` (build #19: 5m22s;
+  build #18 final: 4m0s). Los tests de migración Room pasan con runtime 2.7.0 +
+  compilador/KSP 2.6.1.
+- Sin SDK/JDK local en esta máquina: sin compilación local; la verificación es el CI
+  de cada PR (mismo precedente que la entrada 2026-09-25).
+- Pendientes y NO mergeados: #17 (JUnit 5→6, major), #20 (AGP 8→9, major) y #21
+  (Kotlin 2.1→2.4 sin su KSP a juego) — requieren tareas propias.
+
 ### 2026-09-25 - Correcciones de la revision del PR #16 y CI
 
 **Corregido**
